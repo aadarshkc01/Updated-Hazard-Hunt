@@ -4,7 +4,7 @@ import { User } from '../models/User.js';
 const generateToken = (id) => {
   return jwt.sign(
     { id },
-    process.env.JWT_SECRET || 'hazard_hunt_jwt_secure_key_2026_macro_thinkers',
+    process.env.JWT_SECRET,
     { expiresIn: process.env.JWT_EXPIRES_IN || '24h' }
   );
 };

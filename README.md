@@ -33,6 +33,8 @@ Open a terminal in the project directory:
 ```bash
 cd backend
 npm install   # If not already installed
+cp .env.example .env   # Windows: copy .env.example .env
+# Set a private JWT_SECRET in .env before sharing or deploying the app.
 npm start     # Runs on http://localhost:5000
 ```
 > **Note on Database Portability:** If no `MONGODB_URI` environment variable is defined in `backend/.env`, the backend automatically launches an embedded in-memory MongoDB store and seeds all default users, scenarios, and audit records.
@@ -45,6 +47,22 @@ npm install   # If not already installed
 npm run dev   # Runs on http://localhost:5173
 ```
 Open your browser and navigate to: `http://localhost:5173`
+
+### Install Both Applications from the Repository Root
+After cloning the repository, install both workspaces with:
+```bash
+npm run install:all
+```
+
+The repository includes `backend/.env.example` as a configuration template. Do not commit `backend/.env`; it is ignored by Git and should contain only local or deployment-specific values.
+
+### Production Build
+Build the frontend from the repository root with:
+```bash
+npm run build:frontend
+```
+
+Generated files in `frontend/dist/`, dependency folders, logs, local database files, and environment files are excluded by the root `.gitignore`.
 
 ---
 
