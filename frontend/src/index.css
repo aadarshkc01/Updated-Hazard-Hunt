@@ -1,0 +1,34 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    font-size: 108%;
+  }
+
+  body {
+    @apply transition-colors duration-200 antialiased min-h-screen text-base bg-mist-50 text-mist-900;
+  }
+
+  html.dark body {
+    @apply bg-dark-bg text-dark-text;
+  }
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  @apply bg-mist-300 dark:bg-dark-border rounded-full;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  @apply bg-mist-400 dark:bg-mist-600;
+}
