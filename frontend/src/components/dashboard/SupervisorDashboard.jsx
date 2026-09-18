@@ -3,6 +3,8 @@ import { api } from '../../services/api';
 import { useToast } from '../../context/ToastContext';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
+import { ConfirmModal } from '../common/ConfirmModal';
+import { UserAuditModal } from '../common/UserAuditModal';
 import { soundEngine } from '../../utils/audio';
 import {
   Users, Award, CheckCircle2, XCircle, Clock, Download, UserPlus,
@@ -10,11 +12,11 @@ import {
   TrendingUp, TrendingDown, ChevronRight, X, FileText, Target, Sparkles,
   AlertTriangle, Activity, Filter, Eye, ChevronDown, LogOut, Moon, Sun,
   LayoutDashboard, LineChart, UserCheck, ArrowUpRight, ArrowDownRight,
-  Building2, Timer, Zap, Lock, Shield
+  Building2, Timer, Zap, Lock, Shield, Trash2
 } from 'lucide-react';
 
 // ── Animated Score Ring (CSS) ────────────────────────────────────────────────
-const ScoreRing = ({ score, size = 80, strokeWidth = 7, color = '#7A35FF' }) => {
+const ScoreRing = ({ score, size = 80, strokeWidth = 7, color = '#FF6115' }) => {
   const r = (size - strokeWidth * 2) / 2;
   const circumference = 2 * Math.PI * r;
   const progress = ((100 - score) / 100) * circumference;
@@ -37,16 +39,17 @@ const StatusChip = ({ status }) => {
     FAIL: 'bg-red-100 text-red-800 dark:bg-red-950/50 dark:text-red-300 border-red-200 dark:border-red-800',
     PENDING: 'bg-amber-100 text-amber-800 dark:bg-amber-950/50 dark:text-amber-300 border-amber-200 dark:border-amber-800',
   };
-  const icons = { PASS: '✓', FAIL: '✗', PENDING: '◷' };
+  const icons = { PASS: CheckCircle2, FAIL: XCircle, PENDING: Clock };
+  const StatusIcon = icons[status] || Clock;
   return (
     <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold border ${styles[status] || styles.PENDING}`}>
-      {icons[status]} {status}
+      <StatusIcon className="w-3 h-3" /> {status}
     </span>
   );
 };
 
 // ── Compact progress bar ─────────────────────────────────────────────────────
-const ProgressBar = ({ value, color = 'bg-violet-500', showLabel = true }) => (
+const ProgressBar = ({ value, color = 'bg-primary-500', showLabel = true }) => (
   <div className="flex items-center gap-2">
     <div className="flex-1 h-2 bg-mist-100 dark:bg-dark-surface rounded-full overflow-hidden">
       <div className={`h-full ${color} rounded-full transition-all duration-700`} style={{ width: `${Math.min(100, value)}%` }} />
@@ -56,22 +59,17 @@ const ProgressBar = ({ value, color = 'bg-violet-500', showLabel = true }) => (
 );
 
 // ── KPI stat card ────────────────────────────────────────────────────────────
-const StatCard = ({ icon: Icon, label, value, sub, iconClass, trend }) => (
-  <div className="bg-white dark:bg-dark-card rounded-2xl p-5 shadow-card dark:shadow-card-dark border border-mist-300 dark:border-dark-border hover:-translate-y-0.5 transition-all duration-200">
-    <div className="flex items-start justify-between mb-2">
-      <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${iconClass}`}>
-        <Icon className="w-5 h-5" />
+const StatCard = ({ label, value, sub, trend }) => (
+  <div className="app-card relative flex min-h-[126px] flex-col p-5 transition-all duration-200 hover:border-primary-300 dark:hover:border-primary-700">
+    {trend !== undefined && (
+      <div className={`absolute right-5 top-5 flex items-center gap-0.5 text-[11px] font-bold ${trend >= 0 ? 'text-emerald-500' : 'text-red-500'}`}>
+        {trend >= 0 ? <ArrowUpRight className="w-3.5 h-3.5" /> : <ArrowDownRight className="w-3.5 h-3.5" />}
+        {Math.abs(trend)}%
       </div>
-      {trend !== undefined && (
-        <div className={`flex items-center gap-0.5 text-[11px] font-bold ${trend >= 0 ? 'text-emerald-500' : 'text-red-500'}`}>
-          {trend >= 0 ? <ArrowUpRight className="w-3.5 h-3.5" /> : <ArrowDownRight className="w-3.5 h-3.5" />}
-          {Math.abs(trend)}%
-        </div>
-      )}
-    </div>
-    <p className="text-2xl font-black text-mist-900 dark:text-white leading-none">{value}</p>
-    <p className="text-[10px] font-bold uppercase tracking-wider text-mist-500 dark:text-dark-muted mt-1">{label}</p>
-    {sub && <p className="text-[11px] text-mist-400 dark:text-dark-muted mt-1">{sub}</p>}
+    )}
+    <p className="min-h-[16px] text-[10px] font-bold uppercase tracking-wider text-mist-500 dark:text-dark-muted">{label}</p>
+    <p className="mt-2 text-2xl font-black leading-none text-mist-900 dark:text-white">{value}</p>
+    <p className="mt-auto min-h-[16px] text-[11px] text-mist-400 dark:text-dark-muted">{sub || '\u00A0'}</p>
   </div>
 );
 
@@ -103,6 +101,7 @@ export const SupervisorDashboard = () => {
 
   // Logout confirm
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
+  const [traineePendingDelete, setTraineePendingDelete] = useState(null);
 
   const fetchAllData = useCallback(async () => {
     try {
@@ -133,6 +132,23 @@ export const SupervisorDashboard = () => {
     showToast('Dashboard synced', 'info');
   };
 
+  const handleDeleteUser = async (userId, userName) => {
+    setTraineePendingDelete({ id: userId, name: userName });
+  };
+
+  const confirmDeleteUser = async () => {
+    if (!traineePendingDelete) return;
+    try {
+      await api.deleteUser(traineePendingDelete.id);
+      showToast(`Trainee ${traineePendingDelete.name} deleted successfully`, 'success');
+      fetchAllData();
+    } catch (err) {
+      showToast(err.message || 'Failed to delete trainee', 'error');
+    } finally {
+      setTraineePendingDelete(null);
+    }
+  };
+
   const handleExportCSV = async () => {
     soundEngine.playSuccess();
     try {
@@ -144,7 +160,7 @@ export const SupervisorDashboard = () => {
   };
 
   const handleInspectTrainee = async (trainee) => {
-    setSelectedTrainee(trainee);
+    setSelectedTrainee({ ...trainee, role: 'employee' });
     setAuditLoading(true);
     soundEngine.playTick();
     try {
@@ -164,7 +180,7 @@ export const SupervisorDashboard = () => {
     try {
       await api.createAccount({ name: newName, username: newUsername, password: newPassword, role: 'employee', department: newDept });
       soundEngine.playSuccess();
-      showToast(`✓ Employee account created for ${newName}`, 'success');
+      showToast(`Employee account created for ${newName}`, 'success');
       setNewName(''); setNewUsername(''); setNewPassword('');
       setIsCreateModalOpen(false);
       fetchAllData();
@@ -200,7 +216,7 @@ export const SupervisorDashboard = () => {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-14">
             <div className="flex items-center gap-3">
-              <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-blue-600 to-cyan-500 flex items-center justify-center">
+              <div className="w-8 h-8 rounded-xl bg-primary-500 flex items-center justify-center">
                 <ShieldCheck className="w-4 h-4 text-white" />
               </div>
               <div>
@@ -216,18 +232,18 @@ export const SupervisorDashboard = () => {
               )}
               <button onClick={handleRefresh}
                 className="p-2 rounded-xl hover:bg-mist-100 dark:hover:bg-dark-surface text-mist-600 dark:text-dark-muted transition-colors">
-                <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin text-blue-500' : ''}`} />
+                <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin text-primary-500' : ''}`} />
               </button>
               <button onClick={toggleTheme}
                 className="p-2 rounded-xl hover:bg-mist-100 dark:hover:bg-dark-surface text-mist-600 dark:text-dark-muted transition-colors">
                 {isDark ? <Sun className="w-4 h-4 text-amber-400" /> : <Moon className="w-4 h-4" />}
               </button>
               <button onClick={handleExportCSV}
-                className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-mist-100 dark:bg-dark-surface text-mist-800 dark:text-white text-xs font-semibold border border-mist-300 dark:border-dark-border hover:border-blue-500/40 transition-colors">
-                <Download className="w-3.5 h-3.5 text-blue-500" /> Export CSV
+                className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-mist-100 dark:bg-dark-surface text-mist-800 dark:text-white text-xs font-semibold border border-mist-300 dark:border-dark-border hover:border-primary-500/40 transition-colors">
+                <Download className="w-3.5 h-3.5 text-primary-500" /> Export CSV
               </button>
               <button onClick={() => setIsCreateModalOpen(true)}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-blue-500 hover:bg-blue-600 text-white text-xs font-bold shadow-sm transition-all">
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-primary-500 hover:bg-primary-600 text-white text-xs font-bold shadow-sm transition-all">
                 <UserPlus className="w-3.5 h-3.5" /> Add Trainee
               </button>
               <button onClick={() => setShowLogoutConfirm(true)}
@@ -243,7 +259,7 @@ export const SupervisorDashboard = () => {
               <button key={id} onClick={() => setActiveTab(id)}
                 className={`flex items-center gap-1.5 px-4 py-2.5 text-xs font-semibold whitespace-nowrap border-b-2 transition-all ${
                   activeTab === id
-                    ? 'border-blue-500 text-blue-600 dark:text-blue-400'
+                    ? 'border-primary-500 text-primary-600 dark:text-primary-400'
                     : 'border-transparent text-mist-500 dark:text-dark-muted hover:text-mist-800 dark:hover:text-white'
                 }`}>
                 <Icon className="w-3.5 h-3.5" /> {label}
@@ -260,14 +276,12 @@ export const SupervisorDashboard = () => {
           <div className="space-y-6 animate-fade-in">
 
             {/* Hero section */}
-            <div className="bg-gradient-to-r from-blue-600 via-blue-500 to-cyan-500 rounded-3xl p-6 text-white shadow-lg relative overflow-hidden">
-              <div className="absolute inset-0 opacity-10"
-                style={{ backgroundImage: 'radial-gradient(circle at 20% 50%, rgba(255,255,255,0.3) 0%, transparent 50%)' }} />
+            <div className="bg-primary-600 rounded-xl p-6 text-white shadow-sm relative overflow-hidden">
               <div className="relative flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
                 <div>
-                  <p className="text-blue-200 text-xs font-semibold uppercase tracking-widest mb-1">Real-Time Team Compliance Monitor</p>
+                  <p className="text-primary-100 text-xs font-semibold uppercase tracking-widest mb-1">Real-Time Team Compliance Monitor</p>
                   <h1 className="text-2xl font-black tracking-tight mb-2">HSE Supervisor Dashboard</h1>
-                  <p className="text-blue-100 text-sm max-w-lg">
+                  <p className="text-primary-100 text-sm max-w-lg">
                     Monitor your team's 360° hazard training sessions, track compliance status, and identify risk patterns in real time.
                   </p>
                 </div>
@@ -286,7 +300,7 @@ export const SupervisorDashboard = () => {
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
               <StatCard icon={Users} label="Total Trainees" value={stats.totalEmployees ?? 0}
                 sub="Registered employees"
-                iconClass="bg-blue-100 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400" />
+                iconClass="bg-mist-100 dark:bg-dark-surface text-mist-600 dark:text-dark-muted" />
               <StatCard icon={CheckCircle2} label="Passed" value={stats.passedCount ?? 0}
                 sub={`${stats.passRatePercentage ?? 0}% pass rate`}
                 iconClass="bg-emerald-100 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400"
@@ -296,13 +310,13 @@ export const SupervisorDashboard = () => {
                 iconClass="bg-red-100 dark:bg-red-950/40 text-red-600 dark:text-red-400" />
               <StatCard icon={Award} label="Avg. Score" value={`${stats.averageScorePercentage ?? 0}%`}
                 sub="Official sessions only"
-                iconClass="bg-violet-100 dark:bg-violet-950/40 text-violet-600 dark:text-violet-400" />
+                iconClass="bg-primary-100 dark:bg-primary-950/40 text-primary-600 dark:text-primary-400" />
             </div>
 
             {/* Compliance progress bar display */}
             <div className="bg-white dark:bg-dark-card rounded-2xl shadow-card dark:shadow-card-dark border border-mist-300 dark:border-dark-border p-5">
               <h3 className="text-sm font-bold text-mist-900 dark:text-white mb-4 flex items-center gap-2">
-                <Activity className="w-4 h-4 text-blue-500" /> Team Compliance Breakdown
+                <span className="w-1.5 h-1.5 rounded-full bg-primary-500" /> Team Compliance Breakdown
               </h3>
               <div className="space-y-4">
                 {[
@@ -328,10 +342,10 @@ export const SupervisorDashboard = () => {
             <div className="bg-white dark:bg-dark-card rounded-2xl shadow-card dark:shadow-card-dark border border-mist-300 dark:border-dark-border overflow-hidden">
               <div className="flex items-center justify-between px-5 py-3.5 border-b border-mist-200 dark:border-dark-border bg-mist-50/50 dark:bg-dark-surface/30">
                 <h3 className="text-sm font-bold text-mist-900 dark:text-white flex items-center gap-2">
-                  <UserCheck className="w-4 h-4 text-blue-500" /> Recent Trainee Activity
+                  <span className="w-1.5 h-1.5 rounded-full bg-primary-500" /> Recent Trainee Activity
                 </h3>
                 <button onClick={() => setActiveTab('trainees')}
-                  className="text-xs text-blue-500 hover:text-blue-700 font-semibold flex items-center gap-0.5">
+                  className="text-xs text-primary-500 hover:text-primary-700 font-semibold flex items-center gap-0.5">
                   View All <ChevronRight className="w-3.5 h-3.5" />
                 </button>
               </div>
@@ -340,7 +354,7 @@ export const SupervisorDashboard = () => {
                   <div key={e.id} className="flex items-center justify-between px-5 py-3.5 hover:bg-mist-50/50 dark:hover:bg-dark-surface/20 transition-colors cursor-pointer group"
                     onClick={() => handleInspectTrainee(e)}>
                     <div className="flex items-center gap-3 min-w-0">
-                      <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-blue-500 to-violet-600 text-white text-xs font-bold flex items-center justify-center flex-shrink-0">
+                      <div className="w-8 h-8 rounded-xl bg-primary-500 text-white text-xs font-bold flex items-center justify-center flex-shrink-0">
                         {e.name.charAt(0)}
                       </div>
                       <div className="min-w-0">
@@ -353,7 +367,7 @@ export const SupervisorDashboard = () => {
                       {e.latestScore !== null && (
                         <span className="text-xs font-bold text-mist-700 dark:text-white hidden sm:block">{e.latestScore}%</span>
                       )}
-                      <ChevronRight className="w-3.5 h-3.5 text-mist-400 group-hover:text-blue-500 transition-colors" />
+                      <ChevronRight className="w-3.5 h-3.5 text-mist-400 group-hover:text-primary-500 transition-colors" />
                     </div>
                   </div>
                 ))}
@@ -377,22 +391,22 @@ export const SupervisorDashboard = () => {
                 <Search className="w-4 h-4 text-mist-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
                 <input type="text" placeholder="Search trainees by name, username, department…"
                   value={searchTerm} onChange={e => setSearchTerm(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2.5 text-xs rounded-xl border border-mist-300 dark:border-dark-border bg-white dark:bg-dark-card text-mist-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500/40 focus:border-blue-500 transition-all" />
+                  className="w-full pl-10 pr-4 py-2.5 text-xs rounded-xl border border-mist-300 dark:border-dark-border bg-white dark:bg-dark-card text-mist-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary-500/40 focus:border-primary-500 transition-all" />
               </div>
               <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)}
-                className="px-3.5 py-2.5 text-xs rounded-xl border border-mist-300 dark:border-dark-border bg-white dark:bg-dark-card text-mist-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500/40">
+                className="px-3.5 py-2.5 text-xs rounded-xl border border-mist-300 dark:border-dark-border bg-white dark:bg-dark-card text-mist-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary-500/40">
                 <option value="ALL">All Statuses</option>
                 <option value="PASS">Passed</option>
                 <option value="FAIL">Failed</option>
                 <option value="PENDING">Pending</option>
               </select>
               <button onClick={() => setIsCreateModalOpen(true)}
-                className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-blue-500 hover:bg-blue-600 text-white text-xs font-bold shadow-sm transition-all whitespace-nowrap">
+                className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-primary-500 hover:bg-primary-600 text-white text-xs font-bold shadow-sm transition-all whitespace-nowrap">
                 <UserPlus className="w-3.5 h-3.5" /> New Employee
               </button>
               <button onClick={handleExportCSV}
-                className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-mist-100 dark:bg-dark-surface text-mist-800 dark:text-white text-xs font-semibold border border-mist-300 dark:border-dark-border hover:border-blue-500/40 transition-colors whitespace-nowrap">
-                <Download className="w-3.5 h-3.5 text-blue-500" /> Export CSV
+                className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-mist-100 dark:bg-dark-surface text-mist-800 dark:text-white text-xs font-semibold border border-mist-300 dark:border-dark-border hover:border-primary-500/40 transition-colors whitespace-nowrap">
+                <Download className="w-3.5 h-3.5 text-primary-500" /> Export CSV
               </button>
             </div>
 
@@ -408,15 +422,15 @@ export const SupervisorDashboard = () => {
                       <th className="py-3 px-4 font-bold hidden md:table-cell">Hazards Found</th>
                       <th className="py-3 px-4 font-bold hidden lg:table-cell">Sessions</th>
                       <th className="py-3 px-4 font-bold hidden lg:table-cell">Last Attempt</th>
-                      <th className="py-3 px-4 font-bold">Audit</th>
+                      <th className="py-3 px-4 font-bold">Actions</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-mist-100 dark:divide-dark-border text-xs">
                     {filteredTeam.map(e => (
-                      <tr key={e.id} className="hover:bg-blue-50/30 dark:hover:bg-blue-950/10 transition-colors group">
+                      <tr key={e.id} className="hover:bg-primary-50/30 dark:hover:bg-primary-950/10 transition-colors group">
                         <td className="py-3.5 px-5">
                           <div className="flex items-center gap-2.5">
-                            <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-blue-500 to-violet-600 text-white text-xs font-bold flex items-center justify-center flex-shrink-0">
+                            <div className="w-8 h-8 rounded-xl bg-primary-500 text-white text-xs font-bold flex items-center justify-center flex-shrink-0">
                               {e.name.charAt(0)}
                             </div>
                             <div>
@@ -450,10 +464,15 @@ export const SupervisorDashboard = () => {
                         <td className="py-3.5 px-4 hidden lg:table-cell font-mono text-mist-400 dark:text-dark-muted text-[11px]">
                           {e.lastAttemptDate ? new Date(e.lastAttemptDate).toLocaleDateString('en-GB') : '—'}
                         </td>
-                        <td className="py-3.5 px-4">
+                        <td className="py-3.5 px-4 flex gap-2 items-center">
                           <button onClick={() => handleInspectTrainee(e)}
-                            className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-mist-100 dark:bg-dark-surface hover:bg-blue-100 dark:hover:bg-blue-950/40 text-mist-600 dark:text-dark-muted hover:text-blue-700 dark:hover:text-blue-300 text-[10px] font-bold transition-colors group-hover:border-blue-200">
+                            className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-mist-100 dark:bg-dark-surface hover:bg-primary-50 dark:hover:bg-primary-950/40 text-mist-600 dark:text-dark-muted hover:text-primary-700 dark:hover:text-primary-300 text-[10px] font-bold transition-colors group-hover:border-primary-200">
                             <Eye className="w-3 h-3" /> View
+                          </button>
+                          <button onClick={(event) => { event.stopPropagation(); handleDeleteUser(e.id, e.name); }}
+                            className="p-1.5 rounded-lg text-mist-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 transition-colors"
+                            title="Delete Trainee">
+                            <Trash2 className="w-4 h-4" />
                           </button>
                         </td>
                       </tr>
@@ -483,35 +502,30 @@ export const SupervisorDashboard = () => {
           <div className="space-y-5 animate-fade-in">
             {/* Summary row */}
             <div className="grid sm:grid-cols-3 gap-4">
-              <div className="bg-white dark:bg-dark-card rounded-2xl border border-mist-300 dark:border-dark-border p-5 shadow-card">
+              <div className="app-card p-5">
                 <p className="text-[11px] uppercase font-bold tracking-wider text-mist-500 dark:text-dark-muted mb-1">Total Audit Sessions</p>
-                <p className="text-3xl font-black text-mist-900 dark:text-white">{analytics?.totalAudits ?? 0}</p>
+                <p className="text-2xl font-black text-mist-900 dark:text-white">{analytics?.totalAudits ?? 0}</p>
                 <p className="text-[11px] text-mist-400 mt-1">Official + practice combined</p>
               </div>
-              <div className="bg-white dark:bg-dark-card rounded-2xl border border-mist-300 dark:border-dark-border p-5 shadow-card">
+              <div className="app-card p-5">
                 <p className="text-[11px] uppercase font-bold tracking-wider text-mist-500 dark:text-dark-muted mb-1">Avg. Session Time</p>
-                <p className="text-3xl font-black text-mist-900 dark:text-white">
+                <p className="text-2xl font-black text-mist-900 dark:text-white">
                   {analytics?.avgTimeTakenSeconds ?? 0}<span className="text-base font-medium ml-1">sec</span>
                 </p>
                 <p className="text-[11px] text-mist-400 mt-1">Time to complete 360° inspection</p>
               </div>
-              <div className="bg-white dark:bg-dark-card rounded-2xl border border-mist-300 dark:border-dark-border p-5 shadow-card">
+              <div className="app-card p-5">
                 <p className="text-[11px] uppercase font-bold tracking-wider text-mist-500 dark:text-dark-muted mb-1">Avg. False Clicks</p>
-                <p className="text-3xl font-black text-mist-900 dark:text-white">{analytics?.avgFalseClicksCount ?? 0}</p>
+                <p className="text-2xl font-black text-mist-900 dark:text-white">{analytics?.avgFalseClicksCount ?? 0}</p>
                 <p className="text-[11px] text-mist-400 mt-1">Penalty clicks per session (avg)</p>
               </div>
             </div>
 
             {/* Category miss rate analysis */}
-            <div className="bg-white dark:bg-dark-card rounded-2xl shadow-card dark:shadow-card-dark border border-mist-300 dark:border-dark-border p-5">
-              <div className="flex items-center gap-2.5 mb-5">
-                <div className="w-9 h-9 rounded-xl bg-amber-100 dark:bg-amber-950/40 text-amber-600 dark:text-amber-400 flex items-center justify-center">
-                  <AlertTriangle className="w-5 h-5" />
-                </div>
-                <div>
-                  <p className="text-[11px] uppercase font-bold tracking-wider text-amber-500">Safety Intelligence</p>
-                  <h3 className="text-sm font-bold text-mist-900 dark:text-white">Hazard Category Vulnerability Map</h3>
-                </div>
+            <div className="app-card p-5">
+              <div className="mb-5">
+                <p className="text-[11px] uppercase font-bold tracking-wider text-primary-500">Safety analytics</p>
+                <h3 className="text-sm font-bold text-mist-900 dark:text-white mt-1">Hazard category vulnerability</h3>
               </div>
               {analytics?.categoryBreakdown?.length > 0 ? (
                 <div className="space-y-5">
@@ -519,7 +533,7 @@ export const SupervisorDashboard = () => {
                     <div key={cat.category}>
                       <div className="flex items-center justify-between mb-2">
                         <div className="flex items-center gap-2">
-                          <span className={`w-3 h-3 rounded-full flex-shrink-0 ${
+                          <span className={`w-2 h-2 rounded-full flex-shrink-0 ${
                             cat.riskLevel === 'CRITICAL' ? 'bg-red-500' :
                             cat.riskLevel === 'MEDIUM' ? 'bg-amber-500' : 'bg-emerald-500'
                           }`} />
@@ -536,7 +550,7 @@ export const SupervisorDashboard = () => {
                           }`}>{cat.riskLevel} · {cat.missRatePercentage}%</span>
                         </div>
                       </div>
-                      <div className="w-full h-3 bg-mist-100 dark:bg-dark-surface rounded-full overflow-hidden">
+                      <div className="w-full h-2 bg-mist-100 dark:bg-dark-surface rounded-full overflow-hidden">
                         <div className={`h-full rounded-full transition-all duration-700 ${
                           cat.riskLevel === 'CRITICAL' ? 'bg-red-500' :
                           cat.riskLevel === 'MEDIUM' ? 'bg-amber-500' : 'bg-emerald-500'
@@ -547,20 +561,19 @@ export const SupervisorDashboard = () => {
                 </div>
               ) : (
                 <div className="text-center py-16 text-mist-400 dark:text-dark-muted">
-                  <BarChart3 className="w-12 h-12 mx-auto mb-3 opacity-30" />
                   <p className="text-sm">Analytics data will populate once trainees complete sessions.</p>
                 </div>
               )}
             </div>
 
             {/* Score distribution */}
-            <div className="bg-white dark:bg-dark-card rounded-2xl shadow-card dark:shadow-card-dark border border-mist-300 dark:border-dark-border p-5">
-              <h3 className="text-sm font-bold text-mist-900 dark:text-white mb-4 flex items-center gap-2">
-                <BarChart3 className="w-4 h-4 text-violet-500" /> Score Distribution
+            <div className="app-card p-5">
+              <h3 className="text-sm font-bold text-mist-900 dark:text-white mb-4">
+                Score distribution
               </h3>
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                 {[
-                  { label: 'Distinction', range: '90–100%', value: analytics?.scoreDistribution?.distDistinction ?? 0, color: 'bg-purple-500', bg: 'bg-purple-50 dark:bg-purple-950/30 border-purple-200 dark:border-purple-800 text-purple-700 dark:text-purple-300' },
+                  { label: 'Distinction', range: '90–100%', value: analytics?.scoreDistribution?.distDistinction ?? 0, color: 'bg-primary-500', bg: 'bg-primary-50 dark:bg-primary-950/30 border-primary-200 dark:border-primary-800 text-primary-700 dark:text-primary-300' },
                   { label: 'Pass', range: '75–89%', value: analytics?.scoreDistribution?.distPass ?? 0, color: 'bg-emerald-500', bg: 'bg-emerald-50 dark:bg-emerald-950/30 border-emerald-200 dark:border-emerald-800 text-emerald-700 dark:text-emerald-300' },
                   { label: 'Near-Miss', range: '60–74%', value: analytics?.scoreDistribution?.distNearMiss ?? 0, color: 'bg-amber-500', bg: 'bg-amber-50 dark:bg-amber-950/30 border-amber-200 dark:border-amber-800 text-amber-700 dark:text-amber-300' },
                   { label: 'Fail', range: '<60%', value: analytics?.scoreDistribution?.distFail ?? 0, color: 'bg-red-500', bg: 'bg-red-50 dark:bg-red-950/30 border-red-200 dark:border-red-800 text-red-700 dark:text-red-300' },
@@ -577,152 +590,52 @@ export const SupervisorDashboard = () => {
         )}
       </div>
 
-      {/* ── TRAINEE AUDIT DRAWER ──────────────────────────────────────────── */}
-      {selectedTrainee && (
-        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-end sm:justify-center p-0 sm:p-4 bg-black/60 backdrop-blur-sm animate-fade-in">
-          <div className="bg-white dark:bg-dark-card w-full sm:max-w-lg sm:rounded-3xl shadow-2xl border border-mist-300 dark:border-dark-border overflow-hidden animate-slide-up max-h-screen sm:max-h-[90vh] flex flex-col">
-            {/* Drawer Header */}
-            <div className="bg-gradient-to-r from-blue-600 to-violet-600 p-5 text-white flex-shrink-0">
-              <div className="flex items-start justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="w-12 h-12 rounded-2xl bg-white/20 text-white text-lg font-black flex items-center justify-center">
-                    {selectedTrainee.name.charAt(0)}
-                  </div>
-                  <div>
-                    <h3 className="text-base font-bold">{selectedTrainee.name}</h3>
-                    <p className="text-blue-200 text-xs">@{selectedTrainee.username}</p>
-                    <p className="text-blue-200 text-xs">{selectedTrainee.department}</p>
-                  </div>
-                </div>
-                <button onClick={() => { setSelectedTrainee(null); setAuditDetails(null); }}
-                  className="text-blue-200 hover:text-white transition-colors">
-                  <X className="w-5 h-5" />
-                </button>
-              </div>
-              <div className="flex items-center gap-3 mt-3">
-                <StatusChip status={selectedTrainee.status} />
-                {selectedTrainee.latestScore !== null && (
-                  <span className="text-sm font-bold bg-white/20 rounded-lg px-2.5 py-0.5">
-                    Latest: {selectedTrainee.latestScore}%
-                  </span>
-                )}
-                <span className="text-xs text-blue-200">{selectedTrainee.totalAttempts} sessions total</span>
-              </div>
-            </div>
-
-            {/* Drawer body */}
-            <div className="flex-1 overflow-y-auto p-5">
-              {auditLoading ? (
-                <div className="flex flex-col items-center justify-center py-12">
-                  <div className="w-10 h-10 border-3 border-blue-500 border-t-transparent rounded-full animate-spin mb-3" />
-                  <p className="text-xs text-mist-500">Loading audit records…</p>
-                </div>
-              ) : auditDetails ? (
-                <div className="space-y-4">
-                  <div className="grid grid-cols-2 gap-3">
-                    {[
-                      { label: 'Total Sessions', value: auditDetails.totalAttempts },
-                      { label: 'Latest Score', value: selectedTrainee.latestScore !== null ? `${selectedTrainee.latestScore}%` : '—' },
-                      { label: 'Hazards Found', value: selectedTrainee.hazardsFoundCount },
-                      { label: 'False Clicks', value: selectedTrainee.falseClicksCount },
-                    ].map(({ label, value }) => (
-                      <div key={label} className="bg-mist-50 dark:bg-dark-surface rounded-xl p-3 text-center">
-                        <p className="text-[10px] text-mist-500 dark:text-dark-muted">{label}</p>
-                        <p className="text-lg font-black text-mist-900 dark:text-white">{value}</p>
-                      </div>
-                    ))}
-                  </div>
-
-                  <h4 className="text-xs font-bold text-mist-700 dark:text-dark-muted uppercase tracking-wider">Compliance History</h4>
-                  <div className="space-y-2">
-                    {auditDetails.records.slice(0, 8).map((rec, i) => (
-                      <div key={rec._id || i} className={`rounded-xl p-3.5 border ${
-                        rec.isPracticeMode
-                          ? 'bg-mist-50 dark:bg-dark-surface border-mist-200 dark:border-dark-border'
-                          : rec.passed
-                            ? 'bg-emerald-50 dark:bg-emerald-950/20 border-emerald-200 dark:border-emerald-900/50'
-                            : 'bg-red-50 dark:bg-red-950/20 border-red-200 dark:border-red-900/50'
-                      }`}>
-                        <div className="flex items-center justify-between mb-1.5">
-                          <div className="flex items-center gap-2">
-                            <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${
-                              rec.isPracticeMode
-                                ? 'bg-mist-200 text-mist-600 dark:bg-dark-border dark:text-dark-muted'
-                                : rec.passed
-                                  ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-400'
-                                  : 'bg-red-100 text-red-700 dark:bg-red-950/50 dark:text-red-400'
-                            }`}>{rec.isPracticeMode ? 'PRACTICE' : rec.passed ? 'PASS' : 'FAIL'}</span>
-                            <span className="text-[10px] text-mist-500 dark:text-dark-muted">
-                              {new Date(rec.completedAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: '2-digit' })}
-                            </span>
-                          </div>
-                          <span className="text-sm font-black text-mist-900 dark:text-white">{rec.totalScore}%</span>
-                        </div>
-                        <div className="flex items-center gap-4 text-[10px] text-mist-500 dark:text-dark-muted">
-                          <span>Hazard: {rec.hazardScore}%</span>
-                          <span>Quiz: {rec.quizScore}%</span>
-                          <span>{rec.hazardsFound?.length ?? 0} found</span>
-                          <span>{rec.timeTakenSeconds}s</span>
-                        </div>
-                      </div>
-                    ))}
-                    {auditDetails.records.length === 0 && (
-                      <div className="text-center py-8 text-mist-400 dark:text-dark-muted">
-                        <FileText className="w-8 h-8 mx-auto mb-2 opacity-30" />
-                        <p className="text-xs">No sessions recorded yet</p>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              ) : (
-                <div className="text-center py-12 text-mist-400">
-                  <AlertCircle className="w-8 h-8 mx-auto mb-2 opacity-30" />
-                  <p className="text-xs">Failed to load audit data</p>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
+      <UserAuditModal
+        user={selectedTrainee}
+        audit={auditDetails}
+        loading={auditLoading}
+        onClose={() => { setSelectedTrainee(null); setAuditDetails(null); }}
+        onDownload={() => api.downloadScoreReport(auditDetails?.records || [], selectedTrainee)}
+      />
 
       {/* ── CREATE EMPLOYEE MODAL ─────────────────────────────────────────── */}
       {isCreateModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in">
           <div className="bg-white dark:bg-dark-card rounded-3xl shadow-2xl max-w-md w-full border border-mist-300 dark:border-dark-border overflow-hidden animate-slide-up">
-            <div className="bg-gradient-to-r from-blue-600 to-cyan-500 p-5 text-white">
+            <div className="bg-primary-600 p-5 text-white">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2.5">
                   <UserPlus className="w-5 h-5" />
                   <h3 className="text-base font-bold">Create Employee Account</h3>
                 </div>
-                <button onClick={() => setIsCreateModalOpen(false)} className="text-blue-200 hover:text-white transition-colors">
+                <button onClick={() => setIsCreateModalOpen(false)} className="text-primary-100 hover:text-white transition-colors">
                   <X className="w-5 h-5" />
                 </button>
               </div>
-              <p className="text-blue-100 text-xs mt-1">Supervisors may create Employee (Trainee) accounts only</p>
+              <p className="text-primary-100 text-xs mt-1">Supervisors may create Employee (Trainee) accounts only</p>
             </div>
             <form onSubmit={handleCreateEmployee} className="p-6 space-y-4">
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs font-bold text-mist-700 dark:text-dark-muted mb-1.5">Full Name *</label>
                   <input type="text" required placeholder="e.g. James Walker" value={newName} onChange={e => setNewName(e.target.value)}
-                    className="w-full px-3.5 py-2.5 text-xs rounded-xl border border-mist-300 dark:border-dark-border bg-mist-50 dark:bg-dark-surface dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500/40 focus:border-blue-500 transition-all" />
+                    className="w-full px-3.5 py-2.5 text-xs rounded-xl border border-mist-300 dark:border-dark-border bg-mist-50 dark:bg-dark-surface dark:text-white focus:outline-none focus:ring-2 focus:ring-primary-500/40 focus:border-primary-500 transition-all" />
                 </div>
                 <div>
                   <label className="block text-xs font-bold text-mist-700 dark:text-dark-muted mb-1.5">Username *</label>
                   <input type="text" required placeholder="e.g. trainee5" value={newUsername} onChange={e => setNewUsername(e.target.value)}
-                    className="w-full px-3.5 py-2.5 text-xs rounded-xl border border-mist-300 dark:border-dark-border bg-mist-50 dark:bg-dark-surface dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500/40 focus:border-blue-500 transition-all" />
+                    className="w-full px-3.5 py-2.5 text-xs rounded-xl border border-mist-300 dark:border-dark-border bg-mist-50 dark:bg-dark-surface dark:text-white focus:outline-none focus:ring-2 focus:ring-primary-500/40 focus:border-primary-500 transition-all" />
                 </div>
               </div>
               <div>
                 <label className="block text-xs font-bold text-mist-700 dark:text-dark-muted mb-1.5">Password *</label>
-                <input type="password" required placeholder="Min. 6 characters" value={newPassword} onChange={e => setNewPassword(e.target.value)}
-                  className="w-full px-3.5 py-2.5 text-xs rounded-xl border border-mist-300 dark:border-dark-border bg-mist-50 dark:bg-dark-surface dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500/40 focus:border-blue-500 transition-all" />
+                  <input type="password" required placeholder="Min. 6 characters" value={newPassword} onChange={e => setNewPassword(e.target.value)}
+                    className="w-full px-3.5 py-2.5 text-xs rounded-xl border border-mist-300 dark:border-dark-border bg-mist-50 dark:bg-dark-surface dark:text-white focus:outline-none focus:ring-2 focus:ring-primary-500/40 focus:border-primary-500 transition-all" />
               </div>
               <div>
                 <label className="block text-xs font-bold text-mist-700 dark:text-dark-muted mb-1.5">Department</label>
-                <input type="text" value={newDept} onChange={e => setNewDept(e.target.value)}
-                  className="w-full px-3.5 py-2.5 text-xs rounded-xl border border-mist-300 dark:border-dark-border bg-mist-50 dark:bg-dark-surface dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500/40" />
+                  <input type="text" value={newDept} onChange={e => setNewDept(e.target.value)}
+                    className="w-full px-3.5 py-2.5 text-xs rounded-xl border border-mist-300 dark:border-dark-border bg-mist-50 dark:bg-dark-surface dark:text-white focus:outline-none focus:ring-2 focus:ring-primary-500/40" />
               </div>
               <div className="bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900 rounded-xl p-3">
                 <p className="text-[11px] text-amber-700 dark:text-amber-300 flex items-start gap-1.5">
@@ -736,7 +649,7 @@ export const SupervisorDashboard = () => {
                   Cancel
                 </button>
                 <button type="submit" disabled={isCreating}
-                  className="flex-1 py-2.5 rounded-xl bg-blue-500 hover:bg-blue-600 text-white text-xs font-bold shadow-sm transition-all disabled:opacity-50 flex items-center justify-center gap-2">
+                  className="flex-1 py-2.5 rounded-xl bg-primary-500 hover:bg-primary-600 text-white text-xs font-bold shadow-sm transition-all disabled:opacity-50 flex items-center justify-center gap-2">
                   {isCreating ? <><span className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" /> Creating…</> : <><CheckCircle2 className="w-3.5 h-3.5" /> Create Employee</>}
                 </button>
               </div>
@@ -745,32 +658,27 @@ export const SupervisorDashboard = () => {
         </div>
       )}
 
-      {/* ── LOGOUT CONFIRM ────────────────────────────────────────────────── */}
-      {showLogoutConfirm && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in">
-          <div className="bg-white dark:bg-dark-card rounded-2xl shadow-2xl max-w-sm w-full border border-mist-300 dark:border-dark-border p-6 animate-slide-up">
-            <div className="text-center mb-5">
-              <div className="w-14 h-14 rounded-2xl bg-red-100 dark:bg-red-950/40 flex items-center justify-center mx-auto mb-3">
-                <LogOut className="w-7 h-7 text-red-600 dark:text-red-400" />
-              </div>
-              <h3 className="text-base font-bold text-mist-900 dark:text-white">Sign Out?</h3>
-              <p className="text-xs text-mist-500 dark:text-dark-muted mt-1.5">
-                You'll need to re-authenticate to access the HSE Supervisor dashboard.
-              </p>
-            </div>
-            <div className="flex gap-2">
-              <button onClick={() => setShowLogoutConfirm(false)}
-                className="flex-1 py-2.5 rounded-xl text-xs font-semibold bg-mist-100 dark:bg-dark-surface text-mist-700 dark:text-dark-muted hover:bg-mist-200 transition-colors">
-                Cancel
-              </button>
-              <button onClick={() => { logout(); setShowLogoutConfirm(false); }}
-                className="flex-1 py-2.5 rounded-xl bg-red-500 hover:bg-red-600 text-white text-xs font-bold transition-all">
-                Sign Out
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <ConfirmModal
+        isOpen={showLogoutConfirm}
+        title="Sign Out of Supervisor Dashboard?"
+        message="You'll need to re-authenticate to access the HSE Supervisor dashboard."
+        confirmText="Sign Out"
+        cancelText="Stay Signed In"
+        isDestructive
+        onConfirm={() => { logout(); setShowLogoutConfirm(false); }}
+        onCancel={() => setShowLogoutConfirm(false)}
+      />
+
+      <ConfirmModal
+        isOpen={Boolean(traineePendingDelete)}
+        title="Delete Trainee Account"
+        message={`Are you sure you want to delete ${traineePendingDelete?.name || 'this trainee'}? This action cannot be undone.`}
+        confirmText="Delete Trainee"
+        cancelText="Keep Trainee"
+        isDestructive
+        onConfirm={confirmDeleteUser}
+        onCancel={() => setTraineePendingDelete(null)}
+      />
     </div>
   );
 };

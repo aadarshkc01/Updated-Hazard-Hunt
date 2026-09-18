@@ -15,7 +15,7 @@ const MainApp = () => {
   if (isLoading) {
     return (
       <div className="min-h-screen bg-mist-200 dark:bg-dark-bg flex flex-col items-center justify-center transition-colors">
-        <div className="w-10 h-10 border-4 border-violet-500 border-t-transparent rounded-full animate-spin mb-4" />
+        <div className="w-10 h-10 border-4 border-primary-500 border-t-transparent rounded-full animate-spin mb-4" />
         <span className="text-xs font-bold uppercase tracking-wider text-mist-700 dark:text-dark-muted">
           Synchronizing Enterprise Portal...
         </span>
@@ -30,7 +30,7 @@ const MainApp = () => {
   // Employee role: show standard Navbar + trainee experience
   if (role === 'employee') {
     return (
-      <div className="min-h-screen bg-mist-200 dark:bg-dark-bg text-mist-900 dark:text-dark-text flex flex-col selection:bg-violet-500 selection:text-white transition-colors duration-200">
+      <div className="min-h-screen bg-app-shell dark:bg-dark-bg text-mist-900 dark:text-dark-text flex flex-col selection:bg-primary-500 selection:text-white transition-colors duration-200">
         <Navbar currentView={currentView} onViewChange={setCurrentView} />
         <main className="flex-1">
           <TraineeExperience />
@@ -49,34 +49,14 @@ const MainApp = () => {
     );
   }
 
-  // Supervisor: self-contained dashboard with built-in header, or 360° trainer view
+  // Supervisor: self-contained dashboard
   if (role === 'supervisor') {
-    if (currentView === 'trainer') {
-      return (
-        <div className="min-h-screen bg-mist-200 dark:bg-dark-bg text-mist-900 dark:text-dark-text flex flex-col selection:bg-violet-500 selection:text-white transition-colors duration-200">
-          <Navbar currentView={currentView} onViewChange={setCurrentView} />
-          <main className="flex-1">
-            <TraineeExperience />
-          </main>
-        </div>
-      );
-    }
     return <SupervisorDashboard />;
   }
 
-  // Admin: self-contained dashboard with built-in header, or 360° trainer view
+  // Admin: self-contained dashboard
   if (role === 'admin') {
-    if (currentView === 'trainer') {
-      return (
-        <div className="min-h-screen bg-mist-200 dark:bg-dark-bg text-mist-900 dark:text-dark-text flex flex-col selection:bg-violet-500 selection:text-white transition-colors duration-200">
-          <Navbar currentView={currentView} onViewChange={setCurrentView} />
-          <main className="flex-1">
-            <TraineeExperience />
-          </main>
-        </div>
-      );
-    }
-    return <AdminDashboard onLaunchTrainer={() => setCurrentView('trainer')} />;
+    return <AdminDashboard />;
   }
 
   return null;

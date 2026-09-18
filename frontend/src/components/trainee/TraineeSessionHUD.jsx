@@ -44,7 +44,7 @@ export const TraineeSessionHUD = ({
         <div className="bg-dark-card/90 text-white rounded-3xl p-4 sm:p-5 shadow-2xl border border-dark-border backdrop-blur-xl flex flex-wrap items-center justify-between gap-4">
           {/* Left: Module Tag */}
           <div className="flex items-center space-x-3.5">
-            <div className="w-10 h-10 rounded-2xl bg-violet-600/30 border border-violet-500 flex items-center justify-center text-violet-400">
+            <div className="w-10 h-10 rounded-xl bg-primary-600/30 border border-primary-500 flex items-center justify-center text-primary-300">
               <Target className="w-5 h-5" />
             </div>
             <div>
@@ -108,7 +108,7 @@ export const TraineeSessionHUD = ({
           <div>
             <button
               onClick={handleFinishClick}
-              className="px-5 py-2.5 rounded-xl bg-violet-500 hover:bg-violet-600 text-white text-xs font-bold transition-all shadow-violet hover:shadow-violet-lg flex items-center space-x-2"
+              className="px-5 py-2.5 rounded-lg bg-primary-500 hover:bg-primary-600 text-white text-xs font-bold transition-all flex items-center space-x-2"
             >
               <span>{foundCount === totalHazards ? 'Proceed to Quiz' : 'Finish Sweep Early'}</span>
               <ChevronRight className="w-4 h-4" />
@@ -120,7 +120,7 @@ export const TraineeSessionHUD = ({
         <div className="w-full h-1.5 bg-dark-surface rounded-full mt-2 overflow-hidden">
           <div
             className={`h-full transition-all duration-1000 ${
-              isUrgent ? 'bg-red-500' : isWarning ? 'bg-amber-400' : 'bg-violet-500'
+              isUrgent ? 'bg-red-500' : isWarning ? 'bg-amber-400' : 'bg-primary-500'
             }`}
             style={{ width: `${timePercentage}%` }}
           />

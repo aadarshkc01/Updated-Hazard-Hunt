@@ -2,7 +2,7 @@
 const BASE = 'http://localhost:5000/api';
 
 const runTests = async () => {
-  console.log('🛡️ Testing Role Hardening & Enterprise Analytics...\n');
+  console.log('Testing Role Hardening & Enterprise Analytics...\n');
 
   // 1. Cross-role login block: trainee attempting to login as supervisor
   const crossRoleRes = await fetch(`${BASE}/auth/login`, {
@@ -18,8 +18,8 @@ const runTests = async () => {
   console.log(
     '1. Cross-Role Login Block (trainee trying to login as supervisor):',
     crossRoleRes.status === 403 && crossRoleData.message.includes('Access Denied')
-      ? '✅ PASS (Blocked with 403 Forbidden)'
-      : '❌ FAIL'
+      ? 'PASS (Blocked with 403 Forbidden)'
+      : 'FAIL'
   );
 
   // 2. Correct role login: supervisor logging into supervisor portal
@@ -36,8 +36,8 @@ const runTests = async () => {
   console.log(
     '2. Valid Supervisor Portal Login:',
     supLoginRes.status === 200 && supData.user.role === 'supervisor'
-      ? '✅ PASS'
-      : '❌ FAIL'
+      ? 'PASS'
+      : 'FAIL'
   );
   const supervisorToken = supData.token;
 
@@ -60,8 +60,8 @@ const runTests = async () => {
   console.log(
     '3. Privilege Boundary (Supervisor blocked from creating Supervisor):',
     createSupRes.status === 403 && createSupData.message.includes('Access Denied')
-      ? '✅ PASS (Blocked with 403 Forbidden)'
-      : '❌ FAIL'
+      ? 'PASS (Blocked with 403 Forbidden)'
+      : 'FAIL'
   );
 
   // 4. Supervisor creating an Employee -> Allowed!
@@ -83,7 +83,7 @@ const runTests = async () => {
   const createEmpData = await createEmpRes.json();
   console.log(
     '4. Supervisor Provisioning Employee Credentials:',
-    createEmpRes.status === 201 ? `✅ PASS (Created ${validEmployeeUsername})` : '❌ FAIL'
+    createEmpRes.status === 201 ? `PASS (Created ${validEmployeeUsername})` : 'FAIL'
   );
 
   // 5. Analytics Radar Data
@@ -94,11 +94,11 @@ const runTests = async () => {
   console.log(
     '5. Real-Time Hazard Vulnerability Radar:',
     analyticsRes.status === 200 && analyticsData.categoryBreakdown?.length === 5
-      ? '✅ PASS (5 Categories Analyzed)'
-      : '❌ FAIL'
+      ? 'PASS (5 Categories Analyzed)'
+      : 'FAIL'
   );
 
-  console.log('\n🎉 ALL SECURITY & ANALYTICS TESTS PASSED!\n');
+  console.log('\nALL SECURITY & ANALYTICS TESTS PASSED!\n');
 };
 
 runTests().catch((err) => {

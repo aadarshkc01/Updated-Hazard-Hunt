@@ -1,4 +1,6 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
+import 'pannellum/build/pannellum.css';
+import 'pannellum/build/pannellum.js';
 import { soundEngine } from '../../utils/audio';
 import { AlertTriangle, CheckCircle2, Eye, Crosshair, Maximize2, Minimize2, Move, ArrowLeft, ArrowRight } from 'lucide-react';
 
@@ -33,6 +35,7 @@ export const PanoramaViewer = ({
 
   const lastHotspotClickTime = useRef(0);
   const accumulatedRotation = useRef(0);
+  const cameraPositionRef = useRef({ yaw: 0, pitch: 0 });
 
   // Fullscreen toggle
   const toggleFullscreen = () => {
@@ -51,7 +54,35 @@ export const PanoramaViewer = ({
 
   useEffect(() => {
     const handleFullscreenChange = () => {
-      setIsFullscreen(Boolean(document.fullscreenElement));
+      const nextFullscreenState = Boolean(document.fullscreenElement);
+      if (viewerRef.current) {
+        try {
+          cameraPositionRef.current = {
+            yaw: viewerRef.current.getYaw(),
+            pitch: viewerRef.current.getPitch(),
+          };
+        } catch (err) {}
+      }
+      setIsFullscreen(nextFullscreenState);
+
+      // Keep the existing renderer and refresh only its viewport. Rebuilding
+      // Pannellum here refetches the panorama and recreates hotspot markers.
+      [80, 180, 360].forEach((delay) => {
+        window.setTimeout(() => {
+          if (!viewerRef.current) return;
+          try {
+            const currentYaw = viewerRef.current.getYaw();
+            const currentPitch = viewerRef.current.getPitch();
+            viewerRef.current.resize(true);
+            viewerRef.current.setYaw(currentYaw);
+            viewerRef.current.setPitch(currentPitch);
+            setYaw(currentYaw);
+            setPitch(currentPitch);
+          } catch (err) {
+            console.warn('Panorama viewport refresh after fullscreen change failed:', err);
+          }
+        }, delay);
+      });
     };
     document.addEventListener('fullscreenchange', handleFullscreenChange);
     return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
@@ -143,6 +174,7 @@ export const PanoramaViewer = ({
             try {
               viewerRef.current.destroy();
             } catch (e) {}
+            viewerRef.current = null;
           }
 
           let hotspotsConfig = [];
@@ -160,14 +192,12 @@ export const PanoramaViewer = ({
                   div.style.cursor = 'pointer';
                   if (practiceTargetFound) {
                     div.innerHTML = `
-                      <div style="background: #10B981; color: white; width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; box-shadow: 0 0 20px #10B981; border: 2.5px solid white;">
-                        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"></polyline></svg>
-                      </div>
+                      <div style="background: #10B981; width: 40px; height: 40px; border-radius: 50%; box-shadow: 0 0 20px #10B981; border: 2.5px solid white;"></div>
                     `;
                   } else {
                     div.innerHTML = `
-                      <div class="hotspot-pulse" style="width: 40px; height: 40px; border-radius: 50%; border: 3px solid #7A35FF; background: rgba(122, 53, 255, 0.25); display: flex; align-items: center; justify-content: center;">
-                        <div style="width: 14px; height: 14px; border-radius: 50%; background: #7A35FF;"></div>
+                      <div class="hotspot-pulse" style="width: 40px; height: 40px; border-radius: 50%; border: 3px solid #FF6115; background: rgba(255, 97, 21, 0.25); display: flex; align-items: center; justify-content: center;">
+                        <div style="width: 14px; height: 14px; border-radius: 50%; background: #FF6115;"></div>
                       </div>
                     `;
                   }
@@ -194,14 +224,12 @@ export const PanoramaViewer = ({
                 const isFound = foundHotspots.some((h) => h.id === spot.id);
                 if (isFound) {
                   hotSpotDiv.innerHTML = `
-                    <div style="background: #10B981; color: white; width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center; box-shadow: 0 0 16px rgba(16, 185, 129, 0.9); border: 2.5px solid white;">
-                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"></polyline></svg>
-                    </div>
+                    <div style="background: #10B981; width: 36px; height: 36px; border-radius: 50%; box-shadow: 0 0 16px rgba(16, 185, 129, 0.9); border: 2.5px solid white;"></div>
                   `;
                 } else {
                   // Subtle reticle zone
                   hotSpotDiv.innerHTML = `
-                    <div class="unfound-marker" style="width: 36px; height: 36px; border-radius: 50%; border: 1.5px dashed rgba(122, 53, 255, 0.35); background: rgba(122, 53, 255, 0.06); transition: all 0.2s;">
+                    <div class="unfound-marker" style="width: 36px; height: 36px; border-radius: 50%; border: 1.5px dashed rgba(255, 97, 21, 0.35); background: rgba(255, 97, 21, 0.06); transition: all 0.2s;">
                     </div>
                   `;
                 }
@@ -224,9 +252,11 @@ export const PanoramaViewer = ({
             showControls: false,
             mouseZoom: false,
             keyboardZoom: false,
-            hfov: 100,
-            pitch: 0,
-            yaw: 0,
+            hfov: 80,
+            minHfov: 50,
+            maxHfov: 100,
+            pitch: cameraPositionRef.current.pitch,
+            yaw: cameraPositionRef.current.yaw,
             hotSpots: hotspotsConfig,
           });
 
@@ -241,6 +271,9 @@ export const PanoramaViewer = ({
           });
 
           viewerRef.current = viewer;
+          setUseCanvasFallback(false);
+          setYaw(viewer.getYaw());
+          setPitch(viewer.getPitch());
         } catch (err) {
           console.warn('Pannellum error, using canvas fallback:', err);
           setUseCanvasFallback(true);
@@ -257,6 +290,10 @@ export const PanoramaViewer = ({
         try {
           viewerRef.current.destroy();
         } catch (e) {}
+        viewerRef.current = null;
+      }
+      if (pannellumDivRef.current) {
+        pannellumDivRef.current.innerHTML = '';
       }
     };
   }, [scenario?.id, isEnded, isCalibrationMode, practiceTargetFound]);
@@ -370,7 +407,7 @@ export const PanoramaViewer = ({
         isFullscreen
           ? 'fixed inset-0 z-50 h-screen w-screen rounded-none border-none'
           : 'h-[74vh] min-h-[500px] max-h-[800px] rounded-3xl overflow-hidden shadow-2xl border border-mist-300 dark:border-dark-border'
-      } cursor-grab active:cursor-grabbing`}
+        } cursor-grab active:cursor-grabbing`}
       onMouseDown={handleMouseDown}
       onMouseMove={handleMouseMove}
       onMouseUp={handleMouseUp}
@@ -416,12 +453,17 @@ export const PanoramaViewer = ({
         {/* Fullscreen Button */}
         <button
           type="button"
+          data-viewer-control="true"
           onClick={(e) => {
             e.stopPropagation();
             toggleFullscreen();
           }}
+          onPointerDown={(e) => e.stopPropagation()}
+          onPointerUp={(e) => e.stopPropagation()}
+          onMouseDown={(e) => e.stopPropagation()}
+          onMouseUp={(e) => e.stopPropagation()}
           title={isFullscreen ? 'Exit Full Screen' : 'Expand to Full Screen'}
-          className="p-2.5 rounded-2xl bg-dark-card/90 hover:bg-violet-600 text-white border border-white/20 backdrop-blur-md transition-all shadow-lg flex items-center space-x-1.5 text-xs font-bold"
+          className="p-2.5 rounded-2xl bg-dark-card/90 hover:bg-primary-600 text-white border border-white/20 backdrop-blur-md transition-all shadow-lg flex items-center space-x-1.5 text-xs font-bold"
         >
           {isFullscreen ? (
             <>
@@ -440,7 +482,7 @@ export const PanoramaViewer = ({
       {/* Navigation Hint Pills (Top Left) */}
       <div className="absolute top-4 left-4 z-20 flex flex-wrap items-center gap-2 pointer-events-none">
         <div className="bg-dark-card/85 text-white/90 border border-white/20 px-3.5 py-1.5 rounded-full text-xs font-semibold backdrop-blur-md flex items-center space-x-2 shadow-lg">
-          <Move className="w-3.5 h-3.5 text-violet-400" />
+          <Move className="w-3.5 h-3.5 text-primary-400" />
           <span>Click & Drag to Look • Arrow Keys (← ↑ → ↓)</span>
         </div>
       </div>

@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
 import { useToast } from '../../context/ToastContext';
+import { UserManualModal } from '../common/UserManualModal';
 import { soundEngine } from '../../utils/audio';
 import {
   ShieldAlert,
@@ -29,6 +30,8 @@ export const Login = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [termsAccepted, setTermsAccepted] = useState(false);
+  const [showManual, setShowManual] = useState(false);
 
   // Quick preset configurations for instant demo presentation
   const setPreset = (role, user, pass) => {
@@ -61,12 +64,12 @@ export const Login = () => {
   };
 
   return (
-    <div className="min-h-screen bg-mist-200 dark:bg-dark-bg text-mist-900 dark:text-dark-text flex flex-col justify-between transition-colors duration-200 selection:bg-violet-500 selection:text-white">
+    <div className="min-h-screen bg-app-shell dark:bg-dark-bg text-mist-900 dark:text-dark-text flex flex-col justify-between transition-colors duration-200 selection:bg-primary-500 selection:text-white">
       {/* Top Academic Banner */}
-      <div className="bg-mist-900 dark:bg-black text-white py-2 px-4 text-xs font-medium border-b border-violet-500/30 flex items-center justify-between">
+      <div className="bg-mist-900 dark:bg-black text-white py-2 px-4 text-xs font-medium border-b border-primary-500/30 flex items-center justify-between">
         <div className="max-w-7xl mx-auto w-full flex items-center justify-between">
           <span className="inline-flex items-center space-x-2">
-            <span className="w-2 h-2 rounded-full bg-violet-500 animate-ping" />
+            <span className="w-2 h-2 rounded-full bg-primary-500 animate-ping" />
             <span>
               <strong>CET257 Enterprise Project</strong> (University of Sunderland) — Team: <strong>Macro Thinkers</strong> | Client: <em>Automotive Logistics & Warehousing</em>
             </span>
@@ -87,11 +90,11 @@ export const Login = () => {
         <div className="w-full max-w-md">
           {/* Brand Header */}
           <div className="text-center mb-8">
-            <div className="inline-flex items-center justify-center w-16 h-16 rounded-3xl bg-gradient-to-tr from-violet-600 to-violet-400 text-white shadow-violet mb-4">
+            <div className="inline-flex items-center justify-center w-16 h-16 rounded-xl bg-primary-500 text-white shadow-sm mb-4">
               <ShieldAlert className="w-8 h-8" />
             </div>
             <h1 className="text-3xl font-extrabold tracking-tight text-mist-900 dark:text-white">
-              HAZARD <span className="text-violet-500">HUNT</span>
+              HAZARD <span className="text-primary-500">HUNT</span>
             </h1>
             <p className="mt-2 text-xs sm:text-sm text-mist-600 dark:text-dark-muted font-medium">
               360° Interactive Warehouse Hazard Perception Trainer
@@ -99,51 +102,50 @@ export const Login = () => {
           </div>
 
           {/* Card */}
-          <div className="bg-white dark:bg-dark-card rounded-3xl shadow-card dark:shadow-card-dark border border-mist-300 dark:border-dark-border p-6 sm:p-8 relative overflow-hidden transition-all">
-            <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-violet-600 via-violet-400 to-violet-600" />
+          <div className="bg-white dark:bg-dark-card rounded-2xl shadow-sm border border-mist-300 dark:border-dark-border p-6 sm:p-8 relative overflow-hidden transition-all">
 
             {/* Role Selector Tabs */}
             <div className="mb-6">
               <label className="block text-[11px] font-bold uppercase tracking-wider text-mist-600 dark:text-dark-muted mb-2">
                 Select Your Portal Role
               </label>
-              <div className="grid grid-cols-3 gap-1.5 p-1 bg-mist-200 dark:bg-dark-surface rounded-2xl border border-mist-300 dark:border-dark-border">
+              <div className="grid grid-cols-3 gap-1.5 p-1 bg-mist-200 dark:bg-dark-surface rounded-xl border border-mist-300 dark:border-dark-border">
                 <button
                   type="button"
                   onClick={() => setPreset('employee', 'trainee1', 'SafetyPass123!')}
-                  className={`py-2 px-2 text-xs font-bold rounded-xl transition-all flex flex-col items-center space-y-1 ${
+                  className={`py-2 px-2 text-xs font-bold rounded-lg transition-all flex flex-col items-center space-y-1 ${
                     selectedRole === 'employee'
-                      ? 'bg-white dark:bg-dark-card text-mist-900 dark:text-white shadow-sm border border-violet-500/30'
+                      ? 'bg-white dark:bg-dark-card text-mist-900 dark:text-white shadow-sm border border-primary-500/30'
                       : 'text-mist-600 dark:text-dark-muted hover:text-mist-900 dark:hover:text-white'
                   }`}
                 >
-                  <UserCheck className={`w-4 h-4 ${selectedRole === 'employee' ? 'text-violet-500' : ''}`} />
+                  <UserCheck className={`w-4 h-4 ${selectedRole === 'employee' ? 'text-primary-500' : ''}`} />
                   <span>Employee</span>
                 </button>
 
                 <button
                   type="button"
                   onClick={() => setPreset('supervisor', 'supervisor1', 'SuperVisor2026!')}
-                  className={`py-2 px-2 text-xs font-bold rounded-xl transition-all flex flex-col items-center space-y-1 ${
+                  className={`py-2 px-2 text-xs font-bold rounded-lg transition-all flex flex-col items-center space-y-1 ${
                     selectedRole === 'supervisor'
-                      ? 'bg-white dark:bg-dark-card text-mist-900 dark:text-white shadow-sm border border-violet-500/30'
+                      ? 'bg-white dark:bg-dark-card text-mist-900 dark:text-white shadow-sm border border-primary-500/30'
                       : 'text-mist-600 dark:text-dark-muted hover:text-mist-900 dark:hover:text-white'
                   }`}
                 >
-                  <Briefcase className={`w-4 h-4 ${selectedRole === 'supervisor' ? 'text-violet-500' : ''}`} />
+                  <Briefcase className={`w-4 h-4 ${selectedRole === 'supervisor' ? 'text-primary-500' : ''}`} />
                   <span>Supervisor</span>
                 </button>
 
                 <button
                   type="button"
                   onClick={() => setPreset('admin', 'admin1', 'AdminMaster2026!')}
-                  className={`py-2 px-2 text-xs font-bold rounded-xl transition-all flex flex-col items-center space-y-1 ${
+                  className={`py-2 px-2 text-xs font-bold rounded-lg transition-all flex flex-col items-center space-y-1 ${
                     selectedRole === 'admin'
-                      ? 'bg-white dark:bg-dark-card text-mist-900 dark:text-white shadow-sm border border-violet-500/30'
+                      ? 'bg-white dark:bg-dark-card text-mist-900 dark:text-white shadow-sm border border-primary-500/30'
                       : 'text-mist-600 dark:text-dark-muted hover:text-mist-900 dark:hover:text-white'
                   }`}
                 >
-                  <KeyRound className={`w-4 h-4 ${selectedRole === 'admin' ? 'text-violet-500' : ''}`} />
+                  <KeyRound className={`w-4 h-4 ${selectedRole === 'admin' ? 'text-primary-500' : ''}`} />
                   <span>Admin</span>
                 </button>
               </div>
@@ -170,7 +172,7 @@ export const Login = () => {
                     value={username}
                     onChange={(e) => setUsername(e.target.value)}
                     placeholder="e.g. trainee1"
-                    className="w-full px-3.5 py-2.5 rounded-xl border border-mist-300 dark:border-dark-border text-xs focus:outline-none focus:ring-2 focus:ring-violet-500/40 focus:border-violet-500 bg-mist-100 dark:bg-dark-surface dark:text-white"
+                    className="w-full px-3.5 py-2.5 rounded-lg border border-mist-300 dark:border-dark-border text-xs focus:outline-none focus:ring-2 focus:ring-primary-500/40 focus:border-primary-500 bg-mist-100 dark:bg-dark-surface dark:text-white"
                   />
                 </div>
               </div>
@@ -186,7 +188,7 @@ export const Login = () => {
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     placeholder="••••••••"
-                    className="w-full px-3.5 py-2.5 rounded-xl border border-mist-300 dark:border-dark-border text-xs focus:outline-none focus:ring-2 focus:ring-violet-500/40 focus:border-violet-500 bg-mist-100 dark:bg-dark-surface dark:text-white pr-10"
+                    className="w-full px-3.5 py-2.5 rounded-lg border border-mist-300 dark:border-dark-border text-xs focus:outline-none focus:ring-2 focus:ring-primary-500/40 focus:border-primary-500 bg-mist-100 dark:bg-dark-surface dark:text-white pr-10"
                   />
                   <button
                     type="button"
@@ -198,10 +200,24 @@ export const Login = () => {
                 </div>
               </div>
 
+              <div className="flex items-start space-x-2 py-1">
+                <input
+                  type="checkbox"
+                  id="terms"
+                  checked={termsAccepted}
+                  onChange={(e) => setTermsAccepted(e.target.checked)}
+                  className="mt-0.5 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+                />
+                <label htmlFor="terms" className="text-xs text-mist-600 dark:text-dark-muted leading-tight">
+                  I agree to the Terms and Conditions. By logging in, I consent to the recording of my compliance audit sessions.{' '}
+                  <button type="button" onClick={() => setShowManual(true)} className="text-primary-500 hover:underline">View User Manual</button>
+                </label>
+              </div>
+
               <button
                 type="submit"
-                disabled={loading}
-                className="w-full mt-2 py-3 px-4 rounded-xl bg-violet-500 hover:bg-violet-600 text-white font-bold text-xs shadow-violet hover:shadow-violet-lg transition-all flex items-center justify-center space-x-2 disabled:opacity-60"
+                disabled={loading || !termsAccepted}
+                className="w-full mt-2 py-3 px-4 rounded-lg bg-primary-500 hover:bg-primary-600 text-white font-bold text-xs transition-all flex items-center justify-center space-x-2 disabled:opacity-60"
               >
                 {loading ? (
                   <span className="inline-block w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
@@ -226,7 +242,6 @@ export const Login = () => {
             <div className="mt-4 pt-3 border-t border-dashed border-mist-300 dark:border-dark-border">
               <div className="flex items-center justify-between mb-2">
                 <span className="text-[10px] font-bold uppercase tracking-wider text-mist-500 dark:text-dark-muted flex items-center">
-                  <Sparkles className="w-3 h-3 mr-1 text-violet-500" />
                   1-Click Demo Fill:
                 </span>
               </div>
@@ -234,21 +249,21 @@ export const Login = () => {
                 <button
                   type="button"
                   onClick={() => setPreset('employee', 'trainee1', 'SafetyPass123!')}
-                  className="px-2.5 py-1 rounded-lg text-[11px] font-medium bg-mist-100 dark:bg-dark-surface hover:bg-violet-100 dark:hover:bg-violet-950/60 text-mist-900 dark:text-white border border-mist-300 dark:border-dark-border transition-colors"
+                  className="px-2.5 py-1 rounded-md text-[11px] font-medium bg-mist-100 dark:bg-dark-surface hover:bg-mist-200 dark:hover:bg-mist-800 text-mist-900 dark:text-white border border-mist-300 dark:border-dark-border transition-colors"
                 >
                   Trainee (Alex Morgan)
                 </button>
                 <button
                   type="button"
                   onClick={() => setPreset('supervisor', 'supervisor1', 'SuperVisor2026!')}
-                  className="px-2.5 py-1 rounded-lg text-[11px] font-medium bg-blue-50 dark:bg-blue-950/40 hover:bg-blue-100 text-blue-800 dark:text-blue-300 border border-blue-200 dark:border-blue-900/50 transition-colors"
+                  className="px-2.5 py-1 rounded-md text-[11px] font-medium bg-mist-100 dark:bg-dark-surface hover:bg-mist-200 dark:hover:bg-mist-800 text-mist-900 dark:text-white border border-mist-300 dark:border-dark-border transition-colors"
                 >
                   Supervisor (Eleanor Vance)
                 </button>
                 <button
                   type="button"
                   onClick={() => setPreset('admin', 'admin1', 'AdminMaster2026!')}
-                  className="px-2.5 py-1 rounded-lg text-[11px] font-medium bg-purple-50 dark:bg-purple-950/40 hover:bg-purple-100 text-purple-800 dark:text-purple-300 border border-purple-200 dark:border-purple-900/50 transition-colors"
+                  className="px-2.5 py-1 rounded-md text-[11px] font-medium bg-mist-100 dark:bg-dark-surface hover:bg-mist-200 dark:hover:bg-mist-800 text-mist-900 dark:text-white border border-mist-300 dark:border-dark-border transition-colors"
                 >
                   Admin (Marcus Sterling)
                 </button>
@@ -262,6 +277,8 @@ export const Login = () => {
       <footer className="py-4 px-6 text-center text-xs text-mist-600 dark:text-dark-muted border-t border-mist-300 dark:border-dark-border">
         Hazard Hunt 360° Perception Trainer &copy; 2026 Macro Thinkers — CET257 Enterprise Project
       </footer>
+
+      <UserManualModal isOpen={showManual} onClose={() => setShowManual(false)} />
     </div>
   );
 };

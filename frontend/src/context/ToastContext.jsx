@@ -10,9 +10,29 @@ export const ToastProvider = ({ children }) => {
     setToasts((prev) => prev.filter((t) => t.id !== id));
   }, []);
 
-  const showToast = useCallback((message, type = 'info', duration = 4000) => {
+  const clearAllToasts = useCallback(() => {
+    setToasts([]);
+  }, []);
+
+  // Clear toasts when user clicks or presses a key
+  React.useEffect(() => {
+    const handleAction = () => {
+      if (toasts.length > 0) {
+        clearAllToasts();
+      }
+    };
+    window.addEventListener('mousedown', handleAction);
+    window.addEventListener('keydown', handleAction);
+    return () => {
+      window.removeEventListener('mousedown', handleAction);
+      window.removeEventListener('keydown', handleAction);
+    };
+  }, [toasts.length, clearAllToasts]);
+
+  const showToast = useCallback((message, type = 'info', duration = 2500) => {
     const id = Date.now() + Math.random().toString(36).substr(2, 5);
-    setToasts((prev) => [...prev, { id, message, type }]);
+    // Overwrite existing toasts instead of appending
+    setToasts([{ id, message, type }]);
 
     setTimeout(() => {
       removeToast(id);
@@ -28,7 +48,7 @@ export const ToastProvider = ({ children }) => {
       case 'warning':
         return <AlertTriangle className="w-5 h-5 text-amber-500 flex-shrink-0" />;
       default:
-        return <Info className="w-5 h-5 text-violet-500 flex-shrink-0" />;
+        return <Info className="w-5 h-5 text-primary-500 flex-shrink-0" />;
     }
   };
 
@@ -41,7 +61,7 @@ export const ToastProvider = ({ children }) => {
       case 'warning':
         return 'border-amber-500/40 bg-amber-50/90 dark:bg-amber-950/40 text-amber-900 dark:text-amber-200';
       default:
-        return 'border-violet-500/40 bg-violet-50/90 dark:bg-violet-950/40 text-violet-900 dark:text-violet-200';
+        return 'border-primary-500/40 bg-primary-50/90 dark:bg-primary-950/40 text-primary-900 dark:text-primary-200';
     }
   };
 

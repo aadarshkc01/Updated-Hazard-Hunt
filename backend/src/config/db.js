@@ -8,28 +8,28 @@ export const connectDB = async () => {
     let uri = process.env.MONGODB_URI;
 
     if (!uri) {
-      console.log('⚡ No MONGODB_URI provided. Initializing embedded in-memory MongoDB server...');
+      console.log('No MONGODB_URI provided. Initializing embedded in-memory MongoDB server...');
       mongod = await MongoMemoryServer.create();
       uri = mongod.getUri();
-      console.log(`✅ In-memory MongoDB running at: ${uri}`);
+      console.log(`In-memory MongoDB running at: ${uri}`);
     }
 
     const conn = await mongoose.connect(uri, {
       serverSelectionTimeoutMS: 5000,
     });
 
-    console.log(`📦 MongoDB Connected: ${conn.connection.host}`);
+    console.log(`MongoDB connected: ${conn.connection.host}`);
     return conn;
   } catch (error) {
-    console.warn(`⚠️ Primary MongoDB connection failed (${error.message}). Falling back to in-memory MongoDB...`);
+    console.warn(`Primary MongoDB connection failed (${error.message}). Falling back to in-memory MongoDB...`);
     try {
       mongod = await MongoMemoryServer.create();
       const fallbackUri = mongod.getUri();
       const conn = await mongoose.connect(fallbackUri);
-      console.log(`✅ Fallback In-memory MongoDB connected: ${conn.connection.host}`);
+      console.log(`Fallback in-memory MongoDB connected: ${conn.connection.host}`);
       return conn;
     } catch (fallbackError) {
-      console.error(`❌ Critical: MongoDB connection failed completely:`, fallbackError);
+      console.error('MongoDB connection failed completely:', fallbackError);
       process.exit(1);
     }
   }

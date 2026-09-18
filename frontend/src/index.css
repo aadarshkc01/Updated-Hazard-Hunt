@@ -2,17 +2,45 @@
 @tailwind components;
 @tailwind utilities;
 
+@layer components {
+  .app-card {
+    @apply bg-white dark:bg-dark-card border border-mist-300 dark:border-dark-border rounded-xl shadow-sm;
+  }
+
+  .app-muted-panel {
+    @apply bg-mist-100 dark:bg-dark-surface border border-mist-200 dark:border-dark-border rounded-lg;
+  }
+
+  .app-action {
+    @apply inline-flex items-center justify-center rounded-lg px-3 py-2 text-xs font-bold transition-colors;
+  }
+}
+
 @layer base {
   html {
-    font-size: 108%;
+    font-size: 15px;
+    font-family: 'Segoe UI', 'Inter', system-ui, -apple-system, sans-serif;
   }
 
   body {
-    @apply transition-colors duration-200 antialiased min-h-screen text-base bg-mist-50 text-mist-900;
+    @apply transition-all duration-300 ease-in-out antialiased min-h-screen text-base bg-app-shell text-mist-900 selection:bg-primary-500 selection:text-white;
   }
 
   html.dark body {
-    @apply bg-dark-bg text-dark-text;
+    @apply bg-dark-bg text-dark-text selection:bg-primary-500 selection:text-white;
+  }
+
+  ::selection {
+    background: #FF6115;
+    color: #FFFFFF;
+  }
+
+  button,
+  input,
+  select,
+  textarea,
+  a {
+    @apply transition-colors duration-200 ease-in-out;
   }
 }
 
