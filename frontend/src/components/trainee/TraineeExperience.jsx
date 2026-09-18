@@ -79,7 +79,7 @@ export const TraineeExperience = () => {
         }
         if (prev === 15) {
           soundEngine.playUrgent();
-          showToast('⚠ 15 seconds remaining!', 'warning');
+          showToast('15 seconds remaining!', 'warning');
         } else if (prev <= 5) {
           soundEngine.playTick();
         }
@@ -142,10 +142,10 @@ export const TraineeExperience = () => {
     soundEngine.playSuccess();
     const updated = [...foundHotspots, hotspot];
     setFoundHotspots(updated);
-    showToast(`✓ Hazard found: ${hotspot.title}`, 'success');
+    showToast(`Hazard found: ${hotspot.title}`, 'success');
     const totalHazards = (scenario?.hotspots || []).filter((h) => h.isHazard).length;
     if (updated.length >= totalHazards) {
-      showToast('🎉 All hazards discovered! Preparing quiz…', 'success');
+      showToast('All hazards discovered! Preparing quiz…', 'success');
       setTimeout(() => transitionToQuiz(), 1200);
     }
   };
@@ -153,7 +153,7 @@ export const TraineeExperience = () => {
   const handleFalseClick = () => {
     soundEngine.playWarning();
     setFalseClicksCount((prev) => prev + 1);
-    showToast('⚠ False click! –5% accuracy deduction', 'error');
+    showToast('False click! -5% accuracy deduction', 'error');
   };
 
   const handleQuizComplete = async (quizAnswers) => {
@@ -172,7 +172,7 @@ export const TraineeExperience = () => {
         setDiagnosticData(res.diagnostic);
         setPhase('DIAGNOSTIC');
         if (res.diagnostic.passed) {
-          showToast(`🏆 Compliance Certified! Score: ${res.diagnostic.totalScore}%`, 'success');
+          showToast(`Compliance certified! Score: ${res.diagnostic.totalScore}%`, 'success');
         } else {
           showToast(`Session complete. Score: ${res.diagnostic.totalScore}% (Need 75% to pass)`, 'warning');
         }
@@ -207,7 +207,7 @@ export const TraineeExperience = () => {
   if (loading && phase === 'HOME') {
     return (
       <div className="min-h-[70vh] flex flex-col items-center justify-center p-8 text-center">
-        <div className="w-12 h-12 border-4 border-violet-500 border-t-transparent rounded-full animate-spin mb-4" />
+        <div className="w-12 h-12 border-4 border-primary-500 border-t-transparent rounded-full animate-spin mb-4" />
         <h3 className="text-base font-bold text-mist-900 dark:text-white">
           Loading 360° Warehouse Environment…
         </h3>
@@ -253,6 +253,41 @@ export const TraineeExperience = () => {
       {/* ── INSPECTION phase: 360° viewer ── */}
       {phase === 'INSPECTION' && (
         <div className="max-w-7xl mx-auto py-4 px-4 sm:px-6 lg:px-8 animate-fade-in">
+          {!isPracticeMode && (
+            <div className="mb-4 rounded-2xl border border-primary-200 bg-primary-50/80 p-4 shadow-sm dark:border-primary-900/60 dark:bg-primary-950/30">
+              <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+                <div>
+                  <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-primary-600 dark:text-primary-400">
+                    Official hazard hunt instructions
+                  </p>
+                  <h3 className="mt-1 text-lg font-bold text-mist-900 dark:text-white">
+                    Spot all 5 hazards before the timer ends
+                  </h3>
+                </div>
+                <span className="inline-flex items-center rounded-full bg-primary-600 px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.15em] text-white">
+                  Official session
+                </span>
+              </div>
+
+              <ul className="mt-3 grid gap-2 text-xs text-mist-700 dark:text-dark-muted md:grid-cols-3">
+                <li>• Rotate the 360° warehouse view to inspect every corner.</li>
+                <li>• Click only real hazards. False clicks reduce your score by 5%.</li>
+                <li>• Your result is recorded for the HSE compliance audit.</li>
+              </ul>
+            </div>
+          )}
+
+          {isPracticeMode && (
+            <div className="mb-4 rounded-2xl border border-amber-200 bg-amber-50 p-4 shadow-sm dark:border-amber-900/60 dark:bg-amber-950/20">
+              <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-amber-700 dark:text-amber-300">
+                Practice session
+              </p>
+              <h3 className="mt-1 text-lg font-bold text-mist-900 dark:text-white">
+                Practice mode: no official result is recorded
+              </h3>
+            </div>
+          )}
+
           <TraineeSessionHUD
             timeLeft={timeLeft}
             totalTime={totalTime}

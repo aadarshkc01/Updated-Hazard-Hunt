@@ -23,7 +23,7 @@ export const OnboardingModal = ({ isOpen, onClose, onComplete }) => {
       title: 'Welcome to Hazard Hunt 360°',
       badge: 'Automotive Logistics Bay 4',
       icon: Compass,
-      color: 'from-violet-600 to-violet-800',
+      color: 'bg-primary-600',
       description:
         'You are assigned to conduct a panoramic safety sweep of Bay 4 Inbound Logistics. Replaces passive posters with an active, timed perception test.',
       points: [
@@ -36,7 +36,7 @@ export const OnboardingModal = ({ isOpen, onClose, onComplete }) => {
       title: 'How to Inspect & Spot Hazards',
       badge: '5 Hidden Critical Violations',
       icon: Target,
-      color: 'from-blue-600 to-indigo-700',
+      color: 'bg-primary-600',
       description:
         'Rotate your perspective by clicking and dragging with your mouse (or swiping on tablets/mobile screens).',
       points: [
@@ -49,7 +49,7 @@ export const OnboardingModal = ({ isOpen, onClose, onComplete }) => {
       title: 'Scoring & Accuracy Rules',
       badge: 'Penalty-Aware Perception',
       icon: AlertTriangle,
-      color: 'from-amber-600 to-violet-700',
+      color: 'bg-primary-600',
       description:
         'High-standard safety inspection requires avoiding false alarms while detecting true risks.',
       points: [
@@ -62,7 +62,7 @@ export const OnboardingModal = ({ isOpen, onClose, onComplete }) => {
       title: 'Post-Inspection Knowledge Quiz & Compliance',
       badge: '75% Pass Standard',
       icon: FileCheck,
-      color: 'from-emerald-600 to-teal-700',
+      color: 'bg-primary-600',
       description:
         'Following the 360 sweep, you must complete a 4-question multiple choice knowledge quiz on UK HSE and warehouse regulations.',
       points: [
@@ -74,8 +74,6 @@ export const OnboardingModal = ({ isOpen, onClose, onComplete }) => {
   ];
 
   const currentSlide = slides[step];
-  const IconComponent = currentSlide.icon;
-
   const handleNext = () => {
     soundEngine.playTick();
     if (step < slides.length - 1) {
@@ -95,11 +93,8 @@ export const OnboardingModal = ({ isOpen, onClose, onComplete }) => {
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in">
       <div className="bg-white dark:bg-dark-card rounded-3xl shadow-2xl max-w-xl w-full border border-mist-300 dark:border-dark-border overflow-hidden relative transition-all animate-slide-up">
         {/* Banner */}
-        <div className={`h-24 bg-gradient-to-r ${currentSlide.color} p-6 flex items-center justify-between text-white relative`}>
+        <div className={`h-24 ${currentSlide.color} p-6 flex items-center justify-between text-white relative`}>
           <div className="flex items-center space-x-3.5">
-            <div className="p-3 bg-white/20 rounded-2xl backdrop-blur-md">
-              <IconComponent className="w-7 h-7 text-white" />
-            </div>
             <div>
               <span className="text-[10px] font-bold uppercase tracking-wider bg-black/20 px-2.5 py-0.5 rounded-full">
                 {currentSlide.badge}
@@ -129,7 +124,6 @@ export const OnboardingModal = ({ isOpen, onClose, onComplete }) => {
                 key={idx}
                 className="flex items-start space-x-3 p-3 rounded-2xl bg-mist-100 dark:bg-dark-surface border border-mist-300/80 dark:border-dark-border text-xs text-mist-900 dark:text-dark-text"
               >
-                <CheckCircle2 className="w-4 h-4 text-violet-500 mt-0.5 flex-shrink-0" />
                 <span className="leading-snug font-medium">{pt}</span>
               </div>
             ))}
@@ -143,7 +137,7 @@ export const OnboardingModal = ({ isOpen, onClose, onComplete }) => {
                   key={i}
                   onClick={() => setStep(i)}
                   className={`h-2 rounded-full transition-all ${
-                    step === i ? 'w-6 bg-violet-500' : 'w-2 bg-mist-300 dark:bg-dark-border'
+                    step === i ? 'w-6 bg-primary-500' : 'w-2 bg-mist-300 dark:bg-dark-border'
                   }`}
                 />
               ))}
@@ -169,7 +163,7 @@ export const OnboardingModal = ({ isOpen, onClose, onComplete }) => {
               ) : (
                 <button
                   onClick={handleNext}
-                  className="px-6 py-2.5 rounded-xl bg-violet-500 hover:bg-violet-600 text-white text-xs font-bold transition-all flex items-center space-x-1.5 shadow-violet hover:shadow-violet-lg"
+                  className="px-6 py-2.5 rounded-lg bg-primary-500 hover:bg-primary-600 text-white text-xs font-bold transition-all flex items-center space-x-1.5"
                 >
                   <span>Start Bay 4 Inspection</span>
                   <ArrowRight className="w-4 h-4" />

@@ -1,6 +1,7 @@
 import React, { useEffect } from 'react';
 import confetti from 'canvas-confetti';
 import { soundEngine } from '../../utils/audio';
+import { api } from '../../services/api';
 import {
   CheckCircle2,
   XCircle,
@@ -49,7 +50,7 @@ export const DiagnosticSummary = ({ diagnostic, onRetryPractice, onReturnHome })
           particleCount: 90,
           spread: 75,
           origin: { y: 0.6 },
-          colors: ['#7A35FF', '#10B981', '#F59E0B', '#F0F2F5'],
+          colors: ['#FF6115', '#10B981', '#F59E0B'],
         });
       } catch (e) {}
     } else {
@@ -63,25 +64,44 @@ export const DiagnosticSummary = ({ diagnostic, onRetryPractice, onReturnHome })
     return `${mins}m ${s < 10 ? '0' : ''}${s}s`;
   };
 
+  const handleDownloadReport = () => {
+    if (isPracticeMode) return;
+    try {
+      api.downloadScoreReport([diagnostic], { name: userName });
+    } catch (err) {
+      console.error('Failed to download score report:', err);
+    }
+  };
+
   return (
-    <div className="max-w-4xl mx-auto py-8 px-4 animate-fade-in transition-colors duration-200">
+    <div className="max-w-4xl mx-auto py-6 px-4 animate-fade-in transition-colors duration-200">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-5">
+        <div>
+          <p className="text-[10px] uppercase tracking-widest font-bold text-primary-500">Assessment complete</p>
+          <p className="text-sm text-mist-600 dark:text-dark-muted mt-1">Review the result below or choose your next step.</p>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <button onClick={onRetryPractice} className="px-3 py-2 rounded-lg border border-mist-300 dark:border-dark-border text-mist-700 dark:text-dark-muted hover:border-primary-400 hover:text-primary-600 text-xs font-bold">
+            Retry in Practice Mode
+          </button>
+          <button onClick={handleDownloadReport} disabled={isPracticeMode} className="px-3 py-2 rounded-lg border border-primary-500 text-primary-600 hover:bg-primary-50 dark:hover:bg-primary-950/30 text-xs font-bold disabled:opacity-40 disabled:cursor-not-allowed">
+            Download Score Report
+          </button>
+          <button onClick={onReturnHome} className="px-3 py-2 rounded-lg bg-primary-500 hover:bg-primary-600 text-white text-xs font-bold">
+            Return to Dashboard
+          </button>
+        </div>
+      </div>
       {/* 1. Pass/Fail Compliance Banner */}
       <div
-        className={`rounded-3xl p-6 sm:p-8 text-white shadow-2xl border mb-8 relative overflow-hidden ${
+        className={`rounded-xl p-6 sm:p-8 text-white shadow-sm border mb-8 relative overflow-hidden ${
           passed
-            ? 'bg-gradient-to-r from-emerald-950 via-slate-900 to-emerald-900 border-emerald-500/50'
-            : 'bg-gradient-to-r from-red-950 via-slate-900 to-amber-950 border-red-500/50'
+            ? 'bg-emerald-600 border-emerald-700'
+            : 'bg-red-600 border-red-700'
         }`}
       >
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6 relative z-10">
           <div className="flex items-center space-x-4">
-            <div
-              className={`w-16 h-16 rounded-2xl flex items-center justify-center shadow-lg flex-shrink-0 ${
-                passed ? 'bg-emerald-500 text-white' : 'bg-red-500 text-white'
-              }`}
-            >
-              {passed ? <ShieldCheck className="w-10 h-10" /> : <ShieldAlert className="w-10 h-10" />}
-            </div>
             <div>
               <div className="flex items-center space-x-2">
                 <span
@@ -99,7 +119,7 @@ export const DiagnosticSummary = ({ diagnostic, onRetryPractice, onReturnHome })
                   })}
                 </span>
               </div>
-              <h1 className="text-2xl sm:text-3xl font-black tracking-tight mt-1">
+              <h1 className="text-xl sm:text-2xl font-black tracking-tight mt-1">
                 {passed ? 'COMPLIANCE CERTIFIED: PASS' : 'COMPLIANCE AUDIT: ACTION REQUIRED'}
               </h1>
               <p className="text-xs sm:text-sm text-gray-300 mt-1 font-medium">
@@ -109,13 +129,13 @@ export const DiagnosticSummary = ({ diagnostic, onRetryPractice, onReturnHome })
           </div>
 
           {/* Overall Score Badge */}
-          <div className="flex flex-col items-end bg-black/40 backdrop-blur-md px-6 py-4 rounded-2xl border border-white/10">
+          <div className="flex flex-col items-end bg-white/15 px-6 py-4 rounded-lg border border-white/30">
             <span className="text-[11px] uppercase tracking-wider text-gray-300 font-bold">
               Overall Composite Score
             </span>
             <div className="flex items-baseline space-x-1.5 mt-0.5">
               <span
-                className={`text-4xl sm:text-5xl font-black font-mono ${
+                className={`text-3xl sm:text-4xl font-black font-mono ${
                   passed ? 'text-emerald-400' : 'text-red-400'
                 }`}
               >
@@ -139,12 +159,11 @@ export const DiagnosticSummary = ({ diagnostic, onRetryPractice, onReturnHome })
 
       {/* 2. Key Diagnostic Metrics Grid */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-        <div className="bg-white dark:bg-dark-card rounded-3xl p-5 shadow-card dark:shadow-card-dark border border-mist-300 dark:border-dark-border transition-colors">
-          <div className="flex items-center justify-between text-mist-600 dark:text-dark-muted mb-1">
+        <div className="bg-white dark:bg-dark-card rounded-xl p-5 shadow-sm border border-mist-300 dark:border-dark-border transition-colors">
+          <div className="text-mist-600 dark:text-dark-muted mb-1">
             <span className="text-xs font-bold uppercase">Hazards Found</span>
-            <Target className="w-4 h-4 text-violet-500" />
           </div>
-          <div className="text-2xl font-black text-mist-900 dark:text-white font-mono">
+          <div className="text-xl font-black text-mist-900 dark:text-white font-mono">
             {foundCount} <span className="text-xs text-mist-500 dark:text-dark-muted font-normal">/ {totalHazards}</span>
           </div>
           <span className="text-[11px] text-mist-600 dark:text-dark-muted mt-1 block">
@@ -152,12 +171,11 @@ export const DiagnosticSummary = ({ diagnostic, onRetryPractice, onReturnHome })
           </span>
         </div>
 
-        <div className="bg-white dark:bg-dark-card rounded-3xl p-5 shadow-card dark:shadow-card-dark border border-mist-300 dark:border-dark-border transition-colors">
-          <div className="flex items-center justify-between text-mist-600 dark:text-dark-muted mb-1">
+        <div className="bg-white dark:bg-dark-card rounded-xl p-5 shadow-sm border border-mist-300 dark:border-dark-border transition-colors">
+          <div className="text-mist-600 dark:text-dark-muted mb-1">
             <span className="text-xs font-bold uppercase">False Clicks</span>
-            <AlertTriangle className="w-4 h-4 text-amber-500" />
           </div>
-          <div className="text-2xl font-black text-mist-900 dark:text-white font-mono">
+          <div className="text-xl font-black text-mist-900 dark:text-white font-mono">
             {falseClicksCount}
           </div>
           <span className="text-[11px] text-red-500 mt-1 block font-medium">
@@ -165,12 +183,11 @@ export const DiagnosticSummary = ({ diagnostic, onRetryPractice, onReturnHome })
           </span>
         </div>
 
-        <div className="bg-white dark:bg-dark-card rounded-3xl p-5 shadow-card dark:shadow-card-dark border border-mist-300 dark:border-dark-border transition-colors">
-          <div className="flex items-center justify-between text-mist-600 dark:text-dark-muted mb-1">
+        <div className="bg-white dark:bg-dark-card rounded-xl p-5 shadow-sm border border-mist-300 dark:border-dark-border transition-colors">
+          <div className="text-mist-600 dark:text-dark-muted mb-1">
             <span className="text-xs font-bold uppercase">Time Taken</span>
-            <Clock className="w-4 h-4 text-blue-500" />
           </div>
-          <div className="text-2xl font-black text-mist-900 dark:text-white font-mono">
+          <div className="text-xl font-black text-mist-900 dark:text-white font-mono">
             {formatSeconds(timeTakenSeconds)}
           </div>
           <span className="text-[11px] text-mist-600 dark:text-dark-muted mt-1 block">
@@ -178,12 +195,11 @@ export const DiagnosticSummary = ({ diagnostic, onRetryPractice, onReturnHome })
           </span>
         </div>
 
-        <div className="bg-white dark:bg-dark-card rounded-3xl p-5 shadow-card dark:shadow-card-dark border border-mist-300 dark:border-dark-border transition-colors">
-          <div className="flex items-center justify-between text-mist-600 dark:text-dark-muted mb-1">
+        <div className="bg-white dark:bg-dark-card rounded-xl p-5 shadow-sm border border-mist-300 dark:border-dark-border transition-colors">
+          <div className="text-mist-600 dark:text-dark-muted mb-1">
             <span className="text-xs font-bold uppercase">Quiz Score</span>
-            <Award className="w-4 h-4 text-violet-500" />
           </div>
-          <div className="text-2xl font-black text-mist-900 dark:text-white font-mono">
+          <div className="text-xl font-black text-mist-900 dark:text-white font-mono">
             {quizScore}%
           </div>
           <span className="text-[11px] text-mist-600 dark:text-dark-muted mt-1 block">
@@ -193,10 +209,9 @@ export const DiagnosticSummary = ({ diagnostic, onRetryPractice, onReturnHome })
       </div>
 
       {/* 3. Detailed Itemized Hazards Review */}
-      <div className="bg-white dark:bg-dark-card rounded-3xl shadow-card dark:shadow-card-dark border border-mist-300 dark:border-dark-border p-6 sm:p-7 mb-8 transition-colors">
-        <h2 className="text-lg font-bold text-mist-900 dark:text-white mb-4 flex items-center space-x-2">
-          <FileText className="w-5 h-5 text-violet-500" />
-          <span>Warehouse Inspection Breakdown (Bay 4)</span>
+      <div className="bg-white dark:bg-dark-card rounded-xl shadow-sm border border-mist-300 dark:border-dark-border p-6 sm:p-7 mb-8 transition-colors">
+        <h2 className="text-base font-bold text-mist-900 dark:text-white mb-4">
+          Warehouse Inspection Breakdown (Bay 4)
         </h2>
 
         <div className="space-y-3">
@@ -264,10 +279,9 @@ export const DiagnosticSummary = ({ diagnostic, onRetryPractice, onReturnHome })
 
       {/* 4. Quiz Review */}
       {quizReview.length > 0 && (
-        <div className="bg-white dark:bg-dark-card rounded-3xl shadow-card dark:shadow-card-dark border border-mist-300 dark:border-dark-border p-6 sm:p-7 mb-8 transition-colors">
-          <h2 className="text-lg font-bold text-mist-900 dark:text-white mb-4 flex items-center space-x-2">
-            <Award className="w-5 h-5 text-violet-500" />
-            <span>Safety Regulatory Knowledge Review</span>
+        <div className="bg-white dark:bg-dark-card rounded-xl shadow-sm border border-mist-300 dark:border-dark-border p-6 sm:p-7 mb-8 transition-colors">
+          <h2 className="text-base font-bold text-mist-900 dark:text-white mb-4">
+            Safety Regulatory Knowledge Review
           </h2>
 
           <div className="space-y-3.5">
@@ -313,29 +327,9 @@ export const DiagnosticSummary = ({ diagnostic, onRetryPractice, onReturnHome })
         </div>
       )}
 
-      {/* 5. Action Buttons (FR-13: Practice Retry) */}
-      <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-4 border-t border-mist-300 dark:border-dark-border">
-        <div>
-          <button
-            onClick={onRetryPractice}
-            className="w-full sm:w-auto px-5 py-3 rounded-2xl bg-mist-900 dark:bg-dark-surface hover:bg-mist-800 dark:hover:bg-dark-border text-white text-xs font-bold transition-all shadow-sm flex items-center justify-center space-x-2"
-          >
-            <RotateCcw className="w-4 h-4" />
-            <span>Retry in Practice Mode</span>
-          </button>
-          <span className="text-[11px] text-mist-500 dark:text-dark-muted mt-1 block">
-            Practice mode runs do not overwrite official compliance audits.
-          </span>
-        </div>
-
-        <button
-          onClick={onReturnHome}
-          className="w-full sm:w-auto px-6 py-3 rounded-2xl bg-violet-500 hover:bg-violet-600 text-white text-xs font-bold transition-all shadow-violet hover:shadow-violet-lg flex items-center justify-center space-x-2"
-        >
-          <span>Return to Dashboard</span>
-          <ArrowRight className="w-4 h-4" />
-        </button>
-      </div>
+      <p className="text-[11px] text-mist-500 dark:text-dark-muted mt-5 pt-4 border-t border-mist-300 dark:border-dark-border">
+        Practice mode runs do not overwrite official compliance audits.
+      </p>
     </div>
   );
 };

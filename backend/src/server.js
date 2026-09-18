@@ -12,7 +12,33 @@ import complianceRoutes from './routes/complianceRoutes.js';
 dotenv.config();
 
 const app = express();
-const PORT = process.env.PORT || 5000;
+const DEFAULT_PORT = Number(process.env.PORT) || 5001;
+
+const startServer = async (port = DEFAULT_PORT) => {
+  try {
+    await connectDB();
+    await seedDatabase();
+
+    const server = app.listen(port, () => {
+      console.log(`Hazard Hunt API server running on port ${port}`);
+      console.log(`Health check available at: http://localhost:${port}/api/health`);
+    });
+
+    server.on('error', async (error) => {
+      if (error.code === 'EADDRINUSE') {
+        const nextPort = port + 1;
+        console.warn(`Port ${port} is busy. Retrying on ${nextPort}.`);
+        await startServer(nextPort);
+      } else {
+        console.error('Fatal: Failed to start server:', error);
+        process.exit(1);
+      }
+    });
+  } catch (error) {
+    console.error('Fatal: Failed to start server:', error);
+    process.exit(1);
+  }
+};
 
 // Middleware
 app.use(
@@ -33,8 +59,8 @@ app.use('/api/compliance', complianceRoutes);
 app.get('/api/health', (req, res) => {
   res.status(200).json({
     status: 'online',
-    service: 'Hazard Hunt API (360 Warehouse Hazard Perception Trainer)',
-    version: '1.0.0 (Phase 1)',
+    service: 'Hazard Hunt API',
+    version: '1.0.0',
     timestamp: new Date().toISOString(),
   });
 });
@@ -52,21 +78,5 @@ app.use((err, req, res, next) => {
     message: err.message || 'Internal server error',
   });
 });
-
-// Initialize database and start listening
-const startServer = async () => {
-  try {
-    await connectDB();
-    await seedDatabase();
-
-    app.listen(PORT, () => {
-      console.log(`🚀 Hazard Hunt API Server running on port ${PORT}`);
-      console.log(`🎯 Health check available at: http://localhost:${PORT}/api/health`);
-    });
-  } catch (error) {
-    console.error('Fatal: Failed to start server:', error);
-    process.exit(1);
-  }
-};
 
 startServer();

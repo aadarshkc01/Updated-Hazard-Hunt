@@ -3,7 +3,7 @@
 > **Course Assignment:** CET257 Enterprise Project — University of Sunderland  
 > **Group:** Macro Thinkers  
 > **Simulated Client:** Automotive Logistics & Warehousing Company  
-> **Product Name:** Hazard Hunt (Phase 1 Build)  
+> **Product Name:** Hazard Hunt  
 
 ---
 
@@ -75,7 +75,7 @@ The prototype comes pre-seeded with sample accounts for all three required roles
 | **Employee (Trainee)** | `trainee1` | `SafetyPass123!` | Alex Morgan (Inbound Logistics Bay 4) | Has `hasCompletedOnboarding: false` to demonstrate the first-time onboarding modal. |
 | **Employee (Trainee)** | `trainee2` | `SafetyPass123!` | Jordan Lee (Quality & Packaging) | Pre-seeded with a 97% passing record on the supervisor dashboard. |
 | **Supervisor** | `supervisor1` | `SuperVisor2026!` | Eleanor Vance (HSE Lead) | Access to Team Compliance Dashboard, CSV Export, and Account Creation. |
-| **Admin** | `admin1` | `AdminMaster2026!` | Marcus Sterling (Enterprise SysAdmin) | System Admin overview, Scenario parameters, and Phase 2 roadmap. |
+| **Admin** | `admin1` | `AdminMaster2026!` | Marcus Sterling (Enterprise SysAdmin) | System Admin overview and scenario management. |
 
 > **Live Demo Tip:** On the login page, click any of the **"Demo 1-Click Fill"** buttons to automatically fill credentials without manual typing.
 

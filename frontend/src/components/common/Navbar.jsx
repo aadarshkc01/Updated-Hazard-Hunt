@@ -50,19 +50,19 @@ export const Navbar = ({ isPracticeMode = false, currentView, onViewChange }) =>
     switch (r) {
       case 'admin':
         return (
-          <span className="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-purple-100 text-purple-800 dark:bg-purple-950/60 dark:text-purple-300 border border-purple-200 dark:border-purple-800">
+          <span className="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-primary-100 text-primary-800 dark:bg-primary-950/60 dark:text-primary-300 border border-primary-200 dark:border-primary-800">
             SYSTEM ADMIN
           </span>
         );
       case 'supervisor':
         return (
-          <span className="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-blue-100 text-blue-800 dark:bg-blue-950/60 dark:text-blue-300 border border-blue-200 dark:border-blue-800">
+          <span className="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-mist-100 text-mist-800 dark:bg-dark-surface dark:text-dark-text border border-mist-300 dark:border-dark-border">
             HSE SUPERVISOR
           </span>
         );
       default:
         return (
-          <span className="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-violet-100 text-violet-700 dark:bg-violet-950/60 dark:text-violet-300 border border-violet-200 dark:border-violet-800">
+          <span className="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-primary-50 text-primary-700 dark:bg-primary-950/60 dark:text-primary-300 border border-primary-200 dark:border-primary-800">
             TRAINEE
           </span>
         );
@@ -75,13 +75,13 @@ export const Navbar = ({ isPracticeMode = false, currentView, onViewChange }) =>
         <div className="max-w-7xl mx-auto flex items-center justify-between">
           {/* Brand */}
           <div className="flex items-center space-x-3.5">
-            <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-violet-600 to-violet-400 flex items-center justify-center shadow-violet text-white">
+            <div className="w-10 h-10 rounded-xl bg-primary-500 flex items-center justify-center shadow-sm text-white">
               <ShieldAlert className="w-5 h-5" />
             </div>
             <div>
               <div className="flex items-center space-x-2">
                 <span className="text-xl font-extrabold tracking-tight text-mist-900 dark:text-white">
-                  HAZARD<span className="text-violet-500">HUNT</span>
+                  HAZARD<span className="text-primary-500">HUNT</span>
                 </span>
                 <span className="text-[10px] font-mono tracking-widest uppercase px-1.5 py-0.5 rounded bg-mist-300/60 dark:bg-dark-surface text-mist-700 dark:text-dark-muted font-bold">
                   v1.0
@@ -93,33 +93,7 @@ export const Navbar = ({ isPracticeMode = false, currentView, onViewChange }) =>
             </div>
           </div>
 
-          {/* Center Navigation Switcher for Supervisor/Admin */}
-          {(role === 'supervisor' || role === 'admin') && onViewChange && (
-            <div className="hidden md:flex items-center space-x-1 bg-mist-200 dark:bg-dark-surface p-1 rounded-2xl border border-mist-300 dark:border-dark-border">
-              <button
-                onClick={() => onViewChange('dashboard')}
-                className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center space-x-1.5 ${
-                  currentView === 'dashboard'
-                    ? 'bg-white dark:bg-dark-card text-mist-900 dark:text-white shadow-sm'
-                    : 'text-mist-600 dark:text-dark-muted hover:text-mist-900 dark:hover:text-white'
-                }`}
-              >
-                <LayoutDashboard className="w-3.5 h-3.5" />
-                <span>Console</span>
-              </button>
-              <button
-                onClick={() => onViewChange('trainer')}
-                className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center space-x-1.5 ${
-                  currentView === 'trainer'
-                    ? 'bg-violet-500 text-white shadow-violet'
-                    : 'text-mist-600 dark:text-dark-muted hover:text-mist-900 dark:hover:text-white'
-                }`}
-              >
-                <Eye className="w-3.5 h-3.5" />
-                <span>360 Trainee View</span>
-              </button>
-            </div>
-          )}
+
 
           {/* Right Controls */}
           <div className="flex items-center space-x-2.5">
@@ -134,7 +108,7 @@ export const Navbar = ({ isPracticeMode = false, currentView, onViewChange }) =>
             <button
               onClick={handleThemeChange}
               title={`Switch to ${isDark ? 'Light' : 'Dark'} Mode`}
-              className="p-2.5 rounded-xl bg-mist-100 dark:bg-dark-surface border border-mist-300 dark:border-dark-border text-mist-700 dark:text-dark-text hover:text-violet-500 hover:border-violet-500/40 transition-all shadow-sm"
+              className="p-2.5 rounded-xl bg-mist-100 dark:bg-dark-surface border border-mist-300 dark:border-dark-border text-mist-700 dark:text-dark-text hover:text-primary-500 hover:border-primary-500/40 transition-all shadow-sm"
             >
               {isDark ? (
                 <Sun className="w-4 h-4 text-amber-400" />
@@ -147,12 +121,12 @@ export const Navbar = ({ isPracticeMode = false, currentView, onViewChange }) =>
             <button
               onClick={handleToggleAudio}
               title={isMuted ? 'Unmute Audio' : 'Mute Audio'}
-              className="p-2.5 rounded-xl bg-mist-100 dark:bg-dark-surface border border-mist-300 dark:border-dark-border text-mist-700 dark:text-dark-text hover:text-violet-500 hover:border-violet-500/40 transition-all shadow-sm"
+              className="p-2.5 rounded-xl bg-mist-100 dark:bg-dark-surface border border-mist-300 dark:border-dark-border text-mist-700 dark:text-dark-text hover:text-primary-500 hover:border-primary-500/40 transition-all shadow-sm"
             >
               {isMuted ? (
                 <VolumeX className="w-4 h-4 text-red-500" />
               ) : (
-                <Volume2 className="w-4 h-4 text-violet-500" />
+                <Volume2 className="w-4 h-4 text-primary-500" />
               )}
             </button>
 

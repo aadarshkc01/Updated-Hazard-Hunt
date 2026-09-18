@@ -42,6 +42,10 @@ const userSchema = new mongoose.Schema(
 );
 
 userSchema.pre('save', async function (next) {
+  if (this.role !== 'employee' && this.hasCompletedOnboarding === undefined) {
+    this.hasCompletedOnboarding = true;
+  }
+
   if (!this.isModified('password')) {
     return next();
   }

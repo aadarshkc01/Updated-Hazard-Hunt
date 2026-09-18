@@ -195,9 +195,14 @@ export const getTeamDashboard = async (req, res) => {
 // Real-Time Hazard Vulnerability Radar & Analytics
 export const getAnalyticsSummary = async (req, res) => {
   try {
-    const records = await ComplianceRecord.find().lean();
+    const allRecords = await ComplianceRecord.find().lean();
+    const records = Array.isArray(allRecords) ? allRecords.filter(Boolean) : [];
 
-    // 1. Hazard category vulnerability analysis
+    const safeList = (value) => {
+      if (!Array.isArray(value)) return [];
+      return value.filter((item) => item && typeof item === 'object');
+    };
+
     const categoryStats = {
       'Chemical & Slip Hazard': { spotted: 0, missed: 0, total: 0 },
       'Material Handling': { spotted: 0, missed: 0, total: 0 },
@@ -207,18 +212,19 @@ export const getAnalyticsSummary = async (req, res) => {
     };
 
     records.forEach((rec) => {
-      (rec.hazardsFound || []).forEach((h) => {
+      safeList(rec.hazardsFound).forEach((h) => {
         const cat = h.category || 'Material Handling';
         if (categoryStats[cat]) {
-          categoryStats[cat].spotted++;
-          categoryStats[cat].total++;
+          categoryStats[cat].spotted += 1;
+          categoryStats[cat].total += 1;
         }
       });
-      (rec.hazardsMissed || []).forEach((h) => {
+
+      safeList(rec.hazardsMissed).forEach((h) => {
         const cat = h.category || 'Material Handling';
         if (categoryStats[cat]) {
-          categoryStats[cat].missed++;
-          categoryStats[cat].total++;
+          categoryStats[cat].missed += 1;
+          categoryStats[cat].total += 1;
         }
       });
     });
@@ -237,20 +243,18 @@ export const getAnalyticsSummary = async (req, res) => {
       };
     });
 
-    // 2. Score Distribution
     const distribution = {
-      distDistinction: records.filter((r) => r.totalScore >= 90).length,
-      distPass: records.filter((r) => r.totalScore >= 75 && r.totalScore < 90).length,
-      distNearMiss: records.filter((r) => r.totalScore >= 60 && r.totalScore < 75).length,
-      distFail: records.filter((r) => r.totalScore < 60).length,
+      distDistinction: records.filter((r) => Number(r?.totalScore ?? 0) >= 90).length,
+      distPass: records.filter((r) => Number(r?.totalScore ?? 0) >= 75 && Number(r?.totalScore ?? 0) < 90).length,
+      distNearMiss: records.filter((r) => Number(r?.totalScore ?? 0) >= 60 && Number(r?.totalScore ?? 0) < 75).length,
+      distFail: records.filter((r) => Number(r?.totalScore ?? 0) < 60).length,
     };
 
-    // 3. Average time taken & false clicks
-    const totalTime = records.reduce((acc, r) => acc + (r.timeTakenSeconds || 0), 0);
+    const totalTime = records.reduce((acc, r) => acc + Number(r?.timeTakenSeconds ?? 0), 0);
     const avgTimeTaken = records.length > 0 ? Math.round(totalTime / records.length) : 0;
 
-    const totalFalse = records.reduce((acc, r) => acc + (r.falseClicksCount || 0), 0);
-    const avgFalseClicks = records.length > 0 ? (totalFalse / records.length).toFixed(1) : 0;
+    const totalFalse = records.reduce((acc, r) => acc + Number(r?.falseClicksCount ?? 0), 0);
+    const avgFalseClicks = records.length > 0 ? (totalFalse / records.length).toFixed(1) : '0';
 
     return res.status(200).json({
       success: true,
@@ -352,7 +356,7 @@ export const createAccount = async (req, res) => {
       name: name.trim(),
       role: assignedRole,
       department: department?.trim() || 'Inbound Logistics Bay 4',
-      hasCompletedOnboarding: false,
+      hasCompletedOnboarding: assignedRole === 'employee' ? false : true,
     });
 
     return res.status(201).json({

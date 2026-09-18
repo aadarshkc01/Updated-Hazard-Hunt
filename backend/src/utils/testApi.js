@@ -2,12 +2,12 @@
 const BASE = 'http://localhost:5000/api';
 
 const runTests = async () => {
-  console.log('🚀 Starting Automated Verification of Hazard Hunt API...\n');
+  console.log('Starting Automated Verification of Hazard Hunt API...\n');
 
   // 1. Health check
   const healthRes = await fetch(`${BASE}/health`);
   const healthData = await healthRes.json();
-  console.log('1. Health Check:', healthData.status === 'online' ? '✅ PASS' : '❌ FAIL');
+  console.log('1. Health Check:', healthData.status === 'online' ? 'PASS' : 'FAIL');
 
   // 2. Trainee Login
   const traineeLoginRes = await fetch(`${BASE}/auth/login`, {
@@ -18,7 +18,7 @@ const runTests = async () => {
   const traineeData = await traineeLoginRes.json();
   console.log(
     '2. Trainee Login (trainee1):',
-    traineeData.success && traineeData.user.role === 'employee' ? '✅ PASS' : '❌ FAIL'
+    traineeData.success && traineeData.user.role === 'employee' ? 'PASS' : 'FAIL'
   );
   const traineeToken = traineeData.token;
 
@@ -31,7 +31,7 @@ const runTests = async () => {
   const supData = await supLoginRes.json();
   console.log(
     '3. Supervisor Login (supervisor1):',
-    supData.success && supData.user.role === 'supervisor' ? '✅ PASS' : '❌ FAIL'
+    supData.success && supData.user.role === 'supervisor' ? 'PASS' : 'FAIL'
   );
   const supervisorToken = supData.token;
 
@@ -44,7 +44,7 @@ const runTests = async () => {
   const adminData = await adminLoginRes.json();
   console.log(
     '4. Admin Login (admin1):',
-    adminData.success && adminData.user.role === 'admin' ? '✅ PASS' : '❌ FAIL'
+    adminData.success && adminData.user.role === 'admin' ? 'PASS' : 'FAIL'
   );
 
   // 5. Active Scenario & Hotspots
@@ -55,7 +55,7 @@ const runTests = async () => {
   const scenario = scenarioData.scenario;
   console.log(
     `5. Active Scenario (${scenario?.code || 'N/A'}):`,
-    scenario && scenario.hotspots?.length === 5 ? '✅ PASS (5 hazards loaded)' : '❌ FAIL'
+    scenario && scenario.hotspots?.length === 5 ? 'PASS (5 hazards loaded)' : 'FAIL'
   );
 
   // 6. Security Check: Trainee accessing Supervisor Route (NFR-06)
@@ -64,7 +64,7 @@ const runTests = async () => {
   });
   console.log(
     '6. Security Check (Trainee blocked from Supervisor team route):',
-    forbiddenRes.status === 403 ? '✅ PASS (403 Forbidden enforced)' : '❌ FAIL'
+    forbiddenRes.status === 403 ? 'PASS (403 Forbidden enforced)' : 'FAIL'
   );
 
   // 7. Trainee Submitting Compliance Attempt (FR-08, FR-09)
@@ -92,8 +92,8 @@ const runTests = async () => {
   console.log(
     '7. Compliance Attempt Submission & Scoring:',
     submitData.success && submitData.diagnostic?.totalScore >= 75
-      ? `✅ PASS (Score: ${submitData.diagnostic.totalScore}%, Passed: ${submitData.diagnostic.passed})`
-      : '❌ FAIL'
+      ? `PASS (Score: ${submitData.diagnostic.totalScore}%, Passed: ${submitData.diagnostic.passed})`
+      : 'FAIL'
   );
 
   // 8. Supervisor Dashboard & Team Compliance (FR-12)
@@ -103,7 +103,7 @@ const runTests = async () => {
   const teamData = await teamRes.json();
   console.log(
     '8. Supervisor Team Compliance Dashboard:',
-    teamData.success && teamData.stats?.totalEmployees >= 2 ? '✅ PASS' : '❌ FAIL'
+    teamData.success && teamData.stats?.totalEmployees >= 2 ? 'PASS' : 'FAIL'
   );
 
   // 9. Supervisor CSV Export (FR-12)
@@ -113,7 +113,7 @@ const runTests = async () => {
   const csvText = await csvRes.text();
   console.log(
     '9. CSV Compliance Report Generation:',
-    csvRes.status === 200 && csvText.includes('Record ID') ? '✅ PASS' : '❌ FAIL'
+    csvRes.status === 200 && csvText.includes('Record ID') ? 'PASS' : 'FAIL'
   );
 
   // 10. Supervisor Account Creation (FR-11)
@@ -135,13 +135,13 @@ const runTests = async () => {
   const createUserData = await createUserRes.json();
   console.log(
     '10. Supervisor Issued Staff Credentials (FR-11):',
-    createUserData.success ? `✅ PASS (Created ${newUsername})` : '❌ FAIL'
+    createUserData.success ? `PASS (Created ${newUsername})` : 'FAIL'
   );
 
-  console.log('\n🎉 ALL 10 CORE VERIFICATION TESTS PASSED SUCCESSFULLY!\n');
+  console.log('\nALL 10 CORE VERIFICATION TESTS PASSED SUCCESSFULLY!\n');
 };
 
 runTests().catch((err) => {
-  console.error('❌ Verification failed:', err);
+  console.error('Verification failed:', err);
   process.exit(1);
 });

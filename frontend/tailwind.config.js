@@ -7,7 +7,18 @@ darkMode: 'class', // REQUIRED: Enables class-based dark mode
   ],
   theme: {
     extend: {
+      fontFamily: {
+        sans: ['Inter', 'system-ui', '-apple-system', 'sans-serif'],
+      },
       colors: {
+        primary: {
+          50: '#fff3ed', 100: '#ffe5d4', 200: '#ffc6a2', 300: '#ff9f66',
+          400: '#ff7733', 500: '#ff6115', 600: '#ef4900', 700: '#c63500',
+          800: '#9d2a00', 900: '#7e2504',
+        },
+        app: {
+          shell: '#FFFCF4',
+        },
         mist: {
           50: '#F8FAFC', 100: '#F1F5F9', 200: '#E2E8F0', 300: '#CBD5E1',
           400: '#94A3B8', 500: '#64748B', 600: '#475569', 700: '#334155',
