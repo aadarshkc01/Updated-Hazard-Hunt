@@ -55,6 +55,11 @@ app.use('/api/auth', authRoutes);
 app.use('/api/scenarios', scenarioRoutes);
 app.use('/api/compliance', complianceRoutes);
 
+// Root route (fixes "Route not found: /")
+app.get('/', (req, res) => {
+  res.send('Hazard Hunt API is running 🚀');
+});
+
 // System Health Endpoint
 app.get('/api/health', (req, res) => {
   res.status(200).json({
