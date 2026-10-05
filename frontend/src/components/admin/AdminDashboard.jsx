@@ -368,7 +368,7 @@ export const AdminDashboard = ({ onLaunchTrainer }) => {
                   {[
                     { label: 'Code', val: scenario?.code || 'WH-BAY-04', mono: true },
                     { label: 'Duration', val: `${scenario?.timeLimitSeconds || 90}s` },
-                    { label: 'Hazards', val: `${scenario?.hotspots?.length || 5}`, highlight: 'text-emerald-600 dark:text-emerald-400' },
+                    { label: 'Hazards', val: `${scenario?.hotspots?.length || 5}`, highlight: 'text-primary-600 dark:text-primary-400' },
                     { label: 'Pass At', val: `${scenario?.passingScorePercentage || 75}%` },
                   ].map(({ label, val, mono, highlight }) => (
                     <div key={label} className="bg-mist-100 dark:bg-dark-surface rounded-xl p-2.5 text-center">
@@ -382,11 +382,11 @@ export const AdminDashboard = ({ onLaunchTrainer }) => {
               {/* Hazard Risk Radar */}
               <div className="app-card p-5">
                 <div className="flex items-center gap-2.5 mb-4">
-                  <div className="w-9 h-9 rounded-xl bg-red-100 dark:bg-red-950/40 text-red-600 dark:text-red-400 flex items-center justify-center">
+                  <div className="w-9 h-9 rounded-xl bg-mist-100 dark:bg-dark-surface text-mist-600 dark:text-dark-muted flex items-center justify-center">
                     <AlertTriangle className="w-5 h-5" />
                   </div>
                   <div>
-                    <p className="text-[11px] uppercase font-bold tracking-wider text-red-500">Hazard Miss Rate Radar</p>
+                    <p className="text-[11px] uppercase font-bold tracking-wider text-primary-500">Hazard Miss Rate Radar</p>
                     <p className="text-sm font-bold text-mist-900 dark:text-white">Category Vulnerability Analysis</p>
                   </div>
                 </div>
@@ -397,13 +397,11 @@ export const AdminDashboard = ({ onLaunchTrainer }) => {
                         <div className="flex justify-between items-center mb-1">
                           <span className="text-[11px] font-semibold text-mist-700 dark:text-dark-muted truncate flex-1 mr-2">{cat.category}</span>
                           <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${
-                            cat.riskLevel === 'CRITICAL' ? 'bg-red-100 text-red-700 dark:bg-red-950/50 dark:text-red-400' :
-                            cat.riskLevel === 'MEDIUM' ? 'bg-amber-100 text-amber-700 dark:bg-amber-950/50 dark:text-amber-400' :
-                            'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-400'
+                            'bg-white dark:bg-dark-card text-mist-700 dark:text-dark-muted border border-mist-300 dark:border-dark-border'
                           }`}>{cat.riskLevel}</span>
                         </div>
                         <MiniBar value={cat.missRatePercentage} max={100}
-                          color={cat.riskLevel === 'CRITICAL' ? 'bg-red-500' : cat.riskLevel === 'MEDIUM' ? 'bg-amber-500' : 'bg-emerald-500'} />
+                          color={'bg-primary-500'} />
                       </div>
                     ))}
                   </div>
@@ -570,10 +568,10 @@ export const AdminDashboard = ({ onLaunchTrainer }) => {
             {/* Score Distribution */}
             <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
               {[
-                { label: 'Distinction (90–100%)', value: analytics?.scoreDistribution?.distDistinction ?? 0, color: 'bg-primary-500', textColor: 'text-primary-600 dark:text-primary-400' },
-                { label: 'Pass (75–89%)', value: analytics?.scoreDistribution?.distPass ?? 0, color: 'bg-emerald-500', textColor: 'text-emerald-600 dark:text-emerald-400' },
-                { label: 'Near-Miss (60–74%)', value: analytics?.scoreDistribution?.distNearMiss ?? 0, color: 'bg-amber-500', textColor: 'text-amber-600 dark:text-amber-400' },
-                { label: 'Fail (<60%)', value: analytics?.scoreDistribution?.distFail ?? 0, color: 'bg-red-500', textColor: 'text-red-600 dark:text-red-400' },
+                { label: 'Distinction (90–100%)', value: analytics?.scoreDistribution?.distDistinction ?? 0, color: 'bg-primary-500', textColor: 'text-mist-700 dark:text-dark-muted' },
+                { label: 'Pass (75–89%)', value: analytics?.scoreDistribution?.distPass ?? 0, color: 'bg-primary-500', textColor: 'text-mist-700 dark:text-dark-muted' },
+                { label: 'Near-Miss (60–74%)', value: analytics?.scoreDistribution?.distNearMiss ?? 0, color: 'bg-primary-500', textColor: 'text-mist-700 dark:text-dark-muted' },
+                { label: 'Fail (<60%)', value: analytics?.scoreDistribution?.distFail ?? 0, color: 'bg-primary-500', textColor: 'text-mist-700 dark:text-dark-muted' },
               ].map(({ label, value, color, textColor }) => {
                 const total = totalAttempts || 1;
                 const pct = Math.round((value / total) * 100);
@@ -603,8 +601,7 @@ export const AdminDashboard = ({ onLaunchTrainer }) => {
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2">
                           <span className={`w-2.5 h-2.5 rounded-full flex-shrink-0 ${
-                            cat.riskLevel === 'CRITICAL' ? 'bg-red-500' :
-                            cat.riskLevel === 'MEDIUM' ? 'bg-amber-500' : 'bg-emerald-500'
+                            'bg-primary-500'
                           }`} />
                           <span className="text-xs font-semibold text-mist-800 dark:text-white">{cat.category}</span>
                         </div>
@@ -613,16 +610,13 @@ export const AdminDashboard = ({ onLaunchTrainer }) => {
                             {cat.spotted} spotted · {cat.missed} missed
                           </span>
                           <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
-                            cat.riskLevel === 'CRITICAL' ? 'bg-red-100 text-red-700 dark:bg-red-950/50 dark:text-red-400' :
-                            cat.riskLevel === 'MEDIUM' ? 'bg-amber-100 text-amber-700 dark:bg-amber-950/50 dark:text-amber-400' :
-                            'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-400'
+                            'bg-white dark:bg-dark-card text-mist-700 dark:text-dark-muted border border-mist-300 dark:border-dark-border'
                           }`}>{cat.riskLevel} · {cat.missRatePercentage}% miss</span>
                         </div>
                       </div>
                       <div className="w-full h-2.5 bg-mist-100 dark:bg-dark-surface rounded-full overflow-hidden">
                         <div className={`h-full rounded-full transition-all duration-700 ${
-                          cat.riskLevel === 'CRITICAL' ? 'bg-red-500' :
-                          cat.riskLevel === 'MEDIUM' ? 'bg-amber-500' : 'bg-emerald-500'
+                          'bg-primary-500'
                         }`} style={{ width: `${cat.missRatePercentage}%` }} />
                       </div>
                     </div>

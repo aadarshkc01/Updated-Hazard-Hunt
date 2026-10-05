@@ -35,9 +35,9 @@ const ScoreRing = ({ score, size = 80, strokeWidth = 7, color = '#FF6115' }) => 
 // ── Status Chip ──────────────────────────────────────────────────────────────
 const StatusChip = ({ status }) => {
   const styles = {
-    PASS: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/50 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800',
-    FAIL: 'bg-red-100 text-red-800 dark:bg-red-950/50 dark:text-red-300 border-red-200 dark:border-red-800',
-    PENDING: 'bg-amber-100 text-amber-800 dark:bg-amber-950/50 dark:text-amber-300 border-amber-200 dark:border-amber-800',
+    PASS: 'bg-white dark:bg-dark-card text-mist-800 dark:text-dark-text border-mist-300 dark:border-dark-border',
+    FAIL: 'bg-white dark:bg-dark-card text-mist-800 dark:text-dark-text border-mist-300 dark:border-dark-border',
+    PENDING: 'bg-white dark:bg-dark-card text-mist-500 dark:text-dark-muted border-mist-300 dark:border-dark-border',
   };
   const icons = { PASS: CheckCircle2, FAIL: XCircle, PENDING: Clock };
   const StatusIcon = icons[status] || Clock;
@@ -303,11 +303,11 @@ export const SupervisorDashboard = () => {
                 iconClass="bg-mist-100 dark:bg-dark-surface text-mist-600 dark:text-dark-muted" />
               <StatCard icon={CheckCircle2} label="Passed" value={stats.passedCount ?? 0}
                 sub={`${stats.passRatePercentage ?? 0}% pass rate`}
-                iconClass="bg-emerald-100 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400"
+                iconClass="bg-mist-100 dark:bg-dark-surface text-mist-600 dark:text-dark-muted"
                 trend={(stats.passRatePercentage || 0) >= 75 ? 5 : -8} />
               <StatCard icon={XCircle} label="Failed / Pending" value={(stats.failedCount ?? 0) + (stats.pendingCount ?? 0)}
                 sub={`${stats.failedCount ?? 0} failed · ${stats.pendingCount ?? 0} pending`}
-                iconClass="bg-red-100 dark:bg-red-950/40 text-red-600 dark:text-red-400" />
+                iconClass="bg-mist-100 dark:bg-dark-surface text-mist-600 dark:text-dark-muted" />
               <StatCard icon={Award} label="Avg. Score" value={`${stats.averageScorePercentage ?? 0}%`}
                 sub="Official sessions only"
                 iconClass="bg-primary-100 dark:bg-primary-950/40 text-primary-600 dark:text-primary-400" />
@@ -320,9 +320,9 @@ export const SupervisorDashboard = () => {
               </h3>
               <div className="space-y-4">
                 {[
-                  { label: 'Passed', value: stats.passedCount ?? 0, total: stats.totalEmployees || 1, color: 'bg-emerald-500', textColor: 'text-emerald-600 dark:text-emerald-400' },
-                  { label: 'Failed', value: stats.failedCount ?? 0, total: stats.totalEmployees || 1, color: 'bg-red-500', textColor: 'text-red-600 dark:text-red-400' },
-                  { label: 'Pending (Not Attempted)', value: stats.pendingCount ?? 0, total: stats.totalEmployees || 1, color: 'bg-amber-500', textColor: 'text-amber-600 dark:text-amber-400' },
+                  { label: 'Passed', value: stats.passedCount ?? 0, total: stats.totalEmployees || 1, color: 'bg-primary-500', textColor: 'text-mist-700 dark:text-dark-muted' },
+                  { label: 'Failed', value: stats.failedCount ?? 0, total: stats.totalEmployees || 1, color: 'bg-mist-700 dark:bg-mist-500', textColor: 'text-mist-700 dark:text-dark-muted' },
+                  { label: 'Pending (Not Attempted)', value: stats.pendingCount ?? 0, total: stats.totalEmployees || 1, color: 'bg-mist-300 dark:bg-mist-600', textColor: 'text-mist-500 dark:text-dark-muted' },
                 ].map(({ label, value, total, color, textColor }) => {
                   const pct = Math.round((value / total) * 100);
                   return (
@@ -442,13 +442,7 @@ export const SupervisorDashboard = () => {
                         <td className="py-3.5 px-4"><StatusChip status={e.status} /></td>
                         <td className="py-3.5 px-4 hidden sm:table-cell">
                           {e.latestScore !== null ? (
-                            <div className="flex items-center gap-2 max-w-[100px]">
-                              <span className="font-bold text-mist-900 dark:text-white">{e.latestScore}%</span>
-                              <div className="flex-1 h-1.5 bg-mist-100 dark:bg-dark-surface rounded-full overflow-hidden">
-                                <div className={`h-full rounded-full ${e.status === 'PASS' ? 'bg-emerald-500' : 'bg-red-500'}`}
-                                  style={{ width: `${e.latestScore}%` }} />
-                              </div>
-                            </div>
+                            <span className="font-bold text-mist-900 dark:text-white">{e.latestScore}%</span>
                           ) : <span className="text-mist-400">—</span>}
                         </td>
                         <td className="py-3.5 px-4 hidden md:table-cell">
@@ -534,8 +528,7 @@ export const SupervisorDashboard = () => {
                       <div className="flex items-center justify-between mb-2">
                         <div className="flex items-center gap-2">
                           <span className={`w-2 h-2 rounded-full flex-shrink-0 ${
-                            cat.riskLevel === 'CRITICAL' ? 'bg-red-500' :
-                            cat.riskLevel === 'MEDIUM' ? 'bg-amber-500' : 'bg-emerald-500'
+                            'bg-primary-500'
                           }`} />
                           <span className="text-xs font-semibold text-mist-800 dark:text-white">{cat.category}</span>
                         </div>
@@ -544,16 +537,13 @@ export const SupervisorDashboard = () => {
                             {cat.spotted} spotted · {cat.missed} missed
                           </span>
                           <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
-                            cat.riskLevel === 'CRITICAL' ? 'bg-red-100 text-red-700 dark:bg-red-950/50 dark:text-red-400' :
-                            cat.riskLevel === 'MEDIUM' ? 'bg-amber-100 text-amber-700 dark:bg-amber-950/50 dark:text-amber-400' :
-                            'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-400'
+                            'bg-white dark:bg-dark-card text-mist-700 dark:text-dark-muted border border-mist-300 dark:border-dark-border'
                           }`}>{cat.riskLevel} · {cat.missRatePercentage}%</span>
                         </div>
                       </div>
                       <div className="w-full h-2 bg-mist-100 dark:bg-dark-surface rounded-full overflow-hidden">
                         <div className={`h-full rounded-full transition-all duration-700 ${
-                          cat.riskLevel === 'CRITICAL' ? 'bg-red-500' :
-                          cat.riskLevel === 'MEDIUM' ? 'bg-amber-500' : 'bg-emerald-500'
+                          'bg-primary-500'
                         }`} style={{ width: `${cat.missRatePercentage}%` }} />
                       </div>
                     </div>
@@ -573,10 +563,10 @@ export const SupervisorDashboard = () => {
               </h3>
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                 {[
-                  { label: 'Distinction', range: '90–100%', value: analytics?.scoreDistribution?.distDistinction ?? 0, color: 'bg-primary-500', bg: 'bg-primary-50 dark:bg-primary-950/30 border-primary-200 dark:border-primary-800 text-primary-700 dark:text-primary-300' },
-                  { label: 'Pass', range: '75–89%', value: analytics?.scoreDistribution?.distPass ?? 0, color: 'bg-emerald-500', bg: 'bg-emerald-50 dark:bg-emerald-950/30 border-emerald-200 dark:border-emerald-800 text-emerald-700 dark:text-emerald-300' },
-                  { label: 'Near-Miss', range: '60–74%', value: analytics?.scoreDistribution?.distNearMiss ?? 0, color: 'bg-amber-500', bg: 'bg-amber-50 dark:bg-amber-950/30 border-amber-200 dark:border-amber-800 text-amber-700 dark:text-amber-300' },
-                  { label: 'Fail', range: '<60%', value: analytics?.scoreDistribution?.distFail ?? 0, color: 'bg-red-500', bg: 'bg-red-50 dark:bg-red-950/30 border-red-200 dark:border-red-800 text-red-700 dark:text-red-300' },
+                  { label: 'Distinction', range: '90–100%', value: analytics?.scoreDistribution?.distDistinction ?? 0, color: 'bg-primary-500', bg: 'bg-white dark:bg-dark-card border-mist-300 dark:border-dark-border text-mist-900 dark:text-white' },
+                  { label: 'Pass', range: '75–89%', value: analytics?.scoreDistribution?.distPass ?? 0, color: 'bg-primary-500', bg: 'bg-white dark:bg-dark-card border-mist-300 dark:border-dark-border text-mist-900 dark:text-white' },
+                  { label: 'Near-Miss', range: '60–74%', value: analytics?.scoreDistribution?.distNearMiss ?? 0, color: 'bg-primary-500', bg: 'bg-white dark:bg-dark-card border-mist-300 dark:border-dark-border text-mist-900 dark:text-white' },
+                  { label: 'Fail', range: '<60%', value: analytics?.scoreDistribution?.distFail ?? 0, color: 'bg-primary-500', bg: 'bg-white dark:bg-dark-card border-mist-300 dark:border-dark-border text-mist-900 dark:text-white' },
                 ].map(({ label, range, value, color, bg }) => (
                   <div key={label} className={`rounded-xl p-4 border ${bg} text-center`}>
                     <p className="text-2xl font-black">{value}</p>

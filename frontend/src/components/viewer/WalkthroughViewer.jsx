@@ -140,6 +140,14 @@ export const WalkthroughViewer = ({
   const [locked, setLocked] = useState(false);
   const [feedback, setFeedback] = useState(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [lockEverEngaged, setLockEverEngaged] = useState(false);
+  const [seenInstruction] = useState(() => {
+    try {
+      return window.localStorage.getItem('hazardhunt_walkthrough_seen') === '1';
+    } catch {
+      return false;
+    }
+  });
   const [isTouchDevice] = useState(
     () => typeof window !== 'undefined' && 'ontouchstart' in window && !window.matchMedia('(pointer: fine)').matches
   );
@@ -268,7 +276,13 @@ export const WalkthroughViewer = ({
     hazardMeshesRef.current = hazardMeshes;
 
     // ── Controls ─────────────────────────────────────────────────────────────
-    const onKeyDown = (e) => { keysRef.current[e.code] = true; };
+    const onKeyDown = (e) => {
+      keysRef.current[e.code] = true;
+      // CTRL releases the mouse back to the browser
+      if ((e.code === 'ControlLeft' || e.code === 'ControlRight') && document.pointerLockElement === renderer.domElement) {
+        document.exitPointerLock?.();
+      }
+    };
     const onKeyUp = (e) => { keysRef.current[e.code] = false; };
     const onMouseMove = (e) => {
       if (document.pointerLockElement !== renderer.domElement) return;
@@ -300,7 +314,19 @@ export const WalkthroughViewer = ({
       onFalseClick();
       flashFeedback('bad', 'NO HAZARD DETECTED — Accuracy penalty -5');
     };
-    const onLockChange = () => setLocked(document.pointerLockElement === renderer.domElement);
+    const onLockError = () => {
+      flashFeedback('bad', 'Mouse look could not be activated. Click inside the warehouse to try again.');
+    };
+    const onLockChange = () => {
+      const isLocked = document.pointerLockElement === renderer.domElement;
+      setLocked(isLocked);
+      if (isLocked) {
+        setLockEverEngaged(true);
+        try {
+          window.localStorage.setItem('hazardhunt_walkthrough_seen', '1');
+        } catch {}
+      }
+    };
     const onResize = () => {
       if (!mountRef.current) return;
       const w = mountRef.current.clientWidth;
@@ -315,6 +341,7 @@ export const WalkthroughViewer = ({
     window.addEventListener('mousemove', onMouseMove);
     window.addEventListener('resize', onResize);
     document.addEventListener('pointerlockchange', onLockChange);
+    document.addEventListener('pointerlockerror', onLockError);
     renderer.domElement.addEventListener('click', onClick);
 
     // ── Collision ────────────────────────────────────────────────────────────
@@ -371,6 +398,7 @@ export const WalkthroughViewer = ({
       window.removeEventListener('mousemove', onMouseMove);
       window.removeEventListener('resize', onResize);
       document.removeEventListener('pointerlockchange', onLockChange);
+      document.removeEventListener('pointerlockerror', onLockError);
       renderer.domElement.removeEventListener('click', onClick);
       if (document.pointerLockElement === renderer.domElement) document.exitPointerLock();
       hazardMeshesRef.current = [];
@@ -428,12 +456,20 @@ export const WalkthroughViewer = ({
         <div className="h-4 w-4 rounded-full border border-white/70" />
       </div>
 
-      {/* Click-to-start overlay */}
-      {!locked && (
-        <div className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-dark-bg/70 text-center text-white">
-          <p className="text-sm font-bold">Warehouse Walkthrough</p>
-          <p className="mt-1 text-xs text-gray-300">Click to take control of the camera</p>
-          <p className="mt-3 text-[11px] text-gray-400">W A S D move · Mouse look · Click to report hazard · Esc to release</p>
+      {/* Unlocked-state hint: full instruction on first visit, subtle text afterwards */}
+      {!locked && !seenInstruction && !lockEverEngaged && (
+        <div className="absolute bottom-16 left-1/2 z-10 -translate-x-1/2 rounded-md border border-white/20 bg-dark-card/85 px-4 py-3 text-left text-white shadow-sm">
+          <p className="text-xs font-bold">Click inside the warehouse to look around</p>
+          <div className="mt-1.5 grid grid-cols-[auto_1fr] gap-x-3 gap-y-0.5 text-[11px] text-gray-300">
+            <span className="font-mono font-bold text-primary-400">Mouse</span><span>Look</span>
+            <span className="font-mono font-bold text-primary-400">W A S D</span><span>Move</span>
+            <span className="font-mono font-bold text-primary-400">CTRL</span><span>Release mouse</span>
+          </div>
+        </div>
+      )}
+      {!locked && (seenInstruction || lockEverEngaged) && (
+        <div className="absolute bottom-16 left-1/2 z-10 -translate-x-1/2 rounded-md border border-white/15 bg-dark-card/70 px-3 py-1.5 text-[11px] font-semibold text-white/80">
+          Click inside the warehouse to resume looking around.
         </div>
       )}
 
