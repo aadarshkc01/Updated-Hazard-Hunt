@@ -3,14 +3,7 @@ import { api } from '../../services/api';
 import { useToast } from '../../context/ToastContext';
 import { useAuth } from '../../context/AuthContext';
 import { soundEngine } from '../../utils/audio';
-import {
-  KeyRound, Server, Database, Layers, Sparkles, Eye, UserPlus, Users,
-  ShieldAlert, Search, CheckCircle2, RefreshCw, Lock, X, Trash2,
-  TrendingUp, Activity, BarChart3, Shield, Clock, AlertTriangle,
-  Target, Award, ArrowUpRight, ArrowDownRight, ChevronRight, 
-  Building2, Cpu, Wifi, HardDrive, LogOut, Moon, Sun, Settings,
-  LayoutDashboard, FileText, Download
-} from 'lucide-react';
+import { KeyRound, Server, Database, Layers, UserPlus, Users, Search, CheckCircle2, RefreshCw, Lock, X, Activity, BarChart3, Shield, AlertTriangle, ArrowUpRight, ArrowDownRight, ChevronRight, Cpu, Wifi, HardDrive, LogOut, Moon, Sun, LayoutDashboard, Download } from 'lucide-react';
 import { useTheme } from '../../context/ThemeContext';
 import { ConfirmModal } from '../common/ConfirmModal';
 import { UserAuditModal } from '../common/UserAuditModal';
@@ -26,7 +19,7 @@ const MiniBar = ({ value, max, color = 'bg-primary-500' }) => {
           style={{ width: `${pct}%` }}
         />
       </div>
-      <span className="text-[10px] font-bold text-mist-600 dark:text-dark-muted w-8 text-right">
+      <span className="text-[11px] font-bold text-mist-600 dark:text-dark-muted w-8 text-right">
         {pct}%
       </span>
     </div>
@@ -42,7 +35,7 @@ const KpiCard = ({ label, value, sub, trend }) => (
       {sub && <p className="text-[11px] text-mist-500 dark:text-dark-muted mt-1">{sub}</p>}
     </div>
     {trend !== undefined && (
-      <div className={`flex items-center gap-0.5 text-[11px] font-bold ${trend >= 0 ? 'text-emerald-500' : 'text-red-500'}`}>
+      <div className={`flex items-center gap-0.5 text-[11px] font-bold ${trend >= 0 ? 'text-primary-500' : 'text-mist-500 dark:text-dark-muted'}`}>
         {trend >= 0 ? <ArrowUpRight className="w-3.5 h-3.5" /> : <ArrowDownRight className="w-3.5 h-3.5" />}
         {Math.abs(trend)}%
       </div>
@@ -55,7 +48,7 @@ const HealthDot = ({ online = true, label }) => (
   <div className="flex items-center gap-2">
     <span className={`w-2 h-2 rounded-full ${online ? 'bg-emerald-500 animate-pulse' : 'bg-red-500'}`} />
     <span className="text-xs text-mist-600 dark:text-dark-muted">{label}</span>
-    <span className={`text-[10px] font-bold ${online ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600'}`}>
+    <span className={`text-[11px] font-bold ${online ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600'}`}>
       {online ? 'ONLINE' : 'OFFLINE'}
     </span>
   </div>
@@ -69,7 +62,7 @@ const RoleBadge = ({ role }) => {
     employee: 'bg-primary-100 text-primary-800 dark:bg-primary-950/60 dark:text-primary-300 border-primary-200 dark:border-primary-800',
   };
   return (
-    <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold border uppercase tracking-wider ${styles[role] || styles.employee}`}>
+    <span className={`px-2 py-0.5 rounded-full text-[11px] font-bold border uppercase tracking-wider ${styles[role] || styles.employee}`}>
       {role}
     </span>
   );
@@ -245,12 +238,12 @@ export const AdminDashboard = ({ onLaunchTrainer }) => {
               </div>
               <div>
                 <p className="text-xs font-black text-mist-900 dark:text-white tracking-tight">ADMIN CONSOLE</p>
-                <p className="text-[10px] text-mist-500 dark:text-dark-muted">System Administrator Portal</p>
+                <p className="text-[11px] text-mist-500 dark:text-dark-muted">System Administrator Portal</p>
               </div>
             </div>
             <div className="flex items-center gap-2">
               {lastRefresh && (
-                <span className="hidden sm:block text-[10px] text-mist-500 dark:text-dark-muted">
+                <span className="hidden sm:block text-[11px] text-mist-500 dark:text-dark-muted">
                   Synced {lastRefresh.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}
                 </span>
               )}
@@ -328,19 +321,19 @@ export const AdminDashboard = ({ onLaunchTrainer }) => {
 
             {/* KPI Grid */}
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-              <KpiCard icon={Users} label="Total Accounts" value={users.length}
+              <KpiCard label="Total Accounts" value={users.length}
                 sub={`${adminCount} admin · ${supervisorCount} sup · ${employeeCount} emp`}
                 color="bg-primary-100 dark:bg-primary-950/40 text-primary-600 dark:text-primary-400" />
-              <KpiCard icon={TrendingUp} label="Overall Pass Rate" value={`${passRate}%`}
+              <KpiCard label="Overall Pass Rate" value={`${passRate}%`}
                 sub={`${teamData?.stats?.passedCount ?? 0} of ${teamData?.stats?.attemptedCount ?? 0} trainees passed`}
-                color="bg-emerald-100 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400"
+                color="bg-mist-100 dark:bg-dark-surface text-mist-600 dark:text-dark-muted"
                 trend={passRate >= 75 ? 8 : -12} />
-              <KpiCard icon={Award} label="Average Score" value={`${avgScore}%`}
+              <KpiCard label="Average Score" value={`${avgScore}%`}
                 sub="Across all official sessions"
                 color="bg-mist-100 dark:bg-dark-surface text-mist-600 dark:text-dark-muted" />
-              <KpiCard icon={Activity} label="Audit Sessions" value={totalAttempts}
+              <KpiCard label="Audit Sessions" value={totalAttempts}
                 sub="Official + practice combined"
-                color="bg-amber-100 dark:bg-amber-950/40 text-amber-600 dark:text-amber-400" />
+                color="bg-mist-100 dark:bg-dark-surface text-mist-600 dark:text-dark-muted" />
             </div>
 
             {/* Row: Scenario Card + Risk Radar */}
@@ -359,7 +352,7 @@ export const AdminDashboard = ({ onLaunchTrainer }) => {
                       </h3>
                     </div>
                   </div>
-                  <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold bg-emerald-100 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800">
+                  <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold bg-white dark:bg-dark-card text-mist-700 dark:text-dark-muted border border-mist-300 dark:border-dark-border">
                     <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" /> LIVE
                   </span>
                 </div>
@@ -372,7 +365,7 @@ export const AdminDashboard = ({ onLaunchTrainer }) => {
                     { label: 'Pass At', val: `${scenario?.passingScorePercentage || 75}%` },
                   ].map(({ label, val, mono, highlight }) => (
                     <div key={label} className="bg-mist-100 dark:bg-dark-surface rounded-xl p-2.5 text-center">
-                      <p className="text-[10px] text-mist-500 dark:text-dark-muted">{label}</p>
+                      <p className="text-[11px] text-mist-500 dark:text-dark-muted">{label}</p>
                       <p className={`text-xs font-bold mt-0.5 ${highlight || 'text-mist-900 dark:text-white'} ${mono ? 'font-mono' : ''}`}>{val}</p>
                     </div>
                   ))}
@@ -396,7 +389,7 @@ export const AdminDashboard = ({ onLaunchTrainer }) => {
                       <div key={cat.category}>
                         <div className="flex justify-between items-center mb-1">
                           <span className="text-[11px] font-semibold text-mist-700 dark:text-dark-muted truncate flex-1 mr-2">{cat.category}</span>
-                          <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${
+                          <span className={`text-[11px] font-bold px-1.5 py-0.5 rounded-full ${
                             'bg-white dark:bg-dark-card text-mist-700 dark:text-dark-muted border border-mist-300 dark:border-dark-border'
                           }`}>{cat.riskLevel}</span>
                         </div>
@@ -429,7 +422,7 @@ export const AdminDashboard = ({ onLaunchTrainer }) => {
               <div className="overflow-x-auto">
                 <table className="w-full text-left">
                   <thead>
-                    <tr className="text-[10px] uppercase tracking-wider text-mist-500 dark:text-dark-muted bg-mist-50 dark:bg-dark-surface/20 border-b border-mist-200 dark:border-dark-border">
+                    <tr className="text-[11px] uppercase tracking-wider text-mist-500 dark:text-dark-muted bg-mist-50 dark:bg-dark-surface/20 border-b border-mist-200 dark:border-dark-border">
                       <th className="py-2.5 px-5 font-bold">Name</th>
                       <th className="py-2.5 px-4 font-bold">Username</th>
                       <th className="py-2.5 px-4 font-bold">Role</th>
@@ -499,7 +492,7 @@ export const AdminDashboard = ({ onLaunchTrainer }) => {
               <div className="overflow-x-auto">
                 <table className="w-full text-left border-collapse">
                   <thead>
-                    <tr className="text-[10px] uppercase tracking-widest text-mist-500 dark:text-dark-muted bg-mist-50 dark:bg-dark-surface/50 border-b border-mist-200 dark:border-dark-border">
+                    <tr className="text-[11px] uppercase tracking-widest text-mist-500 dark:text-dark-muted bg-mist-50 dark:bg-dark-surface/50 border-b border-mist-200 dark:border-dark-border">
                       <th className="py-3 px-5 font-bold">Full Name</th>
                       <th className="py-3 px-4 font-bold">Username</th>
                       <th className="py-3 px-4 font-bold">Role</th>
@@ -527,11 +520,11 @@ export const AdminDashboard = ({ onLaunchTrainer }) => {
                         <td className="py-3.5 px-4">
                           <div className="flex items-center gap-2">
                             <button onClick={() => handleViewUser(u)}
-                              className="px-2.5 py-1.5 rounded-lg border border-mist-300 dark:border-dark-border text-mist-600 dark:text-dark-muted hover:border-primary-400 hover:text-primary-600 text-[10px] font-bold transition-colors">
+                              className="px-2.5 py-1.5 rounded-lg border border-mist-300 dark:border-dark-border text-mist-600 dark:text-dark-muted hover:border-primary-400 hover:text-primary-600 text-[11px] font-bold transition-colors">
                               View
                             </button>
                             <button onClick={() => handleDeleteUser(u._id, u.name)}
-                              className="px-2.5 py-1.5 rounded-lg border border-red-200 dark:border-red-900/50 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/30 text-[10px] font-bold transition-colors">
+                              className="px-2.5 py-1.5 rounded-lg border border-mist-300 dark:border-dark-border text-mist-600 dark:text-dark-muted hover:border-primary-400 hover:text-primary-600 text-[11px] font-bold transition-colors">
                               Delete
                             </button>
                           </div>
@@ -582,7 +575,7 @@ export const AdminDashboard = ({ onLaunchTrainer }) => {
                     <div className="w-full h-1.5 bg-black/10 rounded-full overflow-hidden">
                       <div className={`h-full ${color} rounded-full transition-all duration-700`} style={{ width: `${pct}%` }} />
                     </div>
-                    <p className="text-[10px] mt-1 text-mist-500 dark:text-dark-muted">{pct}% of all sessions</p>
+                    <p className="text-[11px] mt-1 text-mist-500 dark:text-dark-muted">{pct}% of all sessions</p>
                   </div>
                 );
               })}
@@ -606,10 +599,10 @@ export const AdminDashboard = ({ onLaunchTrainer }) => {
                           <span className="text-xs font-semibold text-mist-800 dark:text-white">{cat.category}</span>
                         </div>
                         <div className="flex items-center gap-3">
-                          <span className="text-[10px] text-mist-500 dark:text-dark-muted">
+                          <span className="text-[11px] text-mist-500 dark:text-dark-muted">
                             {cat.spotted} spotted · {cat.missed} missed
                           </span>
-                          <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                          <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full ${
                             'bg-white dark:bg-dark-card text-mist-700 dark:text-dark-muted border border-mist-300 dark:border-dark-border'
                           }`}>{cat.riskLevel} · {cat.missRatePercentage}% miss</span>
                         </div>
@@ -672,7 +665,7 @@ export const AdminDashboard = ({ onLaunchTrainer }) => {
                     <div className="w-10 h-10 rounded-xl bg-mist-100 dark:bg-dark-surface flex items-center justify-center">
                       <Icon className="w-5 h-5 text-primary-500" />
                     </div>
-                    <span className="flex items-center gap-1.5 text-[10px] font-bold text-emerald-600 dark:text-emerald-400">
+                    <span className="flex items-center gap-1.5 text-[11px] font-bold text-emerald-600 dark:text-emerald-400">
                       <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
                       ONLINE
                     </span>

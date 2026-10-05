@@ -41,7 +41,7 @@ export const ConfirmModal = ({
             <AlertCircle className="h-5 w-5" aria-hidden="true" />
           </div>
           <div className="min-w-0 pt-0.5">
-            <p className={`text-[10px] font-bold uppercase tracking-[0.16em] ${isDestructive ? 'text-red-600 dark:text-red-300' : 'text-primary-600 dark:text-primary-300'}`}>
+            <p className={`text-[11px] font-bold uppercase tracking-[0.16em] ${isDestructive ? 'text-red-600 dark:text-red-300' : 'text-primary-600 dark:text-primary-300'}`}>
               Confirm action
             </p>
             <h3 id="confirm-dialog-title" className="mt-1 text-lg font-bold leading-tight text-mist-900 dark:text-dark-text">

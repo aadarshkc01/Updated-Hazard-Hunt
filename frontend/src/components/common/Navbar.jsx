@@ -4,17 +4,7 @@ import { useTheme } from '../../context/ThemeContext';
 import { useToast } from '../../context/ToastContext';
 import { soundEngine } from '../../utils/audio';
 import { ConfirmModal } from './ConfirmModal';
-import {
-  ShieldAlert,
-  LogOut,
-  Volume2,
-  VolumeX,
-  Sun,
-  Moon,
-  Sparkles,
-  LayoutDashboard,
-  Eye,
-} from 'lucide-react';
+import { ShieldAlert, LogOut, Volume2, VolumeX, Sun, Moon } from 'lucide-react';
 
 export const Navbar = ({ isPracticeMode = false, currentView, onViewChange }) => {
   const { user, role, logout } = useAuth();
@@ -83,7 +73,7 @@ export const Navbar = ({ isPracticeMode = false, currentView, onViewChange }) =>
                 <span className="text-xl font-extrabold tracking-tight text-mist-900 dark:text-white">
                   HAZARD<span className="text-primary-500">HUNT</span>
                 </span>
-                <span className="text-[10px] font-mono tracking-widest uppercase px-1.5 py-0.5 rounded bg-mist-300/60 dark:bg-dark-surface text-mist-700 dark:text-dark-muted font-bold">
+                <span className="text-[11px] font-mono tracking-widest uppercase px-1.5 py-0.5 rounded bg-mist-300/60 dark:bg-dark-surface text-mist-700 dark:text-dark-muted font-bold">
                   v1.0
                 </span>
               </div>

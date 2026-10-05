@@ -6,14 +6,7 @@ import { useTheme } from '../../context/ThemeContext';
 import { ConfirmModal } from '../common/ConfirmModal';
 import { UserAuditModal } from '../common/UserAuditModal';
 import { soundEngine } from '../../utils/audio';
-import {
-  Users, Award, CheckCircle2, XCircle, Clock, Download, UserPlus,
-  Search, RefreshCw, ShieldCheck, AlertCircle, BarChart3,
-  TrendingUp, TrendingDown, ChevronRight, X, FileText, Target, Sparkles,
-  AlertTriangle, Activity, Filter, Eye, ChevronDown, LogOut, Moon, Sun,
-  LayoutDashboard, LineChart, UserCheck, ArrowUpRight, ArrowDownRight,
-  Building2, Timer, Zap, Lock, Shield, Trash2
-} from 'lucide-react';
+import { Users, CheckCircle2, Download, UserPlus, Search, RefreshCw, ShieldCheck, BarChart3, ChevronRight, X, Activity, Eye, LogOut, Moon, Sun, LayoutDashboard, ArrowUpRight, ArrowDownRight, Shield, Trash2 } from 'lucide-react';
 
 // ── Animated Score Ring (CSS) ────────────────────────────────────────────────
 const ScoreRing = ({ score, size = 80, strokeWidth = 7, color = '#FF6115' }) => {
@@ -39,11 +32,9 @@ const StatusChip = ({ status }) => {
     FAIL: 'bg-white dark:bg-dark-card text-mist-800 dark:text-dark-text border-mist-300 dark:border-dark-border',
     PENDING: 'bg-white dark:bg-dark-card text-mist-500 dark:text-dark-muted border-mist-300 dark:border-dark-border',
   };
-  const icons = { PASS: CheckCircle2, FAIL: XCircle, PENDING: Clock };
-  const StatusIcon = icons[status] || Clock;
   return (
-    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold border ${styles[status] || styles.PENDING}`}>
-      <StatusIcon className="w-3 h-3" /> {status}
+    <span className={`inline-flex items-center px-2 py-0.5 rounded text-[11px] font-bold uppercase tracking-wider border ${styles[status] || styles.PENDING}`}>
+      {status}
     </span>
   );
 };
@@ -54,7 +45,7 @@ const ProgressBar = ({ value, color = 'bg-primary-500', showLabel = true }) => (
     <div className="flex-1 h-2 bg-mist-100 dark:bg-dark-surface rounded-full overflow-hidden">
       <div className={`h-full ${color} rounded-full transition-all duration-700`} style={{ width: `${Math.min(100, value)}%` }} />
     </div>
-    {showLabel && <span className="text-[10px] font-bold text-mist-500 dark:text-dark-muted w-8 text-right">{value}%</span>}
+    {showLabel && <span className="text-[11px] font-bold text-mist-500 dark:text-dark-muted w-8 text-right">{value}%</span>}
   </div>
 );
 
@@ -62,12 +53,12 @@ const ProgressBar = ({ value, color = 'bg-primary-500', showLabel = true }) => (
 const StatCard = ({ label, value, sub, trend }) => (
   <div className="app-card relative flex min-h-[126px] flex-col p-5 transition-all duration-200 hover:border-primary-300 dark:hover:border-primary-700">
     {trend !== undefined && (
-      <div className={`absolute right-5 top-5 flex items-center gap-0.5 text-[11px] font-bold ${trend >= 0 ? 'text-emerald-500' : 'text-red-500'}`}>
+      <div className={`absolute right-5 top-5 flex items-center gap-0.5 text-[11px] font-bold ${trend >= 0 ? 'text-primary-500' : 'text-mist-500 dark:text-dark-muted'}`}>
         {trend >= 0 ? <ArrowUpRight className="w-3.5 h-3.5" /> : <ArrowDownRight className="w-3.5 h-3.5" />}
         {Math.abs(trend)}%
       </div>
     )}
-    <p className="min-h-[16px] text-[10px] font-bold uppercase tracking-wider text-mist-500 dark:text-dark-muted">{label}</p>
+    <p className="min-h-[16px] text-[11px] font-bold uppercase tracking-wider text-mist-500 dark:text-dark-muted">{label}</p>
     <p className="mt-2 text-2xl font-black leading-none text-mist-900 dark:text-white">{value}</p>
     <p className="mt-auto min-h-[16px] text-[11px] text-mist-400 dark:text-dark-muted">{sub || '\u00A0'}</p>
   </div>
@@ -221,12 +212,12 @@ export const SupervisorDashboard = () => {
               </div>
               <div>
                 <p className="text-xs font-black text-mist-900 dark:text-white tracking-tight">HSE SUPERVISOR</p>
-                <p className="text-[10px] text-mist-500 dark:text-dark-muted">Health, Safety & Environment Dashboard</p>
+                <p className="text-[11px] text-mist-500 dark:text-dark-muted">Health, Safety & Environment Dashboard</p>
               </div>
             </div>
             <div className="flex items-center gap-2">
               {lastRefresh && (
-                <span className="hidden sm:block text-[10px] text-mist-500 dark:text-dark-muted">
+                <span className="hidden sm:block text-[11px] text-mist-500 dark:text-dark-muted">
                   Synced {lastRefresh.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}
                 </span>
               )}
@@ -247,7 +238,7 @@ export const SupervisorDashboard = () => {
                 <UserPlus className="w-3.5 h-3.5" /> Add Trainee
               </button>
               <button onClick={() => setShowLogoutConfirm(true)}
-                className="p-2 rounded-xl hover:bg-red-50 dark:hover:bg-red-950/30 text-mist-500 dark:text-dark-muted hover:text-red-600 transition-colors">
+                className="p-2 rounded-xl hover:bg-mist-100 dark:hover:bg-dark-surface text-mist-500 dark:text-dark-muted hover:text-primary-600 transition-colors">
                 <LogOut className="w-4 h-4" />
               </button>
             </div>
@@ -285,7 +276,7 @@ export const SupervisorDashboard = () => {
                     Monitor your team's 360° hazard training sessions, track compliance status, and identify risk patterns in real time.
                   </p>
                 </div>
-                <div className="flex-shrink-0 flex items-center justify-center w-20 h-20 rounded-xl bg-white/15 backdrop-blur-sm">
+                <div className="flex-shrink-0 flex items-center justify-center w-20 h-20 rounded-xl bg-white/15">
                   <div className="relative">
                     <ScoreRing score={stats.passRatePercentage || 0} size={72} strokeWidth={6} color="#ffffff" />
                     <div className="absolute inset-0 flex items-center justify-center">
@@ -298,19 +289,15 @@ export const SupervisorDashboard = () => {
 
             {/* KPI row */}
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-              <StatCard icon={Users} label="Total Trainees" value={stats.totalEmployees ?? 0}
-                sub="Registered employees"
-                iconClass="bg-mist-100 dark:bg-dark-surface text-mist-600 dark:text-dark-muted" />
-              <StatCard icon={CheckCircle2} label="Passed" value={stats.passedCount ?? 0}
+              <StatCard label="Total Trainees" value={stats.totalEmployees ?? 0}
+                sub="Registered employees" />
+              <StatCard label="Passed" value={stats.passedCount ?? 0}
                 sub={`${stats.passRatePercentage ?? 0}% pass rate`}
-                iconClass="bg-mist-100 dark:bg-dark-surface text-mist-600 dark:text-dark-muted"
                 trend={(stats.passRatePercentage || 0) >= 75 ? 5 : -8} />
-              <StatCard icon={XCircle} label="Failed / Pending" value={(stats.failedCount ?? 0) + (stats.pendingCount ?? 0)}
-                sub={`${stats.failedCount ?? 0} failed · ${stats.pendingCount ?? 0} pending`}
-                iconClass="bg-mist-100 dark:bg-dark-surface text-mist-600 dark:text-dark-muted" />
-              <StatCard icon={Award} label="Avg. Score" value={`${stats.averageScorePercentage ?? 0}%`}
-                sub="Official sessions only"
-                iconClass="bg-primary-100 dark:bg-primary-950/40 text-primary-600 dark:text-primary-400" />
+              <StatCard label="Failed / Pending" value={(stats.failedCount ?? 0) + (stats.pendingCount ?? 0)}
+                sub={`${stats.failedCount ?? 0} failed · ${stats.pendingCount ?? 0} pending`} />
+              <StatCard label="Avg. Score" value={`${stats.averageScorePercentage ?? 0}%`}
+                sub="Official sessions only" />
             </div>
 
             {/* Compliance progress bar display */}
@@ -359,7 +346,7 @@ export const SupervisorDashboard = () => {
                       </div>
                       <div className="min-w-0">
                         <p className="text-xs font-semibold text-mist-900 dark:text-white truncate">{e.name}</p>
-                        <p className="text-[10px] text-mist-500 dark:text-dark-muted truncate">{e.department}</p>
+                        <p className="text-[11px] text-mist-500 dark:text-dark-muted truncate">{e.department}</p>
                       </div>
                     </div>
                     <div className="flex items-center gap-3 flex-shrink-0">
@@ -415,7 +402,7 @@ export const SupervisorDashboard = () => {
               <div className="overflow-x-auto">
                 <table className="w-full text-left">
                   <thead>
-                    <tr className="text-[10px] uppercase tracking-widest text-mist-500 dark:text-dark-muted bg-mist-50 dark:bg-dark-surface/50 border-b border-mist-200 dark:border-dark-border">
+                    <tr className="text-[11px] uppercase tracking-widest text-mist-500 dark:text-dark-muted bg-mist-50 dark:bg-dark-surface/50 border-b border-mist-200 dark:border-dark-border">
                       <th className="py-3 px-5 font-bold">Trainee</th>
                       <th className="py-3 px-4 font-bold">Status</th>
                       <th className="py-3 px-4 font-bold hidden sm:table-cell">Score</th>
@@ -435,7 +422,7 @@ export const SupervisorDashboard = () => {
                             </div>
                             <div>
                               <p className="font-semibold text-mist-900 dark:text-white">{e.name}</p>
-                              <p className="text-[10px] text-mist-500 dark:text-dark-muted">@{e.username}</p>
+                              <p className="text-[11px] text-mist-500 dark:text-dark-muted">@{e.username}</p>
                             </div>
                           </div>
                         </td>
@@ -460,11 +447,11 @@ export const SupervisorDashboard = () => {
                         </td>
                         <td className="py-3.5 px-4 flex gap-2 items-center">
                           <button onClick={() => handleInspectTrainee(e)}
-                            className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-mist-100 dark:bg-dark-surface hover:bg-primary-50 dark:hover:bg-primary-950/40 text-mist-600 dark:text-dark-muted hover:text-primary-700 dark:hover:text-primary-300 text-[10px] font-bold transition-colors group-hover:border-primary-200">
+                            className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-mist-100 dark:bg-dark-surface hover:bg-primary-50 dark:hover:bg-primary-950/40 text-mist-600 dark:text-dark-muted hover:text-primary-700 dark:hover:text-primary-300 text-[11px] font-bold transition-colors group-hover:border-primary-200">
                             <Eye className="w-3 h-3" /> View
                           </button>
                           <button onClick={(event) => { event.stopPropagation(); handleDeleteUser(e.id, e.name); }}
-                            className="p-1.5 rounded-lg text-mist-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 transition-colors"
+                            className="p-1.5 rounded-lg text-mist-400 hover:text-primary-600 hover:bg-mist-100 dark:hover:bg-dark-surface transition-colors"
                             title="Delete Trainee">
                             <Trash2 className="w-4 h-4" />
                           </button>
@@ -533,10 +520,10 @@ export const SupervisorDashboard = () => {
                           <span className="text-xs font-semibold text-mist-800 dark:text-white">{cat.category}</span>
                         </div>
                         <div className="flex items-center gap-3 flex-shrink-0">
-                          <span className="text-[10px] text-mist-500 dark:text-dark-muted hidden sm:block">
+                          <span className="text-[11px] text-mist-500 dark:text-dark-muted hidden sm:block">
                             {cat.spotted} spotted · {cat.missed} missed
                           </span>
-                          <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                          <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full ${
                             'bg-white dark:bg-dark-card text-mist-700 dark:text-dark-muted border border-mist-300 dark:border-dark-border'
                           }`}>{cat.riskLevel} · {cat.missRatePercentage}%</span>
                         </div>
@@ -571,7 +558,7 @@ export const SupervisorDashboard = () => {
                   <div key={label} className={`rounded-xl p-4 border ${bg} text-center`}>
                     <p className="text-2xl font-black">{value}</p>
                     <p className="text-[11px] font-bold mt-1">{label}</p>
-                    <p className="text-[10px] opacity-60 mt-0.5">{range}</p>
+                    <p className="text-[11px] opacity-60 mt-0.5">{range}</p>
                   </div>
                 ))}
               </div>

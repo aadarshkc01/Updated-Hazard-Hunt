@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { ConfirmModal } from '../common/ConfirmModal';
-import { Clock, Target, AlertTriangle, ChevronRight } from 'lucide-react';
+import { Clock, ChevronRight } from 'lucide-react';
 
 export const TraineeSessionHUD = ({
   timeLeft,
@@ -45,16 +45,13 @@ export const TraineeSessionHUD = ({
         <div className="bg-dark-card/90 text-white rounded-xl p-4 sm:p-5 shadow-sm border border-dark-border backdrop-blur-sm flex flex-wrap items-center justify-between gap-4">
           {/* Left: Module Tag */}
           <div className="flex items-center space-x-3.5">
-            <div className="w-10 h-10 rounded-xl bg-primary-600/30 border border-primary-500 flex items-center justify-center text-primary-300">
-              <Target className="w-5 h-5" />
-            </div>
             <div>
               <div className="flex items-center space-x-2">
                 <span className="text-sm font-bold tracking-tight text-white">
                   Bay 4 Inbound Logistics
                 </span>
                 {isPracticeMode && (
-                  <span className="text-[10px] uppercase font-bold tracking-widest px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/40">
+                  <span className="text-[11px] uppercase font-bold tracking-widest px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/40">
                     Practice
                   </span>
                 )}
@@ -70,16 +67,11 @@ export const TraineeSessionHUD = ({
             {/* Hazards Found Counter */}
             <div className="flex items-center space-x-2.5">
               <div className="text-right">
-                <span className="text-[10px] uppercase tracking-wider text-dark-muted font-bold block">
+                <span className="text-[11px] uppercase tracking-wider text-dark-muted font-bold block">
                   Hazards Spotted
                 </span>
-                <span className="text-lg font-black text-emerald-400 font-mono">
+                <span className="text-lg font-black text-primary-400 font-mono">
                   {foundCount} <span className="text-xs text-dark-muted font-normal">/ {totalHazards}</span>
-                </span>
-              </div>
-              <div className="w-9 h-9 rounded-full border-2 border-emerald-500/30 flex items-center justify-center">
-                <span className="text-xs font-bold text-emerald-400">
-                  {Math.round((foundCount / totalHazards) * 100)}%
                 </span>
               </div>
             </div>
@@ -87,10 +79,10 @@ export const TraineeSessionHUD = ({
             {/* False Clicks Counter */}
             <div className="hidden sm:flex items-center space-x-2 border-l border-dark-border pl-6">
               <div className="text-right">
-                <span className="text-[10px] uppercase tracking-wider text-dark-muted font-bold block">
+                <span className="text-[11px] uppercase tracking-wider text-dark-muted font-bold block">
                   False Clicks
                 </span>
-                <span className={`text-lg font-black font-mono ${falseClicks > 0 ? 'text-red-400' : 'text-gray-300'}`}>
+                <span className={`text-lg font-black font-mono ${falseClicks > 0 ? 'text-primary-400' : 'text-gray-300'}`}>
                   {falseClicks}
                 </span>
               </div>

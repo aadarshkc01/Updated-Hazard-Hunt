@@ -2,10 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { api } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../../context/ToastContext';
-import {
-  ShieldAlert, Clock, Target, Award, CheckCircle2, XCircle, AlertTriangle,
-  Play, RotateCcw, Info, Lock, Activity, Download
-} from 'lucide-react';
+import { ShieldAlert, CheckCircle2, XCircle, AlertTriangle, Play, RotateCcw, Lock, Activity, Download } from 'lucide-react';
 
 // ── Mini score ring ────────────────────────────────────────────────────────
 const ScoreRing = ({ score, size = 90, strokeWidth = 8 }) => {
@@ -112,7 +109,7 @@ export const EmployeeHome = ({ onLaunchSession, scenario, loading }) => {
           <div key={label} className="app-card p-4">
             <p className="text-xl font-bold text-mist-900 dark:text-white leading-none">{value}</p>
             <p className="text-xs font-semibold text-mist-600 dark:text-dark-muted mt-1">{label}</p>
-            <p className="text-[10px] text-mist-500 dark:text-dark-muted mt-0.5">{sub}</p>
+            <p className="text-[11px] text-mist-500 dark:text-dark-muted mt-0.5">{sub}</p>
           </div>
         ))}
       </div>
@@ -128,13 +125,13 @@ export const EmployeeHome = ({ onLaunchSession, scenario, loading }) => {
                   <ShieldAlert className="w-5 h-5" />
                 </div>
                 <div>
-                  <p className="text-[10px] uppercase font-bold tracking-wider text-primary-500">Active Training Scenario</p>
+                  <p className="text-[11px] uppercase font-bold tracking-wider text-primary-500">Active Training Scenario</p>
                   <h3 className="text-sm font-bold text-mist-900 dark:text-white">
                     {loading ? 'Loading scenario…' : (scenario?.title || 'Bay 4: Automotive Logistics')}
                   </h3>
                 </div>
               </div>
-              <span className="flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold bg-emerald-100 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800">
+              <span className="flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold text-mist-700 dark:text-dark-muted border border-mist-300 dark:border-dark-border">
                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" /> LIVE
               </span>
             </div>
@@ -175,7 +172,7 @@ export const EmployeeHome = ({ onLaunchSession, scenario, loading }) => {
                     }`}
                   >
                     <span className="block text-xs font-bold">{m.title}</span>
-                    <span className="mt-0.5 block text-[10px] text-mist-500 dark:text-dark-muted">{m.desc}</span>
+                    <span className="mt-0.5 block text-[11px] text-mist-500 dark:text-dark-muted">{m.desc}</span>
                   </button>
                 ))}
               </div>
@@ -191,7 +188,7 @@ export const EmployeeHome = ({ onLaunchSession, scenario, loading }) => {
             <button
               onClick={() => onLaunchSession(true, trainingMode)}
               disabled={loading}
-              className="w-full py-2.5 rounded-lg bg-mist-100 dark:bg-dark-surface hover:bg-amber-50 dark:hover:bg-amber-950/30 text-mist-700 dark:text-white font-semibold text-xs border border-mist-300 dark:border-dark-border hover:border-amber-400/60 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+              className="w-full py-2.5 rounded-lg bg-mist-100 dark:bg-dark-surface hover:bg-mist-200 dark:hover:bg-dark-surface text-mist-700 dark:text-white font-semibold text-xs border border-mist-300 dark:border-dark-border transition-all flex items-center justify-center gap-2 disabled:opacity-50"
             >
               <RotateCcw className="w-4 h-4 text-amber-500" />
               Start Practice Mode (Results Not Recorded)
@@ -214,7 +211,7 @@ export const EmployeeHome = ({ onLaunchSession, scenario, loading }) => {
               <div key={label} className="flex justify-between items-center py-1">
                 <div>
                   <div className="text-xs font-semibold text-mist-800 dark:text-white">{label}</div>
-                  <div className="text-[10px] text-mist-500 dark:text-dark-muted">{desc}</div>
+                  <div className="text-[11px] text-mist-500 dark:text-dark-muted">{desc}</div>
                 </div>
                 <div className="text-xs font-bold text-mist-900 dark:text-white">{value}</div>
               </div>
@@ -257,12 +254,12 @@ export const EmployeeHome = ({ onLaunchSession, scenario, loading }) => {
             {history.slice(0, 6).map((rec, i) => (
               <div key={rec._id || i} className="flex items-center justify-between px-5 py-3.5 hover:bg-mist-50/30 dark:hover:bg-dark-surface/20 transition-colors">
                 <div className="flex items-center gap-3">
-                  <div className={`w-8 h-8 rounded-xl flex items-center justify-center text-xs font-black flex-shrink-0 ${
+                  <div className={`w-8 h-8 rounded-md flex items-center justify-center text-xs font-black flex-shrink-0 ${
                     rec.isPracticeMode
                       ? 'bg-mist-100 dark:bg-dark-surface text-mist-500 dark:text-dark-muted'
                       : rec.passed
-                        ? 'bg-emerald-100 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400'
-                        : 'bg-red-100 dark:bg-red-950/40 text-red-700 dark:text-red-400'
+                        ? 'bg-primary-50 dark:bg-primary-950/40 text-primary-600 dark:text-primary-400'
+                        : 'bg-mist-100 dark:bg-dark-surface text-mist-600 dark:text-dark-muted'
                   }`}>
                     {rec.isPracticeMode ? <Activity className="w-4 h-4" /> : rec.passed ? <CheckCircle2 className="w-4 h-4" /> : <XCircle className="w-4 h-4" />}
                   </div>
@@ -272,10 +269,10 @@ export const EmployeeHome = ({ onLaunchSession, scenario, loading }) => {
                         {new Date(rec.completedAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
                       </p>
                       {rec.isPracticeMode && (
-                        <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-mist-200 dark:bg-dark-border text-mist-600 dark:text-dark-muted">PRACTICE</span>
+                        <span className="text-[11px] font-bold px-1.5 py-0.5 rounded-full bg-mist-200 dark:bg-dark-border text-mist-600 dark:text-dark-muted">PRACTICE</span>
                       )}
                     </div>
-                    <p className="text-[10px] text-mist-500 dark:text-dark-muted">
+                    <p className="text-[11px] text-mist-500 dark:text-dark-muted">
                       {rec.hazardsFound?.length ?? 0}/{(rec.hazardsFound?.length ?? 0) + (rec.hazardsMissed?.length ?? 0)} hazards · {rec.falseClicksCount} false clicks · {rec.timeTakenSeconds}s
                     </p>
                   </div>
@@ -283,9 +280,9 @@ export const EmployeeHome = ({ onLaunchSession, scenario, loading }) => {
                 <div className="text-right flex-shrink-0">
                   <p className={`text-base font-black ${
                     rec.isPracticeMode ? 'text-mist-600 dark:text-dark-muted' :
-                    rec.passed ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'
+                    rec.passed ? 'text-primary-600 dark:text-primary-400' : 'text-mist-700 dark:text-dark-text'
                   }`}>{rec.totalScore}%</p>
-                  <p className="text-[10px] text-mist-400 dark:text-dark-muted">{rec.hazardScore}% + {rec.quizScore}%</p>
+                  <p className="text-[11px] text-mist-400 dark:text-dark-muted">{rec.hazardScore}% + {rec.quizScore}%</p>
                 </div>
               </div>
             ))}

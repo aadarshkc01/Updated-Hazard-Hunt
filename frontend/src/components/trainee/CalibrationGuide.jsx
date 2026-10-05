@@ -61,7 +61,7 @@ export const CalibrationGuide = ({
                 Task 1: Rotate View (Drag or Arrow Keys)
               </span>
               {rotationAchieved ? (
-                <span className="inline-flex items-center space-x-1 text-xs font-bold text-emerald-600 dark:text-emerald-400">
+                <span className="inline-flex items-center space-x-1 text-xs font-bold text-primary-600 dark:text-primary-400">
                   <CheckCircle2 className="w-3.5 h-3.5" />
                   <span>Calibrated</span>
                 </span>
@@ -92,7 +92,7 @@ export const CalibrationGuide = ({
                 Task 2: Click the Practice Hazard
               </span>
               {hasTargetBeenFound ? (
-                <span className="inline-flex items-center space-x-1 text-xs font-bold text-emerald-600 dark:text-emerald-400">
+                <span className="inline-flex items-center space-x-1 text-xs font-bold text-primary-600 dark:text-primary-400">
                   <CheckCircle2 className="w-3.5 h-3.5" />
                   <span>Target Spotted</span>
                 </span>

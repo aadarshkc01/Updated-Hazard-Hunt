@@ -9,7 +9,7 @@ export const UserManualModal = ({ isOpen, onClose }) => {
       <div className="bg-white dark:bg-dark-card rounded-xl shadow-sm max-w-lg w-full border border-mist-300 dark:border-dark-border overflow-hidden animate-slide-up">
         <div className="px-6 py-5 border-b border-mist-200 dark:border-dark-border flex items-start justify-between">
           <div>
-            <p className="text-[10px] uppercase tracking-widest font-bold text-primary-500">Employee quick start</p>
+            <p className="text-[11px] uppercase tracking-widest font-bold text-primary-500">Employee quick start</p>
             <h2 className="text-xl font-bold text-mist-900 dark:text-white mt-1">Hazard Hunt 360°</h2>
           </div>
           <button onClick={onClose} aria-label="Close manual" className="p-1.5 text-mist-500 hover:text-mist-900 dark:hover:text-white">

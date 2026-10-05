@@ -4,20 +4,7 @@ import { useTheme } from '../../context/ThemeContext';
 import { useToast } from '../../context/ToastContext';
 import { UserManualModal } from '../common/UserManualModal';
 import { soundEngine } from '../../utils/audio';
-import {
-  ShieldAlert,
-  UserCheck,
-  Briefcase,
-  KeyRound,
-  ArrowRight,
-  AlertCircle,
-  Eye,
-  EyeOff,
-  Sparkles,
-  Lock,
-  Sun,
-  Moon,
-} from 'lucide-react';
+import { ShieldAlert, UserCheck, Briefcase, KeyRound, ArrowRight, AlertCircle, Eye, EyeOff, Lock, Sun, Moon } from 'lucide-react';
 
 export const Login = () => {
   const { login } = useAuth();
@@ -241,7 +228,7 @@ export const Login = () => {
             {/* Quick Demo Pre-fill Chips */}
             <div className="mt-4 pt-3 border-t border-dashed border-mist-300 dark:border-dark-border">
               <div className="flex items-center justify-between mb-2">
-                <span className="text-[10px] font-bold uppercase tracking-wider text-mist-500 dark:text-dark-muted flex items-center">
+                <span className="text-[11px] font-bold uppercase tracking-wider text-mist-500 dark:text-dark-muted flex items-center">
                   1-Click Demo Fill:
                 </span>
               </div>

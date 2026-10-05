@@ -2,20 +2,7 @@ import React, { useEffect } from 'react';
 import confetti from 'canvas-confetti';
 import { soundEngine } from '../../utils/audio';
 import { api } from '../../services/api';
-import {
-  CheckCircle2,
-  XCircle,
-  AlertTriangle,
-  RotateCcw,
-  Clock,
-  Target,
-  Award,
-  ShieldCheck,
-  ShieldAlert,
-  FileText,
-  ArrowRight,
-  Info,
-} from 'lucide-react';
+import { CheckCircle2, XCircle, Info } from 'lucide-react';
 
 export const DiagnosticSummary = ({ diagnostic, onRetryPractice, onReturnHome }) => {
   useEffect(() => {
@@ -88,7 +75,7 @@ export const DiagnosticSummary = ({ diagnostic, onRetryPractice, onReturnHome })
     <div className="max-w-4xl mx-auto py-6 px-4 animate-fade-in transition-colors duration-200">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-5">
         <div>
-          <p className="text-[10px] uppercase tracking-widest font-bold text-primary-500">Assessment complete</p>
+          <p className="text-[11px] uppercase tracking-widest font-bold text-primary-500">Assessment complete</p>
           <p className="text-sm text-mist-600 dark:text-dark-muted mt-1">Review the result below or choose your next step.</p>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -189,7 +176,7 @@ export const DiagnosticSummary = ({ diagnostic, onRetryPractice, onReturnHome })
           <div className="text-xl font-black text-mist-900 dark:text-white font-mono">
             {falseClicksCount}
           </div>
-          <span className="text-[11px] text-red-500 mt-1 block font-medium">
+          <span className="text-[11px] text-mist-500 dark:text-dark-muted mt-1 block font-medium">
             -{falseClicksCount * 5}% accuracy penalty
           </span>
         </div>
@@ -221,7 +208,7 @@ export const DiagnosticSummary = ({ diagnostic, onRetryPractice, onReturnHome })
 
       {/* 2b. Training recommendation */}
       <div className="mb-8 rounded-lg border border-primary-200 bg-primary-50/60 p-4 dark:border-primary-900/50 dark:bg-primary-950/20">
-        <p className="text-[10px] font-bold uppercase tracking-widest text-primary-600 dark:text-primary-400">Training recommendation</p>
+        <p className="text-[11px] font-bold uppercase tracking-widest text-primary-600 dark:text-primary-400">Training recommendation</p>
         <p className="mt-1 text-xs text-mist-800 dark:text-dark-text">{recommendation}</p>
         {missedCategories.length > 0 && (
           <p className="mt-2 text-[11px] text-mist-600 dark:text-dark-muted">
@@ -240,10 +227,10 @@ export const DiagnosticSummary = ({ diagnostic, onRetryPractice, onReturnHome })
           {hazardsFound.map((h) => (
             <div
               key={h.id}
-              className="p-4 rounded-xl border border-emerald-200 dark:border-emerald-900/50 bg-emerald-50/50 dark:bg-emerald-950/20 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3"
+              className="p-4 rounded-xl border border-mist-300 dark:border-dark-border bg-white dark:bg-dark-card flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3"
             >
               <div className="flex items-start space-x-3">
-                <div className="p-1 rounded-xl bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-400 mt-0.5">
+                <div className="mt-0.5 text-primary-600 dark:text-primary-400">
                   <CheckCircle2 className="w-5 h-5" />
                 </div>
                 <div>
@@ -251,12 +238,12 @@ export const DiagnosticSummary = ({ diagnostic, onRetryPractice, onReturnHome })
                     <span className="font-bold text-xs sm:text-sm text-mist-900 dark:text-white">
                       {h.title}
                     </span>
-                    <span className="text-[10px] font-bold px-2 py-0.2 rounded bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300">
+                    <span className="text-[11px] font-bold px-2 py-0.2 rounded bg-mist-100 text-mist-700 dark:bg-dark-surface dark:text-dark-muted">
                       SPOTTED
                     </span>
                   </div>
                   <p className="text-xs text-mist-600 dark:text-dark-muted mt-1">{h.explanation}</p>
-                  <p className="text-[11px] text-emerald-800 dark:text-emerald-400 font-semibold mt-1">
+                  <p className="text-[11px] text-mist-700 dark:text-dark-muted font-semibold mt-1">
                     Correct Action: {h.correctAction}
                   </p>
                 </div>
@@ -270,10 +257,10 @@ export const DiagnosticSummary = ({ diagnostic, onRetryPractice, onReturnHome })
           {hazardsMissed.map((h) => (
             <div
               key={h.id}
-              className="p-4 rounded-xl border border-red-200 dark:border-red-900/50 bg-red-50/50 dark:bg-red-950/20 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3"
+              className="p-4 rounded-xl border border-mist-300 dark:border-dark-border bg-white dark:bg-dark-card flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3"
             >
               <div className="flex items-start space-x-3">
-                <div className="p-1 rounded-xl bg-red-100 dark:bg-red-950/60 text-red-700 dark:text-red-400 mt-0.5">
+                <div className="mt-0.5 text-mist-500 dark:text-dark-muted">
                   <XCircle className="w-5 h-5" />
                 </div>
                 <div>
@@ -281,17 +268,17 @@ export const DiagnosticSummary = ({ diagnostic, onRetryPractice, onReturnHome })
                     <span className="font-bold text-xs sm:text-sm text-mist-900 dark:text-white">
                       {h.title}
                     </span>
-                    <span className="text-[10px] font-bold px-2 py-0.2 rounded bg-red-100 text-red-800 dark:bg-red-950/60 dark:text-red-300">
+                    <span className="text-[11px] font-bold px-2 py-0.2 rounded bg-mist-100 text-mist-700 dark:bg-dark-surface dark:text-dark-muted">
                       MISSED HAZARD
                     </span>
                   </div>
                   <p className="text-xs text-mist-600 dark:text-dark-muted mt-1">{h.explanation}</p>
-                  <p className="text-[11px] text-red-700 dark:text-red-400 font-semibold mt-1">
+                  <p className="text-[11px] text-mist-700 dark:text-dark-muted font-semibold mt-1">
                     Remediation: {h.correctAction}
                   </p>
                 </div>
               </div>
-              <span className="text-[11px] font-mono font-bold text-red-600 dark:text-red-400 flex-shrink-0">
+              <span className="text-[11px] font-mono font-bold text-mist-600 dark:text-dark-muted flex-shrink-0">
                 {h.severity} Priority
               </span>
             </div>
@@ -312,8 +299,8 @@ export const DiagnosticSummary = ({ diagnostic, onRetryPractice, onReturnHome })
                 key={q.questionId || idx}
                 className={`p-4 rounded-xl border ${
                   q.isCorrect
-                    ? 'border-emerald-200 dark:border-emerald-900/50 bg-emerald-50/30 dark:bg-emerald-950/20'
-                    : 'border-red-200 dark:border-red-900/50 bg-red-50/30 dark:bg-red-950/20'
+                    ? 'border-mist-300 dark:border-dark-border bg-white dark:bg-dark-card'
+                    : 'border-mist-300 dark:border-dark-border bg-white dark:bg-dark-card'
                 }`}
               >
                 <div className="flex items-start justify-between">
@@ -323,8 +310,8 @@ export const DiagnosticSummary = ({ diagnostic, onRetryPractice, onReturnHome })
                   <span
                     className={`text-[11px] font-bold px-2 py-0.5 rounded-full flex items-center space-x-1 ${
                       q.isCorrect
-                        ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300'
-                        : 'bg-red-100 text-red-800 dark:bg-red-950/60 dark:text-red-300'
+                        ? 'bg-mist-100 text-mist-700 dark:bg-dark-surface dark:text-dark-muted'
+                        : 'bg-mist-100 text-mist-700 dark:bg-dark-surface dark:text-dark-muted'
                     }`}
                   >
                     {q.isCorrect ? (

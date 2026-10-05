@@ -17,7 +17,7 @@ export const UserAuditModal = ({ user, audit, loading, onClose, onDownload }) =>
       <div className="app-card w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col">
         <div className="px-6 py-5 border-b border-mist-200 dark:border-dark-border flex items-start justify-between">
           <div>
-            <p className="text-[10px] uppercase tracking-widest font-bold text-primary-500">Account details</p>
+            <p className="text-[11px] uppercase tracking-widest font-bold text-primary-500">Account details</p>
             <h2 className="text-xl font-bold text-mist-900 dark:text-white mt-1">{user.name}</h2>
             <p className="text-xs text-mist-500 dark:text-dark-muted mt-1">@{user.username} · {user.role} · {user.department}</p>
           </div>
@@ -30,11 +30,11 @@ export const UserAuditModal = ({ user, audit, loading, onClose, onDownload }) =>
           {!isEmployee ? (
             <div className="grid grid-cols-2 gap-3">
               <div className="bg-mist-100 dark:bg-dark-surface rounded-lg p-4">
-                <p className="text-[10px] uppercase tracking-wider font-bold text-mist-500 dark:text-dark-muted">Role</p>
+                <p className="text-[11px] uppercase tracking-wider font-bold text-mist-500 dark:text-dark-muted">Role</p>
                 <p className="text-lg font-bold text-mist-900 dark:text-white mt-1">{user.role}</p>
               </div>
               <div className="bg-mist-100 dark:bg-dark-surface rounded-lg p-4">
-                <p className="text-[10px] uppercase tracking-wider font-bold text-mist-500 dark:text-dark-muted">Created</p>
+                <p className="text-[11px] uppercase tracking-wider font-bold text-mist-500 dark:text-dark-muted">Created</p>
                 <p className="text-lg font-bold text-mist-900 dark:text-white mt-1">{new Date(user.createdAt).toLocaleDateString('en-GB')}</p>
               </div>
             </div>
@@ -50,7 +50,7 @@ export const UserAuditModal = ({ user, audit, loading, onClose, onDownload }) =>
                   ['False clicks', falseClicks],
                 ].map(([label, value]) => (
                   <div key={label} className="bg-mist-100 dark:bg-dark-surface rounded-lg p-3">
-                    <p className="text-[10px] uppercase tracking-wider font-bold text-mist-500 dark:text-dark-muted">{label}</p>
+                    <p className="text-[11px] uppercase tracking-wider font-bold text-mist-500 dark:text-dark-muted">{label}</p>
                     <p className="text-xl font-bold text-mist-900 dark:text-white mt-1">{value}</p>
                   </div>
                 ))}
@@ -66,9 +66,9 @@ export const UserAuditModal = ({ user, audit, loading, onClose, onDownload }) =>
                   <div key={record._id || index} className="px-4 py-3 flex items-center justify-between gap-3">
                     <div>
                       <p className="text-xs font-semibold text-mist-900 dark:text-white">{record.isPracticeMode ? 'Practice session' : record.passed ? 'Passed official session' : 'Failed official session'}</p>
-                      <p className="text-[10px] text-mist-500 dark:text-dark-muted mt-1">{new Date(record.completedAt).toLocaleString('en-GB')} · {record.falseClicksCount || 0} false clicks</p>
+                      <p className="text-[11px] text-mist-500 dark:text-dark-muted mt-1">{new Date(record.completedAt).toLocaleString('en-GB')} · {record.falseClicksCount || 0} false clicks</p>
                     </div>
-                    <span className={`text-sm font-bold ${record.isPracticeMode ? 'text-amber-600' : record.passed ? 'text-emerald-600' : 'text-red-600'}`}>{record.totalScore}%</span>
+                    <span className={`text-sm font-bold ${record.isPracticeMode ? 'text-mist-500 dark:text-dark-muted' : record.passed ? 'text-primary-600 dark:text-primary-400' : 'text-mist-800 dark:text-dark-muted'}`}>{record.totalScore}%</span>
                   </div>
                 ))}
               </div>

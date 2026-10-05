@@ -497,7 +497,7 @@ export const PanoramaViewer = ({
             >
               <CheckCircle2 className="w-4 h-4 text-emerald-400 flex-shrink-0" />
               <span>{spot.title}</span>
-              <span className="text-[10px] uppercase font-mono px-2 py-0.5 bg-emerald-500/20 text-emerald-300 rounded font-bold">
+              <span className="text-[11px] uppercase font-mono px-2 py-0.5 bg-emerald-500/20 text-emerald-300 rounded font-bold">
                 SPOTTED
               </span>
             </div>

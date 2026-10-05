@@ -10,7 +10,7 @@ import { PanoramaViewer } from '../viewer/PanoramaViewer';
 import { WalkthroughViewer } from '../viewer/WalkthroughViewer';
 import { HazardQuiz } from './HazardQuiz';
 import { DiagnosticSummary } from './DiagnosticSummary';
-import { AlertCircle, RefreshCw } from 'lucide-react';
+import { AlertCircle } from 'lucide-react';
 
 // Experience phases:
 //  'HOME'        → EmployeeHome dashboard (pre-session)
@@ -261,14 +261,14 @@ export const TraineeExperience = () => {
             <div className="mb-4 rounded-xl border border-primary-200 bg-primary-50/80 p-4 shadow-sm dark:border-primary-900/60 dark:bg-primary-950/30">
               <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
                 <div>
-                  <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-primary-600 dark:text-primary-400">
+                  <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-primary-600 dark:text-primary-400">
                     Official hazard hunt instructions
                   </p>
                   <h3 className="mt-1 text-lg font-bold text-mist-900 dark:text-white">
                     Spot all 5 hazards before the timer ends
                   </h3>
                 </div>
-                <span className="inline-flex items-center rounded-full bg-primary-600 px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.15em] text-white">
+                <span className="inline-flex items-center rounded-full bg-primary-600 px-2.5 py-1 text-[11px] font-bold uppercase tracking-[0.15em] text-white">
                   Official session
                 </span>
               </div>
@@ -283,7 +283,7 @@ export const TraineeExperience = () => {
 
           {isPracticeMode && (
             <div className="mb-4 rounded-xl border border-amber-200 bg-amber-50 p-4 shadow-sm dark:border-amber-900/60 dark:bg-amber-950/20">
-              <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-amber-700 dark:text-amber-300">
+              <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-amber-700 dark:text-amber-300">
                 Practice session
               </p>
               <h3 className="mt-1 text-lg font-bold text-mist-900 dark:text-white">

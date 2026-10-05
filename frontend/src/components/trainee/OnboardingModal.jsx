@@ -1,17 +1,6 @@
 import React, { useState } from 'react';
 import { soundEngine } from '../../utils/audio';
-import {
-  Compass,
-  AlertTriangle,
-  Clock,
-  HelpCircle,
-  Award,
-  ArrowRight,
-  CheckCircle2,
-  X,
-  Target,
-  FileCheck,
-} from 'lucide-react';
+import { Compass, AlertTriangle, ArrowRight, X, Target, FileCheck } from 'lucide-react';
 
 export const OnboardingModal = ({ isOpen, onClose, onComplete }) => {
   const [step, setStep] = useState(0);
@@ -96,7 +85,7 @@ export const OnboardingModal = ({ isOpen, onClose, onComplete }) => {
         <div className={`h-24 ${currentSlide.color} p-6 flex items-center justify-between text-white relative`}>
           <div className="flex items-center space-x-3.5">
             <div>
-              <span className="text-[10px] font-bold uppercase tracking-wider bg-black/20 px-2.5 py-0.5 rounded-full">
+              <span className="text-[11px] font-bold uppercase tracking-wider bg-black/20 px-2.5 py-0.5 rounded-full">
                 {currentSlide.badge}
               </span>
               <h2 className="text-lg sm:text-xl font-bold mt-1 text-white">{currentSlide.title}</h2>

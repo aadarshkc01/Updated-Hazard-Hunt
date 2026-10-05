@@ -1,13 +1,7 @@
 import React, { useState } from 'react';
 import { soundEngine } from '../../utils/audio';
 import { ConfirmModal } from '../common/ConfirmModal';
-import {
-  FileQuestion,
-  CheckCircle2,
-  ArrowRight,
-  ShieldCheck,
-  Award,
-} from 'lucide-react';
+import { FileQuestion, ArrowRight, ShieldCheck } from 'lucide-react';
 
 export const HazardQuiz = ({ questions = [], onComplete, isSubmitting = false }) => {
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
@@ -77,7 +71,7 @@ export const HazardQuiz = ({ questions = [], onComplete, isSubmitting = false })
                 <FileQuestion className="w-6 h-6" />
               </div>
               <div>
-                <span className="text-[10px] font-bold uppercase tracking-wider text-primary-100">
+                <span className="text-[11px] font-bold uppercase tracking-wider text-primary-100">
                   Regulatory Compliance Assessment (FR-07)
                 </span>
                 <h2 className="text-xl font-extrabold text-white">
