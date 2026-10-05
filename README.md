@@ -62,6 +62,31 @@ Build the frontend from the repository root with:
 npm run build:frontend
 ```
 
+---
+
+## 7. Training Modes
+
+Two inspection modes are available at session launch:
+
+| Mode | Best for | Controls |
+| :--- | :--- | :--- |
+| **Standard 360°** | All devices, mobile/tablet, low-end laptops, quick training | Drag / arrow keys to rotate; click hazards |
+| **Warehouse Walkthrough** | Desktop immersive training and demonstrations | **WASD** to move, **mouse** to look (click to capture), **click** to report a hazard, **Esc** to release the mouse |
+
+- The walkthrough mode is a first-person WebGL scene built with **Three.js** (see `frontend/src/components/viewer/WalkthroughViewer.jsx`). There is no visible avatar; the camera is the trainee.
+- Movement is validated against room bounds and rack/staging obstacles, so the player cannot walk through walls, racks, or pallets.
+- The same five hazards, the 90-second timer, false-click penalties, quiz, and **server-side scoring** apply in both modes — hazard IDs are identical, so compliance records are comparable across modes.
+- On touch devices the walkthrough is replaced by guidance to use Standard 360° mode.
+- Each compliance record stores a `trainingMode` field (`panorama360` / `walkthrough`), and the CSV audit export includes it.
+
+**Performance targets:** static ambient + directional lighting (no dynamic shadow maps), no post-processing, low-poly procedural geometry, texture-free materials, `devicePixelRatio` capped at 1.5, and full disposal of geometries/materials/renderer on unmount. Three.js is code-split into its own bundle chunk.
+
+---
+
+## 8. Results & Analytics
+
+The diagnostic results screen shows overall score, pass/fail against the 75% threshold, detection rate, false-click penalty, time taken, quiz performance, an itemized hazard breakdown, missed hazard categories, and a training recommendation. Supervisor/Admin retain CSV export, team KPIs, per-trainee audit detail, and hazard-category risk analytics.
+
 Generated files in `frontend/dist/`, dependency folders, logs, local database files, and environment files are excluded by the root `.gitignore`.
 
 ---
