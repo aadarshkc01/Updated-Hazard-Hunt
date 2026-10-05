@@ -74,7 +74,7 @@ export const ToastProvider = ({ children }) => {
         {toasts.map((toast) => (
           <div
             key={toast.id}
-            className={`pointer-events-auto flex items-start space-x-3 p-4 rounded-2xl shadow-xl backdrop-blur-md border transition-all animate-slide-down ${getBorder(
+            className={`pointer-events-auto flex items-start space-x-3 p-4 rounded-xl shadow-xl backdrop-blur-md border transition-all animate-slide-down ${getBorder(
               toast.type
             )}`}
           >

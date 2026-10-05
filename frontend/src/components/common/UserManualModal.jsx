@@ -6,7 +6,7 @@ export const UserManualModal = ({ isOpen, onClose }) => {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-mist-900/50 animate-fade-in">
-      <div className="bg-white dark:bg-dark-card rounded-xl shadow-2xl max-w-lg w-full border border-mist-300 dark:border-dark-border overflow-hidden animate-slide-up">
+      <div className="bg-white dark:bg-dark-card rounded-xl shadow-sm max-w-lg w-full border border-mist-300 dark:border-dark-border overflow-hidden animate-slide-up">
         <div className="px-6 py-5 border-b border-mist-200 dark:border-dark-border flex items-start justify-between">
           <div>
             <p className="text-[10px] uppercase tracking-widest font-bold text-primary-500">Employee quick start</p>

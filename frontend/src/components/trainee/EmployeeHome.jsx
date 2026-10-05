@@ -29,6 +29,7 @@ export const EmployeeHome = ({ onLaunchSession, scenario, loading }) => {
   const { showToast } = useToast();
   const [history, setHistory] = useState([]);
   const [historyLoading, setHistoryLoading] = useState(true);
+  const [trainingMode, setTrainingMode] = useState('panorama360');
 
   useEffect(() => {
     const loadHistory = async () => {
@@ -155,8 +156,32 @@ export const EmployeeHome = ({ onLaunchSession, scenario, loading }) => {
           </div>
 
           <div className="p-5 bg-mist-50/50 dark:bg-dark-surface/20 space-y-2.5">
+            <div>
+              <p className="mb-2 text-xs font-bold text-mist-700 dark:text-dark-muted">Training mode</p>
+              <div className="grid grid-cols-2 gap-2">
+                {[
+                  { id: 'panorama360', title: 'Standard 360°', desc: 'Panoramic scan — works on all devices' },
+                  { id: 'walkthrough', title: 'Warehouse Walkthrough', desc: 'First-person — desktop keyboard & mouse' },
+                ].map((m) => (
+                  <button
+                    key={m.id}
+                    type="button"
+                    onClick={() => setTrainingMode(m.id)}
+                    aria-pressed={trainingMode === m.id}
+                    className={`rounded-lg border p-3 text-left transition-colors ${
+                      trainingMode === m.id
+                        ? 'border-primary-500 bg-primary-50 text-mist-900 dark:bg-primary-950/30 dark:text-white'
+                        : 'border-mist-300 bg-white text-mist-700 hover:border-mist-400 dark:border-dark-border dark:bg-dark-card dark:text-dark-muted'
+                    }`}
+                  >
+                    <span className="block text-xs font-bold">{m.title}</span>
+                    <span className="mt-0.5 block text-[10px] text-mist-500 dark:text-dark-muted">{m.desc}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
             <button
-              onClick={() => onLaunchSession(false)}
+              onClick={() => onLaunchSession(false, trainingMode)}
               disabled={loading}
               className="w-full py-3 rounded-lg bg-primary-500 hover:bg-primary-600 text-white font-bold text-sm transition-all flex items-center justify-center gap-2.5 disabled:opacity-50"
             >
@@ -164,9 +189,9 @@ export const EmployeeHome = ({ onLaunchSession, scenario, loading }) => {
               Begin Official Compliance Session
             </button>
             <button
-              onClick={() => onLaunchSession(true)}
+              onClick={() => onLaunchSession(true, trainingMode)}
               disabled={loading}
-              className="w-full py-2.5 rounded-2xl bg-mist-100 dark:bg-dark-surface hover:bg-amber-50 dark:hover:bg-amber-950/30 text-mist-700 dark:text-white font-semibold text-xs border border-mist-300 dark:border-dark-border hover:border-amber-400/60 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+              className="w-full py-2.5 rounded-lg bg-mist-100 dark:bg-dark-surface hover:bg-amber-50 dark:hover:bg-amber-950/30 text-mist-700 dark:text-white font-semibold text-xs border border-mist-300 dark:border-dark-border hover:border-amber-400/60 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
             >
               <RotateCcw className="w-4 h-4 text-amber-500" />
               Start Practice Mode (Results Not Recorded)

@@ -7,6 +7,7 @@ import { EmployeeHome } from './EmployeeHome';
 import { OnboardingModal } from './OnboardingModal';
 import { TraineeSessionHUD } from './TraineeSessionHUD';
 import { PanoramaViewer } from '../viewer/PanoramaViewer';
+import { WalkthroughViewer } from '../viewer/WalkthroughViewer';
 import { HazardQuiz } from './HazardQuiz';
 import { DiagnosticSummary } from './DiagnosticSummary';
 import { AlertCircle, RefreshCw } from 'lucide-react';
@@ -31,6 +32,7 @@ export const TraineeExperience = () => {
 
   // Session state
   const [isPracticeMode, setIsPracticeMode] = useState(false);
+  const [trainingMode, setTrainingMode] = useState('panorama360'); // 'panorama360' | 'walkthrough'
   const [foundHotspots, setFoundHotspots] = useState([]);
   const [falseClicksCount, setFalseClicksCount] = useState(0);
   const [timeLeft, setTimeLeft] = useState(90);
@@ -89,9 +91,10 @@ export const TraineeExperience = () => {
   };
 
   // Called when "Begin Session" is clicked from EmployeeHome
-  const handleLaunchSession = (practiceMode = false) => {
+  const handleLaunchSession = (practiceMode = false, mode = 'panorama360') => {
     soundEngine.init();
     setIsPracticeMode(practiceMode);
+    setTrainingMode(mode);
     setFoundHotspots([]);
     setFalseClicksCount(0);
     const limit = scenario?.timeLimitSeconds || 90;
@@ -166,6 +169,7 @@ export const TraineeExperience = () => {
         timeTakenSeconds: timeTaken,
         quizAnswers,
         isPracticeMode,
+        trainingMode,
       };
       const res = await api.submitAttempt(payload);
       if (res.success && res.diagnostic) {
@@ -188,7 +192,7 @@ export const TraineeExperience = () => {
 
   const handleRetryPractice = () => {
     soundEngine.playTick();
-    handleLaunchSession(true);
+    handleLaunchSession(true, trainingMode);
   };
 
   const handleReturnHome = () => {
@@ -218,7 +222,7 @@ export const TraineeExperience = () => {
 
   if (error && phase === 'HOME') {
     return (
-      <div className="max-w-md mx-auto my-16 p-6 bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-900/50 rounded-3xl text-center">
+      <div className="max-w-md mx-auto my-16 p-6 bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-900/50 rounded-xl text-center">
         <AlertCircle className="w-8 h-8 text-red-600 dark:text-red-400 mx-auto mb-2" />
         <h3 className="text-sm font-bold text-red-800 dark:text-red-300">Failed to Load Scenario</h3>
         <p className="text-xs text-red-600 dark:text-red-400 mt-1 mb-4">{error}</p>
@@ -254,7 +258,7 @@ export const TraineeExperience = () => {
       {phase === 'INSPECTION' && (
         <div className="max-w-7xl mx-auto py-4 px-4 sm:px-6 lg:px-8 animate-fade-in">
           {!isPracticeMode && (
-            <div className="mb-4 rounded-2xl border border-primary-200 bg-primary-50/80 p-4 shadow-sm dark:border-primary-900/60 dark:bg-primary-950/30">
+            <div className="mb-4 rounded-xl border border-primary-200 bg-primary-50/80 p-4 shadow-sm dark:border-primary-900/60 dark:bg-primary-950/30">
               <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
                 <div>
                   <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-primary-600 dark:text-primary-400">
@@ -270,7 +274,7 @@ export const TraineeExperience = () => {
               </div>
 
               <ul className="mt-3 grid gap-2 text-xs text-mist-700 dark:text-dark-muted md:grid-cols-3">
-                <li>• Rotate the 360° warehouse view to inspect every corner.</li>
+                <li>• {trainingMode === 'walkthrough' ? 'Walk the warehouse and inspect every aisle.' : 'Rotate the 360° warehouse view to inspect every corner.'}</li>
                 <li>• Click only real hazards. False clicks reduce your score by 5%.</li>
                 <li>• Your result is recorded for the HSE compliance audit.</li>
               </ul>
@@ -278,7 +282,7 @@ export const TraineeExperience = () => {
           )}
 
           {isPracticeMode && (
-            <div className="mb-4 rounded-2xl border border-amber-200 bg-amber-50 p-4 shadow-sm dark:border-amber-900/60 dark:bg-amber-950/20">
+            <div className="mb-4 rounded-xl border border-amber-200 bg-amber-50 p-4 shadow-sm dark:border-amber-900/60 dark:bg-amber-950/20">
               <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-amber-700 dark:text-amber-300">
                 Practice session
               </p>
@@ -296,14 +300,25 @@ export const TraineeExperience = () => {
             falseClicks={falseClicksCount}
             onFinishEarly={transitionToQuiz}
             isPracticeMode={isPracticeMode}
+            trainingMode={trainingMode}
           />
-          <PanoramaViewer
-            scenario={scenario}
-            foundHotspots={foundHotspots}
-            onHazardClick={handleHazardFound}
-            onFalseClick={handleFalseClick}
-            isEnded={false}
-          />
+          {trainingMode === 'walkthrough' ? (
+            <WalkthroughViewer
+              scenario={scenario}
+              foundHotspots={foundHotspots}
+              onHazardClick={handleHazardFound}
+              onFalseClick={handleFalseClick}
+              isEnded={false}
+            />
+          ) : (
+            <PanoramaViewer
+              scenario={scenario}
+              foundHotspots={foundHotspots}
+              onHazardClick={handleHazardFound}
+              onFalseClick={handleFalseClick}
+              isEnded={false}
+            />
+          )}
         </div>
       )}
 

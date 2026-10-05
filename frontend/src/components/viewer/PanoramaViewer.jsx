@@ -406,7 +406,7 @@ export const PanoramaViewer = ({
       className={`relative w-full bg-dark-bg select-none transition-all ${
         isFullscreen
           ? 'fixed inset-0 z-50 h-screen w-screen rounded-none border-none'
-          : 'h-[74vh] min-h-[500px] max-h-[800px] rounded-3xl overflow-hidden shadow-2xl border border-mist-300 dark:border-dark-border'
+          : 'h-[74vh] min-h-[500px] max-h-[800px] rounded-xl overflow-hidden shadow-sm border border-mist-300 dark:border-dark-border'
         } cursor-grab active:cursor-grabbing`}
       onMouseDown={handleMouseDown}
       onMouseMove={handleMouseMove}
@@ -463,7 +463,7 @@ export const PanoramaViewer = ({
           onMouseDown={(e) => e.stopPropagation()}
           onMouseUp={(e) => e.stopPropagation()}
           title={isFullscreen ? 'Exit Full Screen' : 'Expand to Full Screen'}
-          className="p-2.5 rounded-2xl bg-dark-card/90 hover:bg-primary-600 text-white border border-white/20 backdrop-blur-md transition-all shadow-lg flex items-center space-x-1.5 text-xs font-bold"
+          className="p-2.5 rounded-xl bg-dark-card/90 hover:bg-primary-600 text-white border border-white/20 backdrop-blur-md transition-all shadow-lg flex items-center space-x-1.5 text-xs font-bold"
         >
           {isFullscreen ? (
             <>
@@ -493,7 +493,7 @@ export const PanoramaViewer = ({
           {foundHotspots.map((spot) => (
             <div
               key={spot.id}
-              className="pointer-events-auto bg-dark-card/95 text-white border border-emerald-500/80 backdrop-blur-xl px-4 py-2 rounded-2xl text-xs font-bold flex items-center space-x-2 shadow-xl animate-fade-in"
+              className="pointer-events-auto bg-dark-card/95 text-white border border-emerald-500/80 backdrop-blur-sm px-4 py-2 rounded-xl text-xs font-bold flex items-center space-x-2 shadow-xl animate-fade-in"
             >
               <CheckCircle2 className="w-4 h-4 text-emerald-400 flex-shrink-0" />
               <span>{spot.title}</span>

@@ -18,6 +18,23 @@ import {
 } from 'lucide-react';
 
 export const DiagnosticSummary = ({ diagnostic, onRetryPractice, onReturnHome }) => {
+  useEffect(() => {
+    if (!diagnostic) return;
+    if (diagnostic.passed) {
+      soundEngine.playFanfare();
+      try {
+        confetti({
+          particleCount: 90,
+          spread: 75,
+          origin: { y: 0.6 },
+          colors: ['#FF6115', '#10B981', '#F59E0B'],
+        });
+      } catch (e) {}
+    } else {
+      soundEngine.playWarning();
+    }
+  }, [diagnostic]);
+
   if (!diagnostic) return null;
 
   const {
@@ -42,27 +59,21 @@ export const DiagnosticSummary = ({ diagnostic, onRetryPractice, onReturnHome })
     completedAt,
   } = diagnostic;
 
-  useEffect(() => {
-    if (passed) {
-      soundEngine.playFanfare();
-      try {
-        confetti({
-          particleCount: 90,
-          spread: 75,
-          origin: { y: 0.6 },
-          colors: ['#FF6115', '#10B981', '#F59E0B'],
-        });
-      } catch (e) {}
-    } else {
-      soundEngine.playWarning();
-    }
-  }, [passed]);
-
   const formatSeconds = (sec) => {
     const mins = Math.floor(sec / 60);
     const s = sec % 60;
     return `${mins}m ${s < 10 ? '0' : ''}${s}s`;
   };
+
+  // Categories the trainee consistently miss → targeted recommendation
+  const missedCategories = [...new Set(hazardsMissed.map((h) => h.category).filter(Boolean))];
+  const recommendation = !passed
+    ? missedCategories.length > 0
+      ? `Focus on: ${missedCategories.join(', ')}. Retry Practice Mode before your next official audit.`
+      : 'Review the inspection breakdown, then retry in Practice Mode before your next official audit.'
+    : missedCategories.length > 0
+      ? `Certified, with gaps in: ${missedCategories.join(', ')}. A short practice run is recommended.`
+      : 'Fully certified with no missed categories. Schedule retraining per your annual HSE cycle.';
 
   const handleDownloadReport = () => {
     if (isPracticeMode) return;
@@ -208,6 +219,17 @@ export const DiagnosticSummary = ({ diagnostic, onRetryPractice, onReturnHome })
         </div>
       </div>
 
+      {/* 2b. Training recommendation */}
+      <div className="mb-8 rounded-lg border border-primary-200 bg-primary-50/60 p-4 dark:border-primary-900/50 dark:bg-primary-950/20">
+        <p className="text-[10px] font-bold uppercase tracking-widest text-primary-600 dark:text-primary-400">Training recommendation</p>
+        <p className="mt-1 text-xs text-mist-800 dark:text-dark-text">{recommendation}</p>
+        {missedCategories.length > 0 && (
+          <p className="mt-2 text-[11px] text-mist-600 dark:text-dark-muted">
+            Missed categories this session: {missedCategories.join(' · ')}
+          </p>
+        )}
+      </div>
+
       {/* 3. Detailed Itemized Hazards Review */}
       <div className="bg-white dark:bg-dark-card rounded-xl shadow-sm border border-mist-300 dark:border-dark-border p-6 sm:p-7 mb-8 transition-colors">
         <h2 className="text-base font-bold text-mist-900 dark:text-white mb-4">
@@ -218,7 +240,7 @@ export const DiagnosticSummary = ({ diagnostic, onRetryPractice, onReturnHome })
           {hazardsFound.map((h) => (
             <div
               key={h.id}
-              className="p-4 rounded-2xl border border-emerald-200 dark:border-emerald-900/50 bg-emerald-50/50 dark:bg-emerald-950/20 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3"
+              className="p-4 rounded-xl border border-emerald-200 dark:border-emerald-900/50 bg-emerald-50/50 dark:bg-emerald-950/20 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3"
             >
               <div className="flex items-start space-x-3">
                 <div className="p-1 rounded-xl bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-400 mt-0.5">
@@ -248,7 +270,7 @@ export const DiagnosticSummary = ({ diagnostic, onRetryPractice, onReturnHome })
           {hazardsMissed.map((h) => (
             <div
               key={h.id}
-              className="p-4 rounded-2xl border border-red-200 dark:border-red-900/50 bg-red-50/50 dark:bg-red-950/20 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3"
+              className="p-4 rounded-xl border border-red-200 dark:border-red-900/50 bg-red-50/50 dark:bg-red-950/20 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3"
             >
               <div className="flex items-start space-x-3">
                 <div className="p-1 rounded-xl bg-red-100 dark:bg-red-950/60 text-red-700 dark:text-red-400 mt-0.5">
@@ -288,7 +310,7 @@ export const DiagnosticSummary = ({ diagnostic, onRetryPractice, onReturnHome })
             {quizReview.map((q, idx) => (
               <div
                 key={q.questionId || idx}
-                className={`p-4 rounded-2xl border ${
+                className={`p-4 rounded-xl border ${
                   q.isCorrect
                     ? 'border-emerald-200 dark:border-emerald-900/50 bg-emerald-50/30 dark:bg-emerald-950/20'
                     : 'border-red-200 dark:border-red-900/50 bg-red-50/30 dark:bg-red-950/20'

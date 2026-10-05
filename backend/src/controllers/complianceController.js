@@ -13,6 +13,7 @@ export const submitAttempt = async (req, res) => {
       timeTakenSeconds = 0,
       quizAnswers = [],
       isPracticeMode = false,
+      trainingMode = 'panorama360',
     } = req.body;
 
     if (!scenarioId) {
@@ -46,6 +47,7 @@ export const submitAttempt = async (req, res) => {
       scenarioId: scenario._id,
       scenarioTitle: scenario.title,
       isPracticeMode: Boolean(isPracticeMode),
+      trainingMode: ['panorama360', 'walkthrough'].includes(trainingMode) ? trainingMode : 'panorama360',
       hazardsFound: diagnostic.hazardsFound,
       hazardsMissed: diagnostic.hazardsMissed,
       falseClicksCount: diagnostic.falseClicksCount,
@@ -75,6 +77,7 @@ export const submitAttempt = async (req, res) => {
         userName: req.user.name,
         scenarioTitle: scenario.title,
         isPracticeMode: record.isPracticeMode,
+        trainingMode: record.trainingMode,
         passed: diagnostic.passed,
         passingThreshold: diagnostic.passingThreshold,
         totalScore: diagnostic.totalScore,

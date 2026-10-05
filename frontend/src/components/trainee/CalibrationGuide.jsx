@@ -12,7 +12,7 @@ export const CalibrationGuide = ({
 
   return (
     <div className="w-full mb-4 animate-fade-in">
-      <div className="bg-white dark:bg-dark-card rounded-2xl p-6 shadow-sm border border-mist-200 dark:border-dark-border transition-colors">
+      <div className="bg-white dark:bg-dark-card rounded-xl p-6 shadow-sm border border-mist-200 dark:border-dark-border transition-colors">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div className="flex items-center space-x-3.5">
             <div>

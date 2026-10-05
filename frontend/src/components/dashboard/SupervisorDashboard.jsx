@@ -285,7 +285,7 @@ export const SupervisorDashboard = () => {
                     Monitor your team's 360° hazard training sessions, track compliance status, and identify risk patterns in real time.
                   </p>
                 </div>
-                <div className="flex-shrink-0 flex items-center justify-center w-20 h-20 rounded-2xl bg-white/15 backdrop-blur-sm">
+                <div className="flex-shrink-0 flex items-center justify-center w-20 h-20 rounded-xl bg-white/15 backdrop-blur-sm">
                   <div className="relative">
                     <ScoreRing score={stats.passRatePercentage || 0} size={72} strokeWidth={6} color="#ffffff" />
                     <div className="absolute inset-0 flex items-center justify-center">
@@ -314,7 +314,7 @@ export const SupervisorDashboard = () => {
             </div>
 
             {/* Compliance progress bar display */}
-            <div className="bg-white dark:bg-dark-card rounded-2xl shadow-card dark:shadow-card-dark border border-mist-300 dark:border-dark-border p-5">
+            <div className="bg-white dark:bg-dark-card rounded-xl shadow-card dark:shadow-card-dark border border-mist-300 dark:border-dark-border p-5">
               <h3 className="text-sm font-bold text-mist-900 dark:text-white mb-4 flex items-center gap-2">
                 <span className="w-1.5 h-1.5 rounded-full bg-primary-500" /> Team Compliance Breakdown
               </h3>
@@ -339,7 +339,7 @@ export const SupervisorDashboard = () => {
             </div>
 
             {/* Quick trainee preview */}
-            <div className="bg-white dark:bg-dark-card rounded-2xl shadow-card dark:shadow-card-dark border border-mist-300 dark:border-dark-border overflow-hidden">
+            <div className="bg-white dark:bg-dark-card rounded-xl shadow-card dark:shadow-card-dark border border-mist-300 dark:border-dark-border overflow-hidden">
               <div className="flex items-center justify-between px-5 py-3.5 border-b border-mist-200 dark:border-dark-border bg-mist-50/50 dark:bg-dark-surface/30">
                 <h3 className="text-sm font-bold text-mist-900 dark:text-white flex items-center gap-2">
                   <span className="w-1.5 h-1.5 rounded-full bg-primary-500" /> Recent Trainee Activity
@@ -411,7 +411,7 @@ export const SupervisorDashboard = () => {
             </div>
 
             {/* Trainee data table */}
-            <div className="bg-white dark:bg-dark-card rounded-2xl shadow-card dark:shadow-card-dark border border-mist-300 dark:border-dark-border overflow-hidden">
+            <div className="bg-white dark:bg-dark-card rounded-xl shadow-card dark:shadow-card-dark border border-mist-300 dark:border-dark-border overflow-hidden">
               <div className="overflow-x-auto">
                 <table className="w-full text-left">
                   <thead>
@@ -578,7 +578,7 @@ export const SupervisorDashboard = () => {
                   { label: 'Near-Miss', range: '60–74%', value: analytics?.scoreDistribution?.distNearMiss ?? 0, color: 'bg-amber-500', bg: 'bg-amber-50 dark:bg-amber-950/30 border-amber-200 dark:border-amber-800 text-amber-700 dark:text-amber-300' },
                   { label: 'Fail', range: '<60%', value: analytics?.scoreDistribution?.distFail ?? 0, color: 'bg-red-500', bg: 'bg-red-50 dark:bg-red-950/30 border-red-200 dark:border-red-800 text-red-700 dark:text-red-300' },
                 ].map(({ label, range, value, color, bg }) => (
-                  <div key={label} className={`rounded-2xl p-4 border ${bg} text-center`}>
+                  <div key={label} className={`rounded-xl p-4 border ${bg} text-center`}>
                     <p className="text-2xl font-black">{value}</p>
                     <p className="text-[11px] font-bold mt-1">{label}</p>
                     <p className="text-[10px] opacity-60 mt-0.5">{range}</p>
@@ -601,7 +601,7 @@ export const SupervisorDashboard = () => {
       {/* ── CREATE EMPLOYEE MODAL ─────────────────────────────────────────── */}
       {isCreateModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in">
-          <div className="bg-white dark:bg-dark-card rounded-3xl shadow-2xl max-w-md w-full border border-mist-300 dark:border-dark-border overflow-hidden animate-slide-up">
+          <div className="bg-white dark:bg-dark-card rounded-xl shadow-sm max-w-md w-full border border-mist-300 dark:border-dark-border overflow-hidden animate-slide-up">
             <div className="bg-primary-600 p-5 text-white">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2.5">

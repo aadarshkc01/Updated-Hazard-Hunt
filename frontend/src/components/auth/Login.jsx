@@ -102,7 +102,7 @@ export const Login = () => {
           </div>
 
           {/* Card */}
-          <div className="bg-white dark:bg-dark-card rounded-2xl shadow-sm border border-mist-300 dark:border-dark-border p-6 sm:p-8 relative overflow-hidden transition-all">
+          <div className="bg-white dark:bg-dark-card rounded-xl shadow-sm border border-mist-300 dark:border-dark-border p-6 sm:p-8 relative overflow-hidden transition-all">
 
             {/* Role Selector Tabs */}
             <div className="mb-6">
@@ -153,7 +153,7 @@ export const Login = () => {
 
             {/* Error Message with Role Boundary notice */}
             {error && (
-              <div className="mb-5 p-4 rounded-2xl bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-900/50 text-red-700 dark:text-red-300 text-xs flex items-start space-x-2.5 animate-slide-down">
+              <div className="mb-5 p-4 rounded-xl bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-900/50 text-red-700 dark:text-red-300 text-xs flex items-start space-x-2.5 animate-slide-down">
                 <AlertCircle className="w-4 h-4 mt-0.5 flex-shrink-0" />
                 <span className="leading-relaxed font-medium">{error}</span>
               </div>

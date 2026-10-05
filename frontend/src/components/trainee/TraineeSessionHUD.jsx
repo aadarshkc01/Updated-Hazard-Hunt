@@ -10,6 +10,7 @@ export const TraineeSessionHUD = ({
   falseClicks,
   onFinishEarly,
   isPracticeMode,
+  trainingMode,
 }) => {
   const [showConfirmFinish, setShowConfirmFinish] = useState(false);
 
@@ -41,7 +42,7 @@ export const TraineeSessionHUD = ({
     <>
       <div className="w-full mb-4">
         {/* HUD Bar */}
-        <div className="bg-dark-card/90 text-white rounded-3xl p-4 sm:p-5 shadow-2xl border border-dark-border backdrop-blur-xl flex flex-wrap items-center justify-between gap-4">
+        <div className="bg-dark-card/90 text-white rounded-xl p-4 sm:p-5 shadow-sm border border-dark-border backdrop-blur-sm flex flex-wrap items-center justify-between gap-4">
           {/* Left: Module Tag */}
           <div className="flex items-center space-x-3.5">
             <div className="w-10 h-10 rounded-xl bg-primary-600/30 border border-primary-500 flex items-center justify-center text-primary-300">
@@ -59,7 +60,7 @@ export const TraineeSessionHUD = ({
                 )}
               </div>
               <p className="text-xs text-dark-muted font-medium">
-                360° Safety Perception Sweep
+                {trainingMode === 'walkthrough' ? 'First-person Warehouse Inspection' : '360° Safety Perception Sweep'}
               </p>
             </div>
           </div>

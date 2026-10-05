@@ -91,7 +91,7 @@ export const OnboardingModal = ({ isOpen, onClose, onComplete }) => {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in">
-      <div className="bg-white dark:bg-dark-card rounded-3xl shadow-2xl max-w-xl w-full border border-mist-300 dark:border-dark-border overflow-hidden relative transition-all animate-slide-up">
+      <div className="bg-white dark:bg-dark-card rounded-xl shadow-sm max-w-xl w-full border border-mist-300 dark:border-dark-border overflow-hidden relative transition-all animate-slide-up">
         {/* Banner */}
         <div className={`h-24 ${currentSlide.color} p-6 flex items-center justify-between text-white relative`}>
           <div className="flex items-center space-x-3.5">
@@ -122,7 +122,7 @@ export const OnboardingModal = ({ isOpen, onClose, onComplete }) => {
             {currentSlide.points.map((pt, idx) => (
               <div
                 key={idx}
-                className="flex items-start space-x-3 p-3 rounded-2xl bg-mist-100 dark:bg-dark-surface border border-mist-300/80 dark:border-dark-border text-xs text-mist-900 dark:text-dark-text"
+                className="flex items-start space-x-3 p-3 rounded-xl bg-mist-100 dark:bg-dark-surface border border-mist-300/80 dark:border-dark-border text-xs text-mist-900 dark:text-dark-text"
               >
                 <span className="leading-snug font-medium">{pt}</span>
               </div>

@@ -28,6 +28,11 @@ const complianceRecordSchema = new mongoose.Schema(
       type: Boolean,
       default: false,
     },
+    trainingMode: {
+      type: String,
+      enum: ['panorama360', 'walkthrough'],
+      default: 'panorama360',
+    },
     hazardsFound: [
       {
         id: String,

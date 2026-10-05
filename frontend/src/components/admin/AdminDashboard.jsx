@@ -468,7 +468,7 @@ export const AdminDashboard = ({ onLaunchTrainer }) => {
                 { label: 'Supervisors', count: supervisorCount, color: 'text-mist-700 dark:text-dark-text bg-mist-100 dark:bg-dark-surface border-mist-300 dark:border-dark-border' },
                 { label: 'Employees', count: employeeCount, color: 'text-primary-600 dark:text-primary-400 bg-primary-50 dark:bg-primary-950/40 border-primary-200 dark:border-primary-800' },
               ].map(({ label, count, color }) => (
-                <div key={label} className={`rounded-2xl p-4 border text-center ${color} shadow-sm`}>
+                <div key={label} className={`rounded-xl p-4 border text-center ${color} shadow-sm`}>
                   <p className="text-2xl font-black">{count}</p>
                   <p className="text-[11px] font-bold mt-0.5">{label}</p>
                 </div>
@@ -746,7 +746,7 @@ export const AdminDashboard = ({ onLaunchTrainer }) => {
       {/* ── CREATE USER MODAL ─────────────────────────────────────────────── */}
       {isCreateModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in">
-          <div className="bg-white dark:bg-dark-card rounded-3xl shadow-2xl max-w-md w-full border border-mist-300 dark:border-dark-border overflow-hidden animate-slide-up">
+          <div className="bg-white dark:bg-dark-card rounded-xl shadow-sm max-w-md w-full border border-mist-300 dark:border-dark-border overflow-hidden animate-slide-up">
             <div className="bg-primary-600 p-5 text-white">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2.5">

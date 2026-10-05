@@ -52,7 +52,7 @@ export const HazardQuiz = ({ questions = [], onComplete, isSubmitting = false })
 
   if (!currentQ) {
     return (
-      <div className="p-8 text-center bg-white dark:bg-dark-card rounded-3xl border border-mist-300 dark:border-dark-border">
+      <div className="p-8 text-center bg-white dark:bg-dark-card rounded-xl border border-mist-300 dark:border-dark-border">
         <p className="text-xs text-mist-600 dark:text-dark-muted">No quiz questions configured for this scenario.</p>
         <button
           onClick={() => onComplete([])}
@@ -73,7 +73,7 @@ export const HazardQuiz = ({ questions = [], onComplete, isSubmitting = false })
         <div className="bg-primary-600 text-white rounded-xl p-6 sm:p-7 mb-6 shadow-sm border border-primary-700">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-3.5">
-              <div className="w-11 h-11 rounded-2xl bg-white/10 backdrop-blur-md border border-white/20 flex items-center justify-center text-white">
+              <div className="w-11 h-11 rounded-xl bg-white/10 backdrop-blur-md border border-white/20 flex items-center justify-center text-white">
                 <FileQuestion className="w-6 h-6" />
               </div>
               <div>
@@ -102,7 +102,7 @@ export const HazardQuiz = ({ questions = [], onComplete, isSubmitting = false })
         </div>
 
         {/* Question Card */}
-        <div className="bg-white dark:bg-dark-card rounded-3xl shadow-card dark:shadow-card-dark border border-mist-300 dark:border-dark-border p-6 sm:p-8 mb-6 transition-colors">
+        <div className="bg-white dark:bg-dark-card rounded-xl shadow-card dark:shadow-card-dark border border-mist-300 dark:border-dark-border p-6 sm:p-8 mb-6 transition-colors">
           <div className="flex items-center justify-between mb-4">
             <span className="px-3 py-1 rounded-full text-xs font-bold bg-primary-100 dark:bg-primary-950/60 text-primary-700 dark:text-primary-300 border border-primary-200 dark:border-primary-800">
               {currentQ.category || 'HSE Compliance'}
@@ -125,7 +125,7 @@ export const HazardQuiz = ({ questions = [], onComplete, isSubmitting = false })
                   key={idx}
                   type="button"
                   onClick={() => handleSelectOption(idx)}
-                  className={`w-full text-left p-4 rounded-2xl border transition-all flex items-start space-x-3.5 ${
+                  className={`w-full text-left p-4 rounded-xl border transition-all flex items-start space-x-3.5 ${
                     isSelected
                       ? 'border-primary-500 bg-primary-50 dark:bg-primary-950/40 text-mist-900 dark:text-white shadow-sm ring-1 ring-primary-500'
                       : 'border-mist-300 dark:border-dark-border hover:border-primary-400 bg-white dark:bg-dark-surface text-mist-700 dark:text-dark-text'
