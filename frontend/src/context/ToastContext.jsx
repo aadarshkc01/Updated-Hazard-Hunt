@@ -39,57 +39,45 @@ export const ToastProvider = ({ children }) => {
     }, duration);
   }, [removeToast]);
 
-  const getIcon = (type) => {
-    switch (type) {
-      case 'success':
-        return <CheckCircle2 className="w-5 h-5 text-emerald-500 flex-shrink-0" />;
-      case 'error':
-        return <AlertCircle className="w-5 h-5 text-red-500 flex-shrink-0" />;
-      case 'warning':
-        return <AlertTriangle className="w-5 h-5 text-amber-500 flex-shrink-0" />;
-      default:
-        return <Info className="w-5 h-5 text-primary-500 flex-shrink-0" />;
-    }
-  };
-
-  const getBorder = (type) => {
-    switch (type) {
-      case 'success':
-        return 'border-emerald-500/40 bg-emerald-50/90 dark:bg-emerald-950/40 text-emerald-900 dark:text-emerald-200';
-      case 'error':
-        return 'border-red-500/40 bg-red-50/90 dark:bg-red-950/40 text-red-900 dark:text-red-200';
-      case 'warning':
-        return 'border-amber-500/40 bg-amber-50/90 dark:bg-amber-950/40 text-amber-900 dark:text-amber-200';
-      default:
-        return 'border-primary-500/40 bg-primary-50/90 dark:bg-primary-950/40 text-primary-900 dark:text-primary-200';
-    }
+  // Toast tones map onto the same three semantic tokens used everywhere else.
+  const TONE = {
+    success: { icon: CheckCircle2, cls: 'border-pass-200 bg-pass-50 text-pass-700 dark:border-pass-600/40 dark:bg-pass-600/15 dark:text-pass-200' },
+    error: { icon: AlertCircle, cls: 'border-stop-200 bg-stop-50 text-stop-700 dark:border-stop-600/40 dark:bg-stop-600/15 dark:text-stop-200' },
+    warning: { icon: AlertTriangle, cls: 'border-caution-200 bg-caution-50 text-caution-700 dark:border-caution-600/40 dark:bg-caution-600/15 dark:text-caution-200' },
+    info: { icon: Info, cls: 'border-primary-200 bg-primary-50 text-primary-800 dark:border-primary-800 dark:bg-primary-950/40 dark:text-primary-200' },
   };
 
   return (
     <ToastContext.Provider value={{ showToast }}>
       {children}
 
-      {/* Toast Notification Container (Fixed Top-Right) */}
-      <div className="fixed top-5 right-5 z-50 flex flex-col space-y-2.5 max-w-sm w-full pointer-events-none">
-        {toasts.map((toast) => (
-          <div
-            key={toast.id}
-            className={`pointer-events-auto flex items-start space-x-3 p-4 rounded-xl shadow-xl backdrop-blur-md border transition-all animate-slide-down ${getBorder(
-              toast.type
-            )}`}
-          >
-            {getIcon(toast.type)}
-            <div className="flex-1 text-xs font-medium leading-snug pt-0.5">
-              {toast.message}
-            </div>
-            <button
-              onClick={() => removeToast(toast.id)}
-              className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 p-0.5 rounded transition-colors"
+      {/* Toasts — fixed top-right, announced politely to assistive tech */}
+      <div
+        className="pointer-events-none fixed right-4 top-20 z-50 flex w-full max-w-sm flex-col gap-2"
+        role="status"
+        aria-live="polite"
+      >
+        {toasts.map((toast) => {
+          const tone = TONE[toast.type] || TONE.info;
+          const Icon = tone.icon;
+          return (
+            <div
+              key={toast.id}
+              className={`pointer-events-auto flex animate-slide-down items-start gap-2.5 rounded-control border p-3.5 shadow-pop ${tone.cls}`}
             >
-              <X className="w-4 h-4" />
-            </button>
-          </div>
-        ))}
+              <Icon className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
+              <p className="min-w-0 flex-1 text-xs font-medium leading-snug">{toast.message}</p>
+              <button
+                type="button"
+                onClick={() => removeToast(toast.id)}
+                className="shrink-0 opacity-60 transition-opacity hover:opacity-100"
+                aria-label="Dismiss notification"
+              >
+                <X className="h-3.5 w-3.5" />
+              </button>
+            </div>
+          );
+        })}
       </div>
     </ToastContext.Provider>
   );

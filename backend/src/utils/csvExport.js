@@ -1,6 +1,13 @@
 /**
  * Generates RFC 4180 compliant CSV string from compliance records
  */
+
+/** ISO-8601 string, or '' when the value is missing/unparseable. */
+const formatDate = (value) => {
+  const d = new Date(value);
+  return Number.isNaN(d.getTime()) ? '' : d.toISOString();
+};
+
 export const generateComplianceCSV = (records) => {
   const headers = [
     'Record ID',
@@ -9,6 +16,7 @@ export const generateComplianceCSV = (records) => {
     'Scenario Title',
     'Mode',
     'Training Mode',
+    'Layout Seed',
     'Status',
     'Total Score (%)',
     'Hazard Score (%)',
@@ -41,6 +49,7 @@ export const generateComplianceCSV = (records) => {
     escapeCSV(r.scenarioTitle),
     escapeCSV(r.isPracticeMode ? 'PRACTICE' : 'OFFICIAL'),
     escapeCSV(r.trainingMode === 'walkthrough' ? 'WALKTHROUGH' : '360'),
+    escapeCSV(r.walkthroughLayoutSeed ?? 'N/A'),
     escapeCSV(r.passed ? 'PASS' : 'FAIL'),
     escapeCSV(r.totalScore),
     escapeCSV(r.hazardScore),
@@ -50,7 +59,9 @@ export const generateComplianceCSV = (records) => {
     escapeCSV(r.falseClicksCount || 0),
     escapeCSV(r.timeTakenSeconds),
     escapeCSV(r.passingThreshold || 75),
-    escapeCSV(new Date(r.completedAt).toISOString()),
+    // Defensive: legacy/hand-inserted records may carry an absent or malformed
+    // completedAt. Emitting an empty cell keeps the export from failing outright.
+    escapeCSV(formatDate(r.completedAt)),
   ]);
 
   return [headers.join(','), ...rows.map((row) => row.join(','))].join('\r\n');

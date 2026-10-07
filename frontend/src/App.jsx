@@ -1,65 +1,41 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { ThemeProvider } from './context/ThemeContext';
 import { ToastProvider } from './context/ToastContext';
 import { AuthProvider, useAuth } from './context/AuthContext';
-import { Navbar } from './components/common/Navbar';
+import { AppShell } from './components/common/Navbar';
 import { Login } from './components/auth/Login';
 import { TraineeExperience } from './components/trainee/TraineeExperience';
 import { SupervisorDashboard } from './components/dashboard/SupervisorDashboard';
 import { AdminDashboard } from './components/admin/AdminDashboard';
 
+const SplashScreen = () => (
+  <div className="flex min-h-screen flex-col items-center justify-center gap-4 bg-app-shell dark:bg-dark-bg">
+    <span className="app-spinner text-primary-500" />
+    <p className="app-eyebrow">Synchronising enterprise portal</p>
+  </div>
+);
+
+const SCREENS = {
+  employee: TraineeExperience,
+  supervisor: SupervisorDashboard,
+  admin: AdminDashboard,
+};
+
 const MainApp = () => {
-  const { user, role, isAuthenticated, isLoading } = useAuth();
-  const [currentView, setCurrentView] = useState('dashboard');
+  const { role, isAuthenticated, isLoading } = useAuth();
 
-  if (isLoading) {
-    return (
-      <div className="min-h-screen bg-mist-200 dark:bg-dark-bg flex flex-col items-center justify-center transition-colors">
-        <div className="w-10 h-10 border-4 border-primary-500 border-t-transparent rounded-full animate-spin mb-4" />
-        <span className="text-xs font-bold uppercase tracking-wider text-mist-700 dark:text-dark-muted">
-          Synchronizing Enterprise Portal...
-        </span>
-      </div>
-    );
-  }
+  if (isLoading) return <SplashScreen />;
+  if (!isAuthenticated) return <Login />;
 
-  if (!isAuthenticated) {
-    return <Login />;
-  }
+  const Screen = SCREENS[role];
+  if (!Screen) return null;
 
-  // Employee role: show standard Navbar + trainee experience
-  if (role === 'employee') {
-    return (
-      <div className="min-h-screen bg-app-shell dark:bg-dark-bg text-mist-900 dark:text-dark-text flex flex-col selection:bg-primary-500 selection:text-white transition-colors duration-200">
-        <Navbar currentView={currentView} onViewChange={setCurrentView} />
-        <main className="flex-1">
-          <TraineeExperience />
-        </main>
-        <footer className="bg-white dark:bg-dark-card border-t border-mist-300 dark:border-dark-border py-3 px-6 text-center text-xs text-mist-500 dark:text-dark-muted transition-colors">
-          <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-1.5">
-            <span>
-              <strong>Hazard Hunt</strong> &copy; 2026 Macro Thinkers • CET257 Enterprise Project (University of Sunderland)
-            </span>
-            <span className="font-mono text-[11px] text-mist-400 dark:text-dark-muted">
-              Automotive Logistics &amp; Warehousing Safety Engine
-            </span>
-          </div>
-        </footer>
-      </div>
-    );
-  }
-
-  // Supervisor: self-contained dashboard
-  if (role === 'supervisor') {
-    return <SupervisorDashboard />;
-  }
-
-  // Admin: self-contained dashboard
-  if (role === 'admin') {
-    return <AdminDashboard />;
-  }
-
-  return null;
+  // Every role renders inside the identical navbar + footer chrome.
+  return (
+    <AppShell>
+      <Screen />
+    </AppShell>
+  );
 };
 
 export default function App() {

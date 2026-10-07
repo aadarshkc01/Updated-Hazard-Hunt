@@ -2,293 +2,455 @@ import React, { useState, useEffect } from 'react';
 import { api } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../../context/ToastContext';
-import { ShieldAlert, CheckCircle2, XCircle, AlertTriangle, Play, RotateCcw, Lock, Activity, Download } from 'lucide-react';
+import { Play, RotateCcw, Download, Lock, ShieldAlert } from 'lucide-react';
+import { TrendChart, Metric, PageHeader, SectionCard, StatTile } from '../ui';
 
-// ── Mini score ring ────────────────────────────────────────────────────────
-const ScoreRing = ({ score, size = 90, strokeWidth = 8 }) => {
-  const r = (size - strokeWidth * 2) / 2;
-  const circumference = 2 * Math.PI * r;
-  const offset = ((100 - score) / 100) * circumference;
-  const color = score >= 75 ? '#10B981' : score >= 60 ? '#F59E0B' : '#EF4444';
-  return (
-    <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} className="-rotate-90">
-      <circle cx={size/2} cy={size/2} r={r} fill="none" stroke="currentColor"
-        strokeWidth={strokeWidth} className="text-mist-200 dark:text-dark-surface" />
-      <circle cx={size/2} cy={size/2} r={r} fill="none" stroke={color}
-        strokeWidth={strokeWidth} strokeDasharray={circumference} strokeDashoffset={offset}
-        strokeLinecap="round" style={{ transition: 'stroke-dashoffset 1.2s ease' }} />
-    </svg>
-  );
-};
+const MODES = [
+  {
+    id: 'panorama360',
+    title: 'Standard 360°',
+    desc: 'Panoramic sweep — works on every device',
+  },
+  {
+    id: 'walkthrough',
+    title: 'Warehouse Walkthrough',
+    desc: 'First-person 3D — phone, tablet & desktop',
+  },
+];
+
+const scoreTone = (score) => (score >= 75 ? 'pass' : score >= 60 ? 'caution' : 'stop');
 
 export const EmployeeHome = ({ onLaunchSession, scenario, loading }) => {
   const { user } = useAuth();
   const { showToast } = useToast();
   const [history, setHistory] = useState([]);
-  const [historyLoading, setHistoryLoading] = useState(true);
   const [trainingMode, setTrainingMode] = useState('panorama360');
 
   useEffect(() => {
-    const loadHistory = async () => {
-      try {
-        const records = await api.getMyHistory();
-        setHistory(records || []);
-      } catch (err) {
-        // Silently fail
-      } finally {
-        setHistoryLoading(false);
-      }
-    };
-    loadHistory();
+    api
+      .getMyHistory()
+      .then((records) => setHistory(records || []))
+      .catch(() => {})
+      .finally(() => {});
   }, []);
 
-  const officialAttempts = history
-    .filter(r => !r.isPracticeMode)
-    .sort((left, right) => new Date(right.completedAt || 0) - new Date(left.completedAt || 0));
-  const practiceAttempts = history.filter(r => r.isPracticeMode);
-  const latestOfficial = officialAttempts[0] || null;
-  const bestScore = officialAttempts.length > 0
-    ? Math.max(...officialAttempts.map(r => r.totalScore))
-    : null;
-  const passedCount = officialAttempts.filter(r => r.passed).length;
-  const latestScore = latestOfficial?.totalScore ?? null;
+  const official = history
+    .filter((r) => !r.isPracticeMode)
+    .sort((a, b) => new Date(b.completedAt || 0) - new Date(a.completedAt || 0));
+  const practice = history.filter((r) => r.isPracticeMode);
+  const latest = official[0] || null;
+  const bestScore = official.length ? Math.max(...official.map((r) => r.totalScore)) : null;
+  const passedCount = official.filter((r) => r.passed).length;
 
-  const greetingHour = new Date().getHours();
-  const greeting = greetingHour < 12 ? 'Good morning' : greetingHour < 17 ? 'Good afternoon' : 'Good evening';
+  const totalHazards = scenario?.hotspots?.filter((h) => h.isHazard).length || 5;
+  const hour = new Date().getHours();
+  const greeting = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening';
+
+  /**
+   * Personal progress figures, derived from this trainee's own history.
+   *
+   * Averages hide the shape of someone's learning, so these are the figures
+   * that actually tell them where they stand: the last two results and the
+   * direction between them, plus how many hazards they typically find.
+   */
+  const recent = official.slice(0, 5);
+  const avgScore = official.length
+    ? Math.round(official.reduce((a, r) => a + Number(r.totalScore || 0), 0) / official.length)
+    : null;
+  const avgTime = official.length
+    ? Math.round(
+        official.reduce((a, r) => a + Number(r.timeTakenSeconds || 0), 0) / official.length
+      )
+    : null;
+  const avgFalseClicks = official.length
+    ? Math.round(
+        (official.reduce((a, r) => a + Number(r.falseClicksCount || 0), 0) / official.length) * 10
+      ) / 10
+    : null;
+  const totalSpotted = official.reduce(
+    (a, r) => a + (Array.isArray(r.hazardsFound) ? r.hazardsFound.length : 0),
+    0
+  );
+  const avgSpotted = official.length ? Math.round((totalSpotted / official.length) * 10) / 10 : null;
+
+  const [prev, curr] = recent;
+  const scoreDelta =
+    prev && curr ? Math.round((Number(curr.totalScore || 0) - Number(prev.totalScore || 0)) * 10) / 10 : null;
+
+  /** Seconds to m:ss, so timing is readable at a glance. */
+  const mmss = (seconds) => {
+    const s = Math.max(0, Math.round(Number(seconds) || 0));
+    return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
+  };
+
+  /** Recent score history as a compact column chart, oldest first. */
+  const scoreTrend = [...recent].reverse().map((r) => ({
+    date: r.completedAt,
+    label: new Date(r.completedAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }),
+    value: Number(r.totalScore || 0),
+  }));
 
   return (
-    <div className="max-w-5xl mx-auto py-6 px-4 sm:px-6 lg:px-8 space-y-6">
-
-      {/* Personalized greeting hero */}
-      <div className="bg-primary-600 rounded-xl p-6 text-white relative overflow-hidden">
-        <div className="relative">
-          <p className="text-primary-100 text-sm mb-1">{greeting}, {user?.name?.split(' ')[0]}!</p>
-          <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight mb-2">
-            Hazard Hunt 360°
-          </h1>
-          <p className="text-primary-100 text-sm max-w-xl">
-            Complete your warehouse safety inspection. Navigate the 360° environment, identify hazardous conditions, and pass the compliance quiz.
-          </p>
-          {latestOfficial && (
-            <div className="mt-3 inline-flex items-center gap-2 bg-white/15 backdrop-blur-sm rounded-xl px-4 py-2">
-              {latestOfficial.passed
-                ? <CheckCircle2 className="w-4 h-4 text-emerald-300" />
-                : <AlertTriangle className="w-4 h-4 text-amber-300" />}
-              <span className="text-sm font-bold">
-                Last attempt: {latestScore}% — {latestOfficial.passed ? 'CERTIFIED' : 'NOT YET CERTIFIED'}
-              </span>
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* Stats row */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        {[
-          {
-            label: 'Official Attempts',
-            value: officialAttempts.length,
-            sub: `${practiceAttempts.length} practice`,
-          },
-          {
-            label: 'Best Score',
-            value: bestScore !== null ? `${bestScore}%` : '—',
-            sub: bestScore !== null ? (bestScore >= 75 ? 'Certified' : 'Below threshold') : 'No attempts yet',
-          },
-          {
-            label: 'Sessions Passed',
-            value: passedCount,
-            sub: `${officialAttempts.length - passedCount} failed`,
-          },
-          {
-            label: 'Time Limit',
-            value: `${scenario?.timeLimitSeconds || 90}s`,
-            sub: 'Per inspection session',
-          },
-        ].map(({ label, value, sub }) => (
-          <div key={label} className="app-card p-4">
-            <p className="text-xl font-bold text-mist-900 dark:text-white leading-none">{value}</p>
-            <p className="text-xs font-semibold text-mist-600 dark:text-dark-muted mt-1">{label}</p>
-            <p className="text-[11px] text-mist-500 dark:text-dark-muted mt-0.5">{sub}</p>
-          </div>
-        ))}
-      </div>
-
-      {/* Main launch card */}
-      <div className="grid md:grid-cols-3 gap-4">
-        {/* Scenario info + launch */}
-        <div className="md:col-span-2 app-card overflow-hidden">
-          <div className="p-5 border-b border-mist-100 dark:border-dark-border">
-            <div className="flex items-center justify-between mb-3">
+    <div className="app-page py-6">
+      <div className="app-stack">
+        {/* ── Status summary ──────────────────────────────────────────────
+            Uses the shared PageHeader treatment so the trainee dashboard
+            carries the same brand accent as the two supervisory dashboards,
+            plus a warm band behind the greeting. Previously this screen opened
+            with a plain heading on a white card and read as unfinished next to
+            the others. */}
+        <header className="app-band overflow-hidden">
+          <div className="flex flex-wrap items-start justify-between gap-x-6 gap-y-4 p-5">
+            <div className="min-w-0">
               <div className="flex items-center gap-2.5">
-                <div className="w-9 h-9 rounded-lg bg-primary-100 dark:bg-primary-950/40 text-primary-600 dark:text-primary-400 flex items-center justify-center">
-                  <ShieldAlert className="w-5 h-5" />
-                </div>
-                <div>
-                  <p className="text-[11px] uppercase font-bold tracking-wider text-primary-500">Active Training Scenario</p>
-                  <h3 className="text-sm font-bold text-mist-900 dark:text-white">
-                    {loading ? 'Loading scenario…' : (scenario?.title || 'Bay 4: Automotive Logistics')}
-                  </h3>
-                </div>
+                <span className="app-eyebrow-accent">
+                  {greeting}, {user?.name?.split(' ')[0]}
+                </span>
+                <span className="h-px w-16 bg-primary-300 dark:bg-primary-800" aria-hidden="true" />
               </div>
-              <span className="flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold text-mist-700 dark:text-dark-muted border border-mist-300 dark:border-dark-border">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" /> LIVE
-              </span>
+              <h1 className="app-display mt-1.5">Bay 4 Inspection</h1>
+              <p className="app-body mt-1.5 max-w-xl">
+                Walk the depot, identify the safety infractions, then complete the regulatory quiz.
+              </p>
             </div>
-            <p className="text-xs text-mist-600 dark:text-dark-muted leading-relaxed">{scenario?.description}</p>
-          </div>
 
-          <div className="grid grid-cols-4 divide-x divide-mist-100 dark:divide-dark-border">
-            {[
-              { label: 'Hazards', value: `${scenario?.hotspots?.filter(h => h.isHazard).length || 5}` },
-              { label: 'Time', value: `${scenario?.timeLimitSeconds || 90}s` },
-              { label: 'Pass At', value: `${scenario?.passingScorePercentage || 75}%` },
-              { label: 'Quiz Q\'s', value: `${scenario?.quizQuestions?.length || 4}` },
-            ].map(({ label, value }) => (
-              <div key={label} className="p-3.5 text-center">
-                <p className="text-sm font-bold text-mist-900 dark:text-white">{value}</p>
-                <p className="text-xs text-mist-600 dark:text-dark-muted">{label}</p>
-              </div>
-            ))}
-          </div>
-
-          <div className="p-5 bg-mist-50/50 dark:bg-dark-surface/20 space-y-2.5">
-            <div>
-              <p className="mb-2 text-xs font-bold text-mist-700 dark:text-dark-muted">Training mode</p>
-              <div className="grid grid-cols-2 gap-2">
-                {[
-                  { id: 'panorama360', title: 'Standard 360°', desc: 'Panoramic scan — works on all devices' },
-                  { id: 'walkthrough', title: 'Warehouse Walkthrough', desc: 'First-person — desktop keyboard & mouse' },
-                ].map((m) => (
-                  <button
-                    key={m.id}
-                    type="button"
-                    onClick={() => setTrainingMode(m.id)}
-                    aria-pressed={trainingMode === m.id}
-                    className={`rounded-lg border p-3 text-left transition-colors ${
-                      trainingMode === m.id
-                        ? 'border-primary-500 bg-primary-50 text-mist-900 dark:bg-primary-950/30 dark:text-white'
-                        : 'border-mist-300 bg-white text-mist-700 hover:border-mist-400 dark:border-dark-border dark:bg-dark-card dark:text-dark-muted'
+            <div className="shrink-0">
+              {latest ? (
+                <div className="rounded-control border border-primary-200 bg-white/70 px-4 py-3 text-left sm:text-right dark:border-dark-border dark:bg-dark-card/70">
+                  <p className="app-eyebrow">Latest official result</p>
+                  <p
+                    className={`app-num mt-1 text-2xl font-bold leading-none ${
+                      latest.passed ? 'text-primary-600 dark:text-primary-400' : 'text-mist-800 dark:text-dark-text'
                     }`}
                   >
-                    <span className="block text-xs font-bold">{m.title}</span>
-                    <span className="mt-0.5 block text-[11px] text-mist-500 dark:text-dark-muted">{m.desc}</span>
-                  </button>
-                ))}
+                    {latest.totalScore}%
+                  </p>
+                  <p className="app-stat-sub mt-1">
+                    {latest.passed ? 'Certified' : 'Not yet certified'}
+                  </p>
+                </div>
+              ) : (
+                <span className="app-chip app-chip-neutral">No attempts yet</span>
+              )}
+            </div>
+          </div>
+
+          {/* KPI row. Hairline-separated rather than boxed: the tiles sit inside
+              one band already, so giving each its own border and shadow would
+              put a card inside a card and read as a seam. */}
+          <div className="grid grid-cols-2 divide-x divide-y divide-primary-200/70 border-t border-primary-200/70 bg-white/50 dark:divide-dark-border dark:border-dark-border dark:bg-dark-card/40 lg:grid-cols-4 lg:divide-y-0">
+            <div className="p-4">
+              <StatTile
+                label="Official attempts"
+                value={official.length}
+                sub={`${practice.length} practice run${practice.length === 1 ? '' : 's'}`}
+                flat
+              />
+            </div>
+            <div className="p-4">
+              <StatTile
+                label="Best score"
+                value={bestScore !== null ? `${bestScore}%` : '—'}
+                sub={bestScore !== null ? 'Against the 75% threshold' : 'Complete a session'}
+                tone={bestScore !== null ? scoreTone(bestScore) : 'neutral'}
+                flat
+              />
+            </div>
+            <div className="p-4">
+              <StatTile
+                label="Sessions passed"
+                value={passedCount}
+                sub={`${official.length - passedCount} below threshold`}
+                tone={passedCount === official.length && official.length > 0 ? 'pass' : 'neutral'}
+                flat
+              />
+            </div>
+            <div className="p-4">
+              <StatTile label="Hazards staged" value={totalHazards} sub="Re-staged every attempt" flat />
+            </div>
+          </div>
+
+          {/* Personal progress: the last five results and what they show.
+              Rendered only once there is history to show. */}
+          {official.length > 0 && (
+            <div className="grid gap-5 border-t border-primary-200/70 bg-white/50 p-5 dark:border-dark-border dark:bg-dark-card/40 lg:grid-cols-2">
+              <div>
+                <p className="app-section-title">Your last {recent.length} official session{recent.length === 1 ? '' : 's'}</p>
+                <p className="app-body mt-0.5 mb-3">
+                  Scores are marked against the {scenario?.passingScorePercentage ?? 75}% pass threshold.
+                </p>
+                <ul className="app-stack gap-2">
+                  {recent.map((r, i) => {
+                    const isLatest = i === 0;
+                    return (
+                      <li
+                        key={r._id || r.completedAt || i}
+                        className={`flex items-center justify-between gap-3 rounded-control border px-3 py-2 ${
+                          isLatest
+                            ? 'border-primary-300 bg-primary-50 dark:border-primary-800 dark:bg-primary-950/30'
+                            : 'border-mist-200 dark:border-dark-border'
+                        }`}
+                      >
+                        <div className="min-w-0">
+                          <p className="truncate text-xs font-semibold text-mist-800 dark:text-dark-text">
+                            {new Date(r.completedAt).toLocaleDateString('en-GB', {
+                              day: 'numeric',
+                              month: 'short',
+                              year: 'numeric',
+                            })}
+                            {isLatest && <span className="app-chip app-chip-brand ml-2">Latest</span>}
+                          </p>
+                          <p className="app-num mt-0.5 text-[11px] text-mist-500 dark:text-dark-muted">
+                            {mmss(r.timeTakenSeconds)} ·{' '}
+                            {(Array.isArray(r.hazardsFound) ? r.hazardsFound.length : 0)}/{totalHazards} found ·{' '}
+                            {r.falseClicksCount ?? 0} false click{(r.falseClicksCount ?? 0) === 1 ? '' : 's'}
+                          </p>
+                        </div>
+                        <span
+                          className={`app-chip shrink-0 ${r.passed ? 'app-chip-pass' : 'app-chip-stop'}`}
+                        >
+                          {r.totalScore}%
+                        </span>
+                      </li>
+                    );
+                  })}
+                </ul>
+              </div>
+
+              <div>
+                <p className="app-section-title">Score trend</p>
+                <p className="app-body mt-0.5 mb-3">
+                  {scoreDelta === null
+                    ? 'Complete another session to establish a trend.'
+                    : scoreDelta > 0
+                      ? `Up ${scoreDelta} points on your previous attempt.`
+                      : scoreDelta < 0
+                        ? `Down ${Math.abs(scoreDelta)} points on your previous attempt.`
+                        : 'Level with your previous attempt.'}
+                </p>
+                <div className="app-chart">
+                  {/* A line, not columns: the movement between attempts is what
+                      matters, and columns flatten it. The dashed line is the
+                      75% pass threshold so each reading is judged against the
+                      standard rather than against the axis alone. */}
+                  <TrendChart
+                    data={scoreTrend}
+                    valueKey="value"
+                    height={120}
+                    domain={[0, 100]}
+                    reference={scenario?.passingScorePercentage ?? 75}
+                    referenceLabel={`Pass ${scenario?.passingScorePercentage ?? 75}%`}
+                    emptyLabel="No completed sessions yet."
+                  />
+                </div>
+                <div className="app-divider mt-4 grid grid-cols-3 gap-3 pt-3">
+                  <Metric label="Average" value={avgScore ?? '—'} unit={avgScore === null ? '' : '%'}
+                    baseline="All official" />
+                  <Metric label="Avg. time" value={avgTime === null ? '—' : mmss(avgTime)}
+                    baseline="Per session" />
+                  <Metric label="Avg. spotted" value={avgSpotted ?? '—'} baseline={`of ${totalHazards}`} />
+                </div>
+                {avgFalseClicks > 0 && (
+                  <p className="app-body mt-3">
+                    You average {avgFalseClicks} false click{avgFalseClicks === 1 ? '' : 's'} per
+                    session. Each one costs 5% accuracy, so slowing down is worth more than guessing.
+                  </p>
+                )}
               </div>
             </div>
-            <button
-              onClick={() => onLaunchSession(false, trainingMode)}
-              disabled={loading}
-              className="w-full py-3 rounded-lg bg-primary-500 hover:bg-primary-600 text-white font-bold text-sm transition-all flex items-center justify-center gap-2.5 disabled:opacity-50"
-            >
-              <Play className="w-4 h-4 fill-current" />
-              Begin Official Compliance Session
-            </button>
-            <button
-              onClick={() => onLaunchSession(true, trainingMode)}
-              disabled={loading}
-              className="w-full py-2.5 rounded-lg bg-mist-100 dark:bg-dark-surface hover:bg-mist-200 dark:hover:bg-dark-surface text-mist-700 dark:text-white font-semibold text-xs border border-mist-300 dark:border-dark-border transition-all flex items-center justify-center gap-2 disabled:opacity-50"
-            >
-              <RotateCcw className="w-4 h-4 text-amber-500" />
-              Start Practice Mode (Results Not Recorded)
-            </button>
-          </div>
+          )}
+        </header>
+
+        {/* ── Launch + briefing ── */}
+        <div className="grid gap-4 lg:grid-cols-3">
+          <SectionCard
+            className="lg:col-span-2"
+            title={loading ? 'Loading scenario…' : scenario?.title || 'Bay 4: Automotive Logistics'}
+            description={scenario?.description}
+            actions={<span className="app-chip app-chip-brand">Active scenario</span>}
+          >
+            <div className="space-y-4">
+              <div>
+                <p className="app-label">Training mode</p>
+                <div className="app-seg">
+                  {MODES.map((m) => (
+                    <button
+                      key={m.id}
+                      type="button"
+                      onClick={() => setTrainingMode(m.id)}
+                      aria-pressed={trainingMode === m.id}
+                      className={`app-seg-item text-left ${
+                        trainingMode === m.id ? 'app-seg-item-active' : ''
+                      }`}
+                    >
+                      <span className="block">{m.title}</span>
+                      <span className="mt-0.5 block text-[11px] font-medium text-mist-500 dark:text-dark-muted">
+                        {m.desc}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="flex flex-col gap-2 sm:flex-row">
+                <button
+                  type="button"
+                  onClick={() => onLaunchSession(false, trainingMode)}
+                  disabled={loading}
+                  className="app-btn app-btn-primary flex-1 py-2.5"
+                >
+                  <Play className="h-4 w-4" aria-hidden="true" />
+                  Begin official compliance session
+                </button>
+                <button
+                  type="button"
+                  onClick={() => onLaunchSession(true, trainingMode)}
+                  disabled={loading}
+                  className="app-btn app-btn-secondary flex-1 py-2.5"
+                >
+                  <RotateCcw className="h-4 w-4" aria-hidden="true" />
+                  Practice run
+                </button>
+              </div>
+
+              <p className="app-alert app-alert-brand">
+                <Lock className="app-alert-icon" aria-hidden="true" />
+                <span>
+                  Official sessions are written to the enterprise compliance record and are visible to
+                  your HSE supervisor. Practice runs never affect your standing.
+                </span>
+              </p>
+            </div>
+          </SectionCard>
+
+          <SectionCard title="Scoring" description="How the composite score is built">
+            <dl className="space-y-2.5">
+              {[
+                ['Hazard spotted', '+20%', 'Each of the staged hazards', 'pass'],
+                ['False click', '−5%', 'Accuracy penalty per false alarm', 'stop'],
+                ['Safety quiz', '40%', 'Weight of the knowledge component', 'brand'],
+                ['Pass threshold', '75%', 'Required for certification', 'caution'],
+              ].map(([label, value, desc, tone]) => (
+                <li
+                  key={label}
+                  className="app-card-quiet flex items-baseline justify-between gap-3 px-3 py-2.5"
+                >
+                  <div className="min-w-0">
+                    <dt className="text-xs font-semibold text-mist-800 dark:text-dark-text">
+                      {label}
+                    </dt>
+                    <dd className="app-body mt-0.5">{desc}</dd>
+                  </div>
+                  <dd
+                    className={`app-num shrink-0 text-sm font-bold ${
+                      tone === 'stop'
+                        ? 'text-mist-800 dark:text-dark-text'
+                        : tone === 'pass'
+                          ? 'text-primary-600 dark:text-primary-400'
+                          : 'text-primary-700 dark:text-primary-300'
+                    }`}
+                  >
+                    {value}
+                  </dd>
+                </li>
+              ))}
+            </dl>
+          </SectionCard>
         </div>
 
-        {/* How it works / scoring guide */}
-        <div className="app-card p-5">
-          <h3 className="text-sm font-bold text-mist-900 dark:text-white mb-4">
-            Scoring Guide
-          </h3>
-          <div className="space-y-3">
-            {[
-              { label: 'Spot hazard', value: '+20% each', desc: 'Hazard perception score' },
-              { label: 'False click', value: '–5%', desc: 'Accuracy penalty' },
-              { label: 'Quiz score', value: '40%', desc: 'of total composite' },
-              { label: 'Pass threshold', value: '75%', desc: 'Required to certify' },
-            ].map(({ label, value, desc }) => (
-              <div key={label} className="flex justify-between items-center py-1">
-                <div>
-                  <div className="text-xs font-semibold text-mist-800 dark:text-white">{label}</div>
-                  <div className="text-[11px] text-mist-500 dark:text-dark-muted">{desc}</div>
-                </div>
-                <div className="text-xs font-bold text-mist-900 dark:text-white">{value}</div>
-              </div>
-            ))}
-          </div>
+        {/* ── History ── */}
+        {history.length > 0 && (
+          <SectionCard
+            title="Your compliance history"
+            description={`${official.length} official · ${practice.length} practice`}
+            actions={
+              <button
+                type="button"
+                onClick={() => {
+                  try {
+                    api.downloadScoreReport(official, user);
+                    showToast('Score report downloaded', 'success');
+                  } catch (err) {
+                    showToast(err.message, 'error');
+                  }
+                }}
+                disabled={official.length === 0}
+                className="app-btn app-btn-secondary app-btn-sm"
+              >
+                <Download className="h-3.5 w-3.5" aria-hidden="true" />
+                Score report
+              </button>
+            }
+            bodyClass="p-0"
+          >
+            <div className="app-table-wrap">
+              <table className="app-table">
+                <thead>
+                  <tr>
+                    <th className="app-th">Date</th>
+                    <th className="app-th">Mode</th>
+                    <th className="app-th">Hazards</th>
+                    <th className="app-th">False clicks</th>
+                    <th className="app-th text-right">Score</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {history.slice(0, 8).map((rec, i) => (
+                    <tr key={rec._id || i}>
+                      <td className="app-td whitespace-nowrap font-semibold text-mist-800 dark:text-dark-text">
+                        {new Date(rec.completedAt).toLocaleDateString('en-GB', {
+                          day: '2-digit',
+                          month: 'short',
+                          year: 'numeric',
+                        })}
+                      </td>
+                      <td className="app-td">
+                        {rec.isPracticeMode ? (
+                          <span className="app-chip app-chip-caution">Practice</span>
+                        ) : rec.passed ? (
+                          <span className="app-chip app-chip-pass">Passed</span>
+                        ) : (
+                          <span className="app-chip app-chip-stop">Below threshold</span>
+                        )}
+                      </td>
+                      <td className="app-td app-num">
+                        {rec.hazardsFound?.length ?? 0}/
+                        {(rec.hazardsFound?.length ?? 0) + (rec.hazardsMissed?.length ?? 0)}
+                      </td>
+                      <td className="app-td app-num">{rec.falseClicksCount}</td>
+                      <td className="app-td text-right">
+                        <span
+                          className={`app-num text-sm font-bold ${
+                            rec.isPracticeMode
+                              ? 'text-mist-500 dark:text-dark-muted'
+                              : rec.passed
+                                ? 'text-pass-600 dark:text-pass-200'
+                                : 'text-stop-600 dark:text-stop-200'
+                          }`}
+                        >
+                          {rec.totalScore}%
+                        </span>
+                        <span className="app-num block text-[11px] text-mist-400 dark:text-dark-muted">
+                          {rec.hazardScore}% + {rec.quizScore}%
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </SectionCard>
+        )}
 
-          <div className="mt-4 pt-4 border-t border-mist-100 dark:border-dark-border">
-            <p className="text-[11px] text-mist-500 dark:text-dark-muted flex items-start gap-1.5">
-              <Lock className="w-3 h-3 flex-shrink-0 mt-0.5 text-mist-500" />
-              Official session results are permanently saved to the enterprise compliance database and visible to your HSE supervisor.
+        {history.length === 0 && (
+          <div className="app-card-quiet flex items-center gap-3 p-4">
+            <ShieldAlert className="h-5 w-5 shrink-0 text-primary-600 dark:text-primary-400" aria-hidden="true" />
+            <p className="app-body">
+              No recorded sessions yet. Your first official run establishes your baseline.
             </p>
           </div>
-        </div>
+        )}
       </div>
-
-      {/* Compliance history */}
-      {history.length > 0 && (
-        <div className="app-card overflow-hidden">
-          <div className="px-5 py-3.5 border-b border-mist-100 dark:border-dark-border flex items-center justify-between bg-mist-50/50 dark:bg-dark-surface/30">
-            <div className="flex items-center gap-2">
-              <h3 className="text-sm font-bold text-mist-900 dark:text-white">Your Compliance History</h3>
-            </div>
-            <button
-              onClick={async () => {
-                try {
-                  api.downloadScoreReport(officialAttempts, user);
-                  showToast('Score report downloaded', 'success');
-                } catch (err) {
-                  showToast('Failed to download report: ' + err.message, 'error');
-                }
-              }}
-              disabled={officialAttempts.length === 0}
-              className="flex items-center gap-1.5 px-3 py-1.5 bg-primary-50 hover:bg-primary-100 text-primary-700 dark:bg-primary-900/30 dark:hover:bg-primary-900/50 dark:text-primary-300 text-xs font-bold rounded-md transition-colors"
-            >
-              <Download className="w-3.5 h-3.5" />
-              Download Score Report
-            </button>
-          </div>
-          <div className="divide-y divide-mist-100 dark:divide-dark-border">
-            {history.slice(0, 6).map((rec, i) => (
-              <div key={rec._id || i} className="flex items-center justify-between px-5 py-3.5 hover:bg-mist-50/30 dark:hover:bg-dark-surface/20 transition-colors">
-                <div className="flex items-center gap-3">
-                  <div className={`w-8 h-8 rounded-md flex items-center justify-center text-xs font-black flex-shrink-0 ${
-                    rec.isPracticeMode
-                      ? 'bg-mist-100 dark:bg-dark-surface text-mist-500 dark:text-dark-muted'
-                      : rec.passed
-                        ? 'bg-primary-50 dark:bg-primary-950/40 text-primary-600 dark:text-primary-400'
-                        : 'bg-mist-100 dark:bg-dark-surface text-mist-600 dark:text-dark-muted'
-                  }`}>
-                    {rec.isPracticeMode ? <Activity className="w-4 h-4" /> : rec.passed ? <CheckCircle2 className="w-4 h-4" /> : <XCircle className="w-4 h-4" />}
-                  </div>
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <p className="text-xs font-semibold text-mist-900 dark:text-white">
-                        {new Date(rec.completedAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
-                      </p>
-                      {rec.isPracticeMode && (
-                        <span className="text-[11px] font-bold px-1.5 py-0.5 rounded-full bg-mist-200 dark:bg-dark-border text-mist-600 dark:text-dark-muted">PRACTICE</span>
-                      )}
-                    </div>
-                    <p className="text-[11px] text-mist-500 dark:text-dark-muted">
-                      {rec.hazardsFound?.length ?? 0}/{(rec.hazardsFound?.length ?? 0) + (rec.hazardsMissed?.length ?? 0)} hazards · {rec.falseClicksCount} false clicks · {rec.timeTakenSeconds}s
-                    </p>
-                  </div>
-                </div>
-                <div className="text-right flex-shrink-0">
-                  <p className={`text-base font-black ${
-                    rec.isPracticeMode ? 'text-mist-600 dark:text-dark-muted' :
-                    rec.passed ? 'text-primary-600 dark:text-primary-400' : 'text-mist-700 dark:text-dark-text'
-                  }`}>{rec.totalScore}%</p>
-                  <p className="text-[11px] text-mist-400 dark:text-dark-muted">{rec.hazardScore}% + {rec.quizScore}%</p>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
     </div>
   );
 };

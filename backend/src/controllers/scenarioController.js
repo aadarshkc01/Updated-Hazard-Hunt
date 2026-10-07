@@ -1,4 +1,8 @@
 import { Scenario } from '../models/Scenario.js';
+import {
+  generateWalkthroughLayout,
+  randomSeed,
+} from '../utils/walkthroughLayout.js';
 
 export const getActiveScenario = async (req, res) => {
   try {
@@ -20,6 +24,12 @@ export const getActiveScenario = async (req, res) => {
       category: q.category,
     }));
 
+    // Randomized staging plan for the 3D walkthrough. Re-rolled on every load so
+    // hazard positions cannot be memorised between attempts. The seed is echoed
+    // back so an auditor can reproduce the exact layout later. Scoring remains
+    // server-side against the canonical hotspots below.
+    const walkthroughLayout = generateWalkthroughLayout(scenario.hotspots, randomSeed());
+
     return res.status(200).json({
       success: true,
       scenario: {
@@ -33,6 +43,7 @@ export const getActiveScenario = async (req, res) => {
         passingScorePercentage: scenario.passingScorePercentage,
         hotspots: scenario.hotspots,
         quizQuestions: sanitizedQuiz,
+        walkthroughLayout,
       },
     });
   } catch (error) {

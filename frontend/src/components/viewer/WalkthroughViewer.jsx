@@ -1,119 +1,41 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useCallback } from 'react';
 import * as THREE from 'three';
-import { Maximize2, Minimize2, MousePointerClick, RotateCcw } from 'lucide-react';
+import {
+  Maximize2,
+  Minimize2,
+  RotateCcw,
+  Compass,
+  Navigation,
+  AlertTriangle,
+} from 'lucide-react';
+import {
+  buildWarehouseScene,
+  collidesAt,
+  getObstacles,
+  SPAWN,
+} from './warehouseScene';
+import { buildHazardProp } from './hazardProps';
 
-// ── Warehouse layout (metres) ────────────────────────────────────────────────
-const ROOM = { width: 44, depth: 32, height: 7 };
-const WALL = 0.3;
-const EYE_HEIGHT = 1.7;
-const PLAYER_RADIUS = 0.55;
-const MOVE_SPEED = 3.4;
+// Movement tuning (metres / second)
+const MOVE_SPEED = 4.6;
+const TOUCH_LOOK_SENSITIVITY = 0.0042;
+const MOUSE_LOOK_SENSITIVITY = 0.0022;
+const PITCH_LIMIT = 1.2;
+const RAY_RANGE = 16;
+/** Raycast for the "what am I looking at" probe at most this often (Hz). */
+const HOVER_HZ = 10;
 
-// Obstacle AABBs (axis-aligned rectangles on the floor plan) used for collision.
-const OBSTACLES = [
-  { minX: -16, maxX: -11, minZ: -12, maxZ: -8 },
-  { minX: -16, maxX: -11, minZ: -4, maxZ: 1 },
-  { minX: -16, maxX: -11, minZ: 4, maxZ: 9 },
-  { minX: 11, maxX: 16, minZ: -12, maxZ: -8 },
-  { minX: 11, maxX: 16, minZ: -4, maxZ: 1 },
-  { minX: 11, maxX: 16, minZ: 4, maxZ: 9 },
-  { minX: -4, maxX: 4, minZ: 10, maxZ: 13 }, // staging pallets
-];
+/** True when the primary input is a coarse pointer (phone / tablet). */
+const detectCoarsePointer = () =>
+  typeof window !== 'undefined' && window.matchMedia
+    ? window.matchMedia('(pointer: coarse)').matches
+    : false;
 
-// Maps a scenario hotspot to a physical position in the warehouse. Positions
-// are fixed open-floor spots chosen so no break belongs to a rack or wall;
-// matching by hazard category keeps each hazard visually consistent with its
-// training description.
-const HAZARD_SLOTS = [
-  { key: /chemical|slip/i, position: new THREE.Vector3(-8, 0.05, -6) },
-  { key: /material|pallet|stability/i, position: new THREE.Vector3(-9, 0, 0.5) },
-  { key: /fire|exit/i, position: new THREE.Vector3(15, 0, -14.4) },
-  { key: /electrical|trip|cable/i, position: new THREE.Vector3(0, 0.05, -2) },
-  { key: /traffic|forklift/i, position: new THREE.Vector3(7, 0, 12) },
-];
-
-function hotspotToPosition(hotspot, index) {
-  const cat = hotspot.category || '';
-  const slot = HAZARD_SLOTS.find((s) => s.key.test(cat));
-  if (slot) return slot.position.clone();
-  const fallbackSlots = [
-    new THREE.Vector3(-8, 0.05, -6),
-    new THREE.Vector3(-9, 0, 0.5),
-    new THREE.Vector3(15, 0, -14.4),
-    new THREE.Vector3(0, 0.05, -2),
-    new THREE.Vector3(7, 0, 12),
-  ];
-  return fallbackSlots[index % fallbackSlots.length].clone();
-}
-
-function buildHazardProp(hotspot) {
-  const group = new THREE.Group();
-  const cat = (hotspot.category || '').toLowerCase();
-
-  if (cat.includes('chemical') || cat.includes('slip')) {
-    const spill = new THREE.Mesh(
-      new THREE.CircleGeometry(1.4, 24),
-      new THREE.MeshStandardMaterial({ color: 0x23272b, roughness: 0.15, metalness: 0.4 })
-    );
-    spill.rotation.x = -Math.PI / 2;
-    spill.position.y = 0.02;
-    group.add(spill);
-    const ring = new THREE.Mesh(
-      new THREE.RingGeometry(1.4, 1.55, 24),
-      new THREE.MeshStandardMaterial({ color: 0xd8c93a, roughness: 0.6 })
-    );
-    ring.rotation.x = -Math.PI / 2;
-    ring.position.y = 0.021;
-    group.add(ring);
-  } else if (cat.includes('electrical') || cat.includes('trip')) {
-    const cable = new THREE.Mesh(
-      new THREE.BoxGeometry(4.2, 0.07, 0.14),
-      new THREE.MeshStandardMaterial({ color: 0x1a1a1a, roughness: 0.9 })
-    );
-    cable.position.y = 0.05;
-    cable.rotation.y = Math.PI / 4;
-    group.add(cable);
-  } else if (cat.includes('fire')) {
-    // Blocked fire exit: stacked boxes in front of the door
-    for (let i = 0; i < 3; i += 1) {
-      const box = new THREE.Mesh(
-        new THREE.BoxGeometry(0.9, 0.7, 0.9),
-        new THREE.MeshStandardMaterial({ color: 0x9a7b4f, roughness: 0.85 })
-      );
-      box.position.set((i - 1) * 1.0, 0.35 + (i % 2) * 0.7, -0.5);
-      group.add(box);
-    }
-  } else if (cat.includes('traffic')) {
-    // Missing barrier at blind intersection
-    const cone = new THREE.Mesh(
-      new THREE.ConeGeometry(0.25, 0.7, 12),
-      new THREE.MeshStandardMaterial({ color: 0xb4552d, roughness: 0.7 })
-    );
-    cone.position.y = 0.35;
-    group.add(cone);
-    const fallen = cone.clone();
-    fallen.rotation.z = Math.PI / 2;
-    fallen.position.set(0.9, 0.25, 0.4);
-    group.add(fallen);
-  } else {
-    // Material handling: leaning unstable pallet stack
-    for (let i = 0; i < 3; i += 1) {
-      const pallet = new THREE.Mesh(
-        new THREE.BoxGeometry(1.4, 0.9, 1.0),
-        new THREE.MeshStandardMaterial({ color: 0x8a6b45, roughness: 0.9 })
-      );
-      pallet.position.set(i * 0.25, 0.45 + i * 0.85, i * 0.18);
-      pallet.rotation.z = 0.12 * (i + 1);
-      group.add(pallet);
-    }
-  }
-
-  group.traverse((obj) => {
-    obj.userData = obj.userData || {};
-    obj.userData.hotspotId = hotspot.id;
-  });
-  return group;
-}
+const formatClock = (seconds) => {
+  const m = Math.floor(Math.max(0, seconds) / 60);
+  const s = Math.max(0, Math.floor(seconds)) % 60;
+  return `${m}:${s < 10 ? '0' : ''}${s}`;
+};
 
 export const WalkthroughViewer = ({
   scenario,
@@ -121,15 +43,16 @@ export const WalkthroughViewer = ({
   onHazardClick,
   onFalseClick,
   isEnded = false,
+  timeLeft,
+  totalTime,
 }) => {
   const mountRef = useRef(null);
   const containerRef = useRef(null);
-  const rendererRef = useRef(null);
   const cameraRef = useRef(null);
   const keysRef = useRef({});
-  const yawRef = useRef(0);
+  const yawRef = useRef(SPAWN.yaw);
   const pitchRef = useRef(0);
-  const posRef = useRef(new THREE.Vector3(0, EYE_HEIGHT, 6));
+  const posRef = useRef(new THREE.Vector3(SPAWN.x, SPAWN.y, SPAWN.z));
   const rafRef = useRef(0);
   const foundRef = useRef(foundHotspots);
   foundRef.current = foundHotspots;
@@ -137,204 +60,240 @@ export const WalkthroughViewer = ({
   const isEndedRef = useRef(isEnded);
   isEndedRef.current = isEnded;
 
+  // Touch input state lives in refs so the render loop never re-renders.
+  const moveVecRef = useRef({ x: 0, y: 0 });
+  const lookPointerRef = useRef(null);
+  const movePointerRef = useRef(null);
+  const joystickRef = useRef({ x: 0, y: 0 });
+
   const [locked, setLocked] = useState(false);
   const [feedback, setFeedback] = useState(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
-  const [lockEverEngaged, setLockEverEngaged] = useState(false);
-  const [seenInstruction] = useState(() => {
-    try {
-      return window.localStorage.getItem('hazardhunt_walkthrough_seen') === '1';
-    } catch {
-      return false;
-    }
-  });
-  const [isTouchDevice] = useState(
-    () => typeof window !== 'undefined' && 'ontouchstart' in window && !window.matchMedia('(pointer: fine)').matches
-  );
+  const [isTouch, setIsTouch] = useState(detectCoarsePointer);
+  const [joystick, setJoystick] = useState({ active: false, dx: 0, dy: 0 });
+  const [hasLooked, setHasLooked] = useState(false);
+  const [showHelp, setShowHelp] = useState(false);
+  const [webglFailed, setWebglFailed] = useState(false);
+  // Equipment the trainee is currently looking at
+  const [inspected, setInspected] = useState(null);
 
-  const flashFeedback = (type, text) => {
-    setFeedback({ type, text });
-    window.clearTimeout(flashFeedback.timeoutId);
-    flashFeedback.timeoutId = window.setTimeout(() => setFeedback(null), 2200);
-  };
+  const layout = scenario?.walkthroughLayout;
 
+  const flashFeedback = useCallback((type, text) => {
+    setFeedback({ type, text, key: Date.now() });
+    window.clearTimeout(flashFeedback.timerId);
+    flashFeedback.timerId = window.setTimeout(() => setFeedback(null), 2400);
+  }, []);
+
+  // Detect hybrid devices (touchscreen laptops) and enable the on-screen pads
+  // the first time a real touch happens, not just from media-query heuristics.
   useEffect(() => {
-    if (!mountRef.current || !scenario) return undefined;
+    const onFirstTouch = () => setIsTouch(true);
+    window.addEventListener('touchstart', onFirstTouch, { once: true, passive: true });
+    return () => window.removeEventListener('touchstart', onFirstTouch);
+  }, []);
 
-    const scene = new THREE.Scene();
-    scene.background = new THREE.Color(0x20242a);
-    scene.fog = new THREE.Fog(0x20242a, 24, 60);
+  // ── Scene lifecycle ────────────────────────────────────────────────────────
+  useEffect(() => {
+    const mount = mountRef.current;
+    if (!mount || !scenario) return undefined;
+
+    let disposed = false;
+    let renderer;
+    try {
+      renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
+    } catch {
+      setWebglFailed(true);
+      return undefined;
+    }
+    if (!renderer.getContext()) {
+      setWebglFailed(true);
+      renderer.dispose();
+      return undefined;
+    }
+
+    const { scene, tick, interactables, dispose: disposeScene } = buildWarehouseScene();
 
     const camera = new THREE.PerspectiveCamera(
       72,
-      mountRef.current.clientWidth / Math.max(1, mountRef.current.clientHeight),
+      mount.clientWidth / Math.max(1, mount.clientHeight),
       0.1,
-      120
+      160
     );
     camera.position.copy(posRef.current);
     cameraRef.current = camera;
 
-    const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
-    renderer.setSize(mountRef.current.clientWidth, mountRef.current.clientHeight);
-    mountRef.current.appendChild(renderer.domElement);
-    rendererRef.current = renderer;
+    // Conservative pixel-ratio cap keeps mid-range phones at 60fps.
+    const coarse = detectCoarsePointer();
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, coarse ? 1.25 : 1.6));
+    renderer.setSize(mount.clientWidth, mount.clientHeight);
+    mount.appendChild(renderer.domElement);
 
-    // Lighting: static ambient + directional (no dynamic shadows for performance)
-    scene.add(new THREE.HemisphereLight(0xdfe8f0, 0x3a3f45, 0.9));
-    const dir = new THREE.DirectionalLight(0xfff2dd, 0.9);
-    dir.position.set(12, 18, 8);
-    scene.add(dir);
-
-    const mats = {
-      floor: new THREE.MeshStandardMaterial({ color: 0x6b6f74, roughness: 0.95 }),
-      wall: new THREE.MeshStandardMaterial({ color: 0xb9bcbe, roughness: 0.9 }),
-      ceiling: new THREE.MeshStandardMaterial({ color: 0x8f9399, roughness: 0.95 }),
-      rack: new THREE.MeshStandardMaterial({ color: 0x3d4a63, roughness: 0.7, metalness: 0.3 }),
-      beam: new THREE.MeshStandardMaterial({ color: 0xc25a1e, roughness: 0.6, metalness: 0.2 }),
-      pallet: new THREE.MeshStandardMaterial({ color: 0x9a7b4f, roughness: 0.9 }),
-      dock: new THREE.MeshStandardMaterial({ color: 0x556070, roughness: 0.8 }),
-    };
-    const geos = {
-      floor: new THREE.PlaneGeometry(ROOM.width, ROOM.depth),
-      box: new THREE.BoxGeometry(1, 1, 1),
-      door: new THREE.PlaneGeometry(3, 3.4),
-    };
-
-    const floor = new THREE.Mesh(geos.floor, mats.floor);
-    floor.rotation.x = -Math.PI / 2;
-    scene.add(floor);
-
-    const ceiling = new THREE.Mesh(geos.floor, mats.ceiling);
-    ceiling.rotation.x = Math.PI / 2;
-    ceiling.position.y = ROOM.height;
-    scene.add(ceiling);
-
-    const addWall = (w, h, x, y, z, ry) => {
-      const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), mats.wall);
-      m.position.set(x, y, z);
-      m.rotation.y = ry;
-      scene.add(m);
-      return m;
-    };
-    addWall(ROOM.width, ROOM.height, 0, ROOM.height / 2, -ROOM.depth / 2, 0);
-    addWall(ROOM.width, ROOM.height, 0, ROOM.height / 2, ROOM.depth / 2, Math.PI);
-    addWall(ROOM.depth, ROOM.height, -ROOM.width / 2, ROOM.height / 2, 0, Math.PI / 2);
-    addWall(ROOM.depth, ROOM.height, ROOM.width / 2, ROOM.height / 2, 0, -Math.PI / 2);
-
-    // Fire exit door on the north wall
-    const door = new THREE.Mesh(geos.door, new THREE.MeshStandardMaterial({ color: 0x3f6b4f, roughness: 0.8 }));
-    door.position.set(15, 1.7, -ROOM.depth / 2 + 0.05);
-    scene.add(door);
-
-    // Racks + stocked pallets
-    const disposables = [];
-    OBSTACLES.slice(0, 6).forEach((ob) => {
-      const width = ob.maxX - ob.minX;
-      const depth = ob.maxZ - ob.minZ;
-      const rack = new THREE.Mesh(geos.box, mats.rack);
-      rack.scale.set(width, 4.5, depth);
-      rack.position.set((ob.minX + ob.maxX) / 2, 2.25, (ob.minZ + ob.maxZ) / 2);
-      scene.add(rack);
-      for (let level = 1; level <= 3; level += 1) {
-        const beam = new THREE.Mesh(geos.box, mats.beam);
-        beam.scale.set(width + 0.2, 0.12, depth + 0.2);
-        beam.position.set(rack.position.x, level * 1.4, rack.position.z);
-        scene.add(beam);
-      }
-      for (let p = 0; p < 4; p += 1) {
-        const pallet = new THREE.Mesh(geos.box, mats.pallet);
-        pallet.scale.set(Math.min(1.6, width / 3), 0.9, Math.min(1.6, depth / 3));
-        pallet.position.set(
-          ob.minX + 1.2 + (p % 2) * (width / 2),
-          0.5 + Math.floor(p / 2) * 1.4,
-          ob.minZ + depth / 2 + (p % 2 === 0 ? -depth / 5 : depth / 5)
-        );
-        scene.add(pallet);
-      }
-    });
-    // Staging pallets obstacle
-    const staging = OBSTACLES[6];
-    for (let i = 0; i < 3; i += 1) {
-      const p = new THREE.Mesh(geos.box, mats.pallet);
-      p.scale.set(2.2, 1.1, 2.2);
-      p.position.set(staging.minX + 1.6 + i * 2.6, 0.55, (staging.minZ + staging.maxZ) / 2);
-      scene.add(p);
+    // Highlight outline, reused for whichever equipment is under the reticle.
+    const highlightRef = { current: null };
+    {
+      const edges = new THREE.EdgesGeometry(new THREE.BoxGeometry(1, 1, 1));
+      const line = new THREE.LineSegments(
+        edges,
+        new THREE.LineBasicMaterial({ color: 0xff7c42, transparent: true, opacity: 0.95 })
+      );
+      line.visible = false;
+      line.renderOrder = 999;
+      scene.add(line);
+      highlightRef.current = line;
     }
 
-    // Hazard props (visually part of the warehouse — no glow markers)
+    // Hazard props, staged by the server-provided randomized layout.
     const hazardMeshes = [];
-    (scenario.hotspots || [])
-      .filter((h) => h.isHazard)
-      .forEach((h, idx) => {
-        const prop = buildHazardProp(h);
-        const pos = hotspotToPosition(h, idx);
-        prop.position.copy(pos);
+    const hotspotMap = new Map((scenario.hotspots || []).map((h) => [h.id, h]));
+    const stagedItems = layout?.items || [];
+
+    if (stagedItems.length) {
+      stagedItems.forEach((item) => {
+        const hotspot = hotspotMap.get(item.hotspotId);
+        if (!hotspot) return;
+        const prop = buildHazardProp(item.hotspotId, item.propType);
+        prop.position.set(item.position[0], item.position[1], item.position[2]);
+        prop.rotation.y = item.rotationY || 0;
         scene.add(prop);
-        prop.traverse((obj) => hazardMeshes.push(obj));
+        prop.traverse((obj) => {
+          if (obj.isMesh) hazardMeshes.push(obj);
+        });
       });
+    } else {
+      // Defensive fallback: no layout supplied (e.g. an older API response).
+      // Hazards are still rendered so the mode remains usable.
+      (scenario.hotspots || [])
+        .filter((h) => h.isHazard)
+        .forEach((h, idx) => {
+          const prop = buildHazardProp(h.id, 'default');
+          prop.position.set((idx - 2) * 5, 0.05, -6);
+          scene.add(prop);
+          prop.traverse((obj) => {
+            if (obj.isMesh) hazardMeshes.push(obj);
+          });
+        });
+    }
     hazardMeshesRef.current = hazardMeshes;
 
-    // ── Controls ─────────────────────────────────────────────────────────────
-    const onKeyDown = (e) => {
-      keysRef.current[e.code] = true;
-      // CTRL releases the mouse back to the browser
-      if ((e.code === 'ControlLeft' || e.code === 'ControlRight') && document.pointerLockElement === renderer.domElement) {
-        document.exitPointerLock?.();
-      }
-    };
-    const onKeyUp = (e) => { keysRef.current[e.code] = false; };
-    const onMouseMove = (e) => {
-      if (document.pointerLockElement !== renderer.domElement) return;
-      yawRef.current -= e.movementX * 0.0022;
-      pitchRef.current = Math.max(-1.2, Math.min(1.2, pitchRef.current - e.movementY * 0.0022));
-    };
-    const onClick = () => {
-      if (document.pointerLockElement !== renderer.domElement) {
-        renderer.domElement.requestPointerLock?.();
-        return;
-      }
+    // ── Hazard reporting (shared by mouse and touch) ─────────────────────────
+    const reportAtReticle = () => {
       if (isEndedRef.current) return;
-      // Raycast from the centre reticle
       const ray = new THREE.Raycaster();
       ray.setFromCamera(new THREE.Vector2(0, 0), camera);
-      ray.far = 14;
+      ray.far = RAY_RANGE;
       const hits = ray.intersectObjects(hazardMeshesRef.current, false);
-      const hotspotMap = new Map((scenario.hotspots || []).map((h) => [h.id, h]));
       if (hits.length > 0) {
         const hotspotId = hits[0].object.userData.hotspotId;
         const hotspot = hotspotMap.get(hotspotId);
         const already = foundRef.current.some((h) => h.id === hotspotId);
         if (hotspot && !already) {
           onHazardClick(hotspot);
-          flashFeedback('good', `HAZARD IDENTIFIED — ${hotspot.title} (+20)`);
+          flashFeedback('good', `HAZARD IDENTIFIED — ${hotspot.title}`);
           return;
         }
       }
       onFalseClick();
-      flashFeedback('bad', 'NO HAZARD DETECTED — Accuracy penalty -5');
+      flashFeedback('stop', 'NO HAZARD AT THIS POINT — accuracy penalty applied');
     };
-    const onLockError = () => {
-      flashFeedback('bad', 'Mouse look could not be activated. Click inside the warehouse to try again.');
-    };
-    const onLockChange = () => {
-      const isLocked = document.pointerLockElement === renderer.domElement;
-      setLocked(isLocked);
-      if (isLocked) {
-        setLockEverEngaged(true);
-        try {
-          window.localStorage.setItem('hazardhunt_walkthrough_seen', '1');
-        } catch {}
+
+    // ── Desktop input: WASD + pointer-lock mouse look ─────────────────────────
+    const onKeyDown = (e) => {
+      keysRef.current[e.code] = true;
+      if ((e.code === 'ControlLeft' || e.code === 'ControlRight') && document.pointerLockElement === renderer.domElement) {
+        document.exitPointerLock?.();
       }
     };
-    const onResize = () => {
-      if (!mountRef.current) return;
-      const w = mountRef.current.clientWidth;
-      const h = Math.max(1, mountRef.current.clientHeight);
-      camera.aspect = w / h;
-      camera.updateProjectionMatrix();
-      renderer.setSize(w, h);
+    const onKeyUp = (e) => {
+      keysRef.current[e.code] = false;
     };
+    const onMouseMove = (e) => {
+      if (document.pointerLockElement !== renderer.domElement) return;
+      yawRef.current -= e.movementX * MOUSE_LOOK_SENSITIVITY;
+      pitchRef.current = Math.max(
+        -PITCH_LIMIT,
+        Math.min(PITCH_LIMIT, pitchRef.current - e.movementY * MOUSE_LOOK_SENSITIVITY)
+      );
+      setHasLooked(true);
+    };
+    const onCanvasClick = () => {
+      if (isTouch) return;
+      if (document.pointerLockElement !== renderer.domElement) {
+        renderer.domElement.requestPointerLock?.();
+        return;
+      }
+      reportAtReticle();
+    };
+    const onLockChange = () => setLocked(document.pointerLockElement === renderer.domElement);
+    const onLockError = () =>
+      flashFeedback('stop', 'Mouse look was blocked. Drag to look around instead.');
+
+    // ── Touch input: left half = virtual stick, right half = look + tap ───────
+    const rectOf = () => renderer.domElement.getBoundingClientRect();
+
+    const onPointerDown = (e) => {
+      if (e.pointerType === 'mouse') return;
+      const rect = rectOf();
+      const onLeft = e.clientX - rect.left < rect.width * 0.45;
+      if (onLeft && !movePointerRef.current) {
+        movePointerRef.current = { id: e.pointerId, ox: e.clientX, oy: e.clientY };
+        setJoystick({ active: true, dx: 0, dy: 0 });
+      } else if (!lookPointerRef.current) {
+        lookPointerRef.current = { id: e.pointerId, x: e.clientX, y: e.clientY, moved: 0, t0: Date.now() };
+      }
+    };
+
+    const onPointerMove = (e) => {
+      if (e.pointerType === 'mouse') return;
+      const move = movePointerRef.current;
+      if (move && move.id === e.pointerId) {
+        const RADIUS = 52;
+        let dx = e.clientX - move.ox;
+        let dy = e.clientY - move.oy;
+        const dist = Math.hypot(dx, dy);
+        if (dist > RADIUS) {
+          dx = (dx / dist) * RADIUS;
+          dy = (dy / dist) * RADIUS;
+        }
+        moveVecRef.current = { x: dx / RADIUS, y: dy / RADIUS };
+        setJoystick({ active: true, dx, dy });
+        return;
+      }
+      const look = lookPointerRef.current;
+      if (look && look.id === e.pointerId) {
+        const dx = e.clientX - look.x;
+        const dy = e.clientY - look.y;
+        look.moved += Math.abs(dx) + Math.abs(dy);
+        look.x = e.clientX;
+        look.y = e.clientY;
+        yawRef.current -= dx * TOUCH_LOOK_SENSITIVITY;
+        pitchRef.current = Math.max(
+          -PITCH_LIMIT,
+          Math.min(PITCH_LIMIT, pitchRef.current - dy * TOUCH_LOOK_SENSITIVITY)
+        );
+        if (look.moved > 8) setHasLooked(true);
+      }
+    };
+
+    const onPointerUp = (e) => {
+      if (e.pointerType === 'mouse') return;
+      const move = movePointerRef.current;
+      if (move && move.id === e.pointerId) {
+        movePointerRef.current = null;
+        moveVecRef.current = { x: 0, y: 0 };
+        setJoystick({ active: false, dx: 0, dy: 0 });
+        return;
+      }
+      const look = lookPointerRef.current;
+      if (look && look.id === e.pointerId) {
+        lookPointerRef.current = null;
+        // A short, still tap counts as "report a hazard at the reticle".
+        const quickTap = look.moved < 12 && Date.now() - look.t0 < 400;
+        if (quickTap) reportAtReticle();
+      }
+    };
+
+    const onWheel = (e) => e.preventDefault();
 
     window.addEventListener('keydown', onKeyDown);
     window.addEventListener('keyup', onKeyUp);
@@ -342,56 +301,117 @@ export const WalkthroughViewer = ({
     window.addEventListener('resize', onResize);
     document.addEventListener('pointerlockchange', onLockChange);
     document.addEventListener('pointerlockerror', onLockError);
-    renderer.domElement.addEventListener('click', onClick);
+    renderer.domElement.addEventListener('click', onCanvasClick);
+    renderer.domElement.addEventListener('pointerdown', onPointerDown, { passive: true });
+    window.addEventListener('pointermove', onPointerMove, { passive: true });
+    window.addEventListener('pointerup', onPointerUp, { passive: true });
+    window.addEventListener('pointercancel', onPointerUp, { passive: true });
+    renderer.domElement.addEventListener('wheel', onWheel, { passive: false });
 
-    // ── Collision ────────────────────────────────────────────────────────────
-    const collides = (x, z) => {
-      const halfW = ROOM.width / 2 - WALL - PLAYER_RADIUS;
-      const halfD = ROOM.depth / 2 - WALL - PLAYER_RADIUS;
-      if (Math.abs(x) > halfW || Math.abs(z) > halfD) return true;
-      return OBSTACLES.some(
-        (ob) =>
-          x > ob.minX - PLAYER_RADIUS &&
-          x < ob.maxX + PLAYER_RADIUS &&
-          z > ob.minZ - PLAYER_RADIUS &&
-          z < ob.maxZ + PLAYER_RADIUS
-      );
+    function onResize() {
+      if (!mountRef.current) return;
+      const w = mountRef.current.clientWidth;
+      const h = Math.max(1, mountRef.current.clientHeight);
+      camera.aspect = w / h;
+      // Portrait phones need a wider vertical FOV to keep the aisles readable.
+      camera.fov = h > w ? 82 : 72;
+      camera.updateProjectionMatrix();
+      renderer.setSize(w, h);
+    }
+    onResize();
+
+    // ── "What am I looking at" probe ────────────────────────────────────────
+    // Invisible pick-boxes sit outside the scene graph, so this raycast costs
+    // almost nothing: it never touches the ~4,000 instanced props, only the
+    // handful of labelled equipment proxies.
+    const hoverRay = new THREE.Raycaster();
+    hoverRay.far = 14;
+    const centreNdc = new THREE.Vector2(0, 0);
+    const proxyMatrices = new THREE.Matrix4();
+    let hoverAccum = 0;
+    let currentInspected = null;
+
+    const updateProbe = (dt) => {
+      hoverAccum += dt;
+      if (hoverAccum < 1 / HOVER_HZ) return;
+      hoverAccum = 0;
+      if (!interactables.length) return;
+      // Moving vehicles re-stamp their proxy each frame, so refresh matrices.
+      interactables.forEach((b) => b.updateMatrixWorld(true));
+      hoverRay.setFromCamera(centreNdc, camera);
+      const hit = hoverRay.intersectObjects(interactables, false)[0];
+      const found = hit ? { label: hit.object.userData.label, kind: hit.object.userData.kind } : null;
+      const changed =
+        (found?.label ?? null) !== (currentInspected?.label ?? null);
+      currentInspected = found;
+      if (changed) setInspected(found);
+      if (highlightRef.current) {
+        highlightRef.current.visible = Boolean(hit);
+        if (hit) {
+          hit.object.updateMatrixWorld(true);
+          proxyMatrices.copy(hit.object.matrixWorld);
+          const p = new THREE.Vector3();
+          const q = new THREE.Quaternion();
+          const s = new THREE.Vector3();
+          proxyMatrices.decompose(p, q, s);
+          highlightRef.current.position.copy(p);
+          highlightRef.current.quaternion.copy(q);
+          highlightRef.current.scale.set(s.x + 0.06, s.y + 0.06, s.z + 0.06);
+        }
+      }
     };
 
     // ── Render loop ──────────────────────────────────────────────────────────
+    const obstacles = getObstacles();
+    const forwardVec = new THREE.Vector3();
+    let elapsed = 0;
     let last = performance.now();
-    const tick = (now) => {
-      rafRef.current = requestAnimationFrame(tick);
+
+    const frame = (now) => {
+      rafRef.current = requestAnimationFrame(frame);
       const dt = Math.min(0.05, (now - last) / 1000);
       last = now;
+      elapsed += dt;
 
+      // Combine keyboard (desktop) and virtual stick (touch) into one vector.
       const k = keysRef.current;
-      let forward = (k.KeyW ? 1 : 0) - (k.KeyS ? 1 : 0);
-      let strafe = (k.KeyD ? 1 : 0) - (k.KeyA ? 1 : 0);
-      if (forward !== 0 || strafe !== 0) {
-        const len = Math.hypot(forward, strafe) || 1;
-        forward /= len;
-        strafe /= len;
-        const speed = MOVE_SPEED * dt;
+      let forward = (k.KeyW || k.ArrowUp ? 1 : 0) - (k.KeyS || k.ArrowDown ? 1 : 0);
+      let strafe = (k.KeyD || k.ArrowRight ? 1 : 0) - (k.KeyA || k.ArrowLeft ? 1 : 0);
+      forward -= moveVecRef.current.y;
+      strafe += moveVecRef.current.x;
+
+      const mag = Math.hypot(forward, strafe);
+      if (mag > 0.001) {
+        if (mag > 1) {
+          forward /= mag;
+          strafe /= mag;
+        }
         const sinY = Math.sin(yawRef.current);
         const cosY = Math.cos(yawRef.current);
-        const dx = (-sinY * forward + cosY * strafe) * speed;
-        const dz = (-cosY * forward - sinY * strafe) * speed;
-        const nextX = posRef.current.x + dx;
-        const nextZ = posRef.current.z + dz;
-        // Axis-separated collision slide
-        if (!collides(nextX, posRef.current.z)) posRef.current.x = nextX;
-        if (!collides(posRef.current.x, nextZ)) posRef.current.z = nextZ;
+        forwardVec.set(-sinY * forward + cosY * strafe, 0, -cosY * forward - sinY * strafe);
+        const step = MOVE_SPEED * dt;
+        const nextX = posRef.current.x + forwardVec.x * step;
+        const nextZ = posRef.current.z + forwardVec.z * step;
+        // Axis-separated slide keeps movement smooth against obstacles.
+        if (!collidesAt(nextX, posRef.current.z, obstacles)) posRef.current.x = nextX;
+        if (!collidesAt(posRef.current.x, nextZ, obstacles)) posRef.current.z = nextZ;
       }
 
       camera.position.copy(posRef.current);
-      const euler = new THREE.Euler(pitchRef.current, yawRef.current, 0, 'YXZ');
-      camera.quaternion.setFromEuler(euler);
-      renderer.render(scene, camera);
+      camera.quaternion.setFromEuler(
+        new THREE.Euler(pitchRef.current, yawRef.current, 0, 'YXZ')
+      );
+
+      // Drive the live systems: conveyor, vehicles, staff, fans, blinking lamps.
+      tick(dt, elapsed);
+      updateProbe(dt);
+
+      if (!disposed) renderer.render(scene, camera);
     };
-    rafRef.current = requestAnimationFrame(tick);
+    rafRef.current = requestAnimationFrame(frame);
 
     return () => {
+      disposed = true;
       cancelAnimationFrame(rafRef.current);
       window.removeEventListener('keydown', onKeyDown);
       window.removeEventListener('keyup', onKeyUp);
@@ -399,44 +419,79 @@ export const WalkthroughViewer = ({
       window.removeEventListener('resize', onResize);
       document.removeEventListener('pointerlockchange', onLockChange);
       document.removeEventListener('pointerlockerror', onLockError);
-      renderer.domElement.removeEventListener('click', onClick);
+      renderer.domElement.removeEventListener('click', onCanvasClick);
+      renderer.domElement.removeEventListener('pointerdown', onPointerDown);
+      window.removeEventListener('pointermove', onPointerMove);
+      window.removeEventListener('pointerup', onPointerUp);
+      window.removeEventListener('pointercancel', onPointerUp);
+      renderer.domElement.removeEventListener('wheel', onWheel);
       if (document.pointerLockElement === renderer.domElement) document.exitPointerLock();
       hazardMeshesRef.current = [];
-      scene.traverse((obj) => {
-        if (obj.geometry && obj.geometry !== geos.floor && obj.geometry !== geos.box && obj.geometry !== geos.door) obj.geometry.dispose();
-        if (obj.material && obj.material !== mats.floor && obj.material !== mats.wall && obj.material !== mats.ceiling && obj.material !== mats.rack && obj.material !== mats.beam && obj.material !== mats.pallet && obj.material !== mats.dock) {
-          if (Array.isArray(obj.material)) obj.material.forEach((m) => m.dispose());
-          else obj.material.dispose();
-        }
-      });
-      Object.values(geos).forEach((g) => g.dispose());
-      Object.values(mats).forEach((m) => m.dispose());
-      disposables.forEach((d) => d.dispose?.());
+      disposeScene();
       renderer.dispose();
       renderer.domElement.remove();
-      rendererRef.current = null;
+      cameraRef.current = null;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [scenario?.id]);
+  }, [scenario?.id, layout?.seed]);
+
+  // ── Fullscreen ─────────────────────────────────────────────────────────────
+  useEffect(() => {
+    const onChange = () => setIsFullscreen(Boolean(document.fullscreenElement));
+    document.addEventListener('fullscreenchange', onChange);
+    return () => document.removeEventListener('fullscreenchange', onChange);
+  }, []);
 
   const toggleFullscreen = () => {
     if (!containerRef.current) return;
-    if (!document.fullscreenElement) containerRef.current.requestFullscreen?.();
+    if (!document.fullscreenElement) containerRef.current.requestFullscreen?.().catch(() => {});
     else document.exitFullscreen?.();
   };
 
-  useEffect(() => {
-    const h = () => setIsFullscreen(Boolean(document.fullscreenElement));
-    document.addEventListener('fullscreenchange', h);
-    return () => document.removeEventListener('fullscreenchange', h);
-  }, []);
+  const resetView = () => {
+    posRef.current.set(SPAWN.x, SPAWN.y, SPAWN.z);
+    yawRef.current = SPAWN.yaw;
+    pitchRef.current = 0;
+    setHasLooked(false);
+  };
 
-  if (isTouchDevice) {
+  const reportHazard = () => {
+    if (!cameraRef.current || isEnded) return;
+    const ray = new THREE.Raycaster();
+    ray.setFromCamera(new THREE.Vector2(0, 0), cameraRef.current);
+    ray.far = RAY_RANGE;
+    const hits = ray.intersectObjects(hazardMeshesRef.current, false);
+    const hotspotMap = new Map((scenario?.hotspots || []).map((h) => [h.id, h]));
+    if (hits.length > 0) {
+      const hotspotId = hits[0].object.userData.hotspotId;
+      const hotspot = hotspotMap.get(hotspotId);
+      if (hotspot && !foundRef.current.some((h) => h.id === hotspotId)) {
+        onHazardClick(hotspot);
+        flashFeedback('good', `HAZARD IDENTIFIED — ${hotspot.title}`);
+        return;
+      }
+    }
+    onFalseClick();
+    flashFeedback('stop', 'NO HAZARD AT THIS POINT — accuracy penalty applied');
+  };
+
+  const totalHazards = (scenario?.hotspots || []).filter((h) => h.isHazard).length;
+  const errors = foundHotspots.length;
+  const urgent = typeof timeLeft === 'number' && timeLeft <= 15;
+  const timePct =
+    typeof timeLeft === 'number' && totalTime ? Math.max(0, (timeLeft / totalTime) * 100) : 100;
+
+  // ── Graceful degradation ───────────────────────────────────────────────────
+  if (webglFailed) {
     return (
-      <div className="h-[60vh] flex flex-col items-center justify-center rounded-lg border border-mist-300 bg-mist-50 p-8 text-center dark:border-dark-border dark:bg-dark-surface">
-        <h3 className="text-sm font-bold text-mist-900 dark:text-white">Walkthrough mode needs a keyboard and mouse</h3>
-        <p className="mt-1 max-w-md text-xs text-mist-600 dark:text-dark-muted">
-          On tablets and phones, start the session in Standard 360° mode — the same hazards, scoring, and timer apply.
+      <div className="flex min-h-[320px] flex-col items-center justify-center gap-3 rounded-panel border border-caution-200 bg-caution-50 p-6 text-center dark:border-caution-600/40 dark:bg-caution-600/10">
+        <AlertTriangle className="h-7 w-7 text-caution-600 dark:text-caution-200" />
+        <h3 className="text-sm font-bold text-mist-900 dark:text-white">
+          3D graphics are unavailable on this device
+        </h3>
+        <p className="max-w-sm text-xs text-mist-600 dark:text-dark-muted">
+          Your browser or GPU could not start WebGL. Start the session in Standard
+          360° mode instead — it runs the same hazards, timer, and scoring.
         </p>
       </div>
     );
@@ -446,59 +501,244 @@ export const WalkthroughViewer = ({
     <div
       ref={containerRef}
       className={`relative w-full select-none bg-dark-bg ${
-        isFullscreen ? 'fixed inset-0 z-50 h-screen w-screen' : 'h-[74vh] min-h-[500px] max-h-[800px] overflow-hidden rounded-lg border border-mist-300 dark:border-dark-border'
+        isFullscreen
+          ? 'fixed inset-0 z-50 h-[100dvh] w-screen'
+          : 'h-[74vh] min-h-[440px] max-h-[820px] overflow-hidden rounded-lg border border-mist-300 dark:border-dark-border'
       }`}
     >
-      <div ref={mountRef} className="h-full w-full" />
+      <div ref={mountRef} className="h-full w-full" style={{ touchAction: 'none' }} />
 
-      {/* Centre reticle */}
-      <div className="pointer-events-none absolute left-1/2 top-1/2 flex -translate-x-1/2 -translate-y-1/2 items-center justify-center text-white/70">
-        <div className="h-4 w-4 rounded-full border border-white/70" />
-      </div>
-
-      {/* Unlocked-state hint: full instruction on first visit, subtle text afterwards */}
-      {!locked && !seenInstruction && !lockEverEngaged && (
-        <div className="absolute bottom-16 left-1/2 z-10 -translate-x-1/2 rounded-md border border-white/20 bg-dark-card/85 px-4 py-3 text-left text-white shadow-sm">
-          <p className="text-xs font-bold">Click inside the warehouse to look around</p>
-          <div className="mt-1.5 grid grid-cols-[auto_1fr] gap-x-3 gap-y-0.5 text-[11px] text-gray-300">
-            <span className="font-mono font-bold text-primary-400">Mouse</span><span>Look</span>
-            <span className="font-mono font-bold text-primary-400">W A S D</span><span>Move</span>
-            <span className="font-mono font-bold text-primary-400">CTRL</span><span>Release mouse</span>
+      {/* ── In-world LED readout (mirrors the reference HUD) ── */}
+      <div className="pointer-events-none absolute left-1/2 top-3 z-20 -translate-x-1/2 sm:top-4">
+        <div className="flex items-stretch overflow-hidden rounded-control border border-pass-600/60 bg-dark-card/95 font-mono shadow-pop backdrop-blur-sm">
+          <div className="px-2.5 py-1.5 sm:px-3.5">
+            <p className="text-[8px] font-bold uppercase leading-none tracking-[0.15em] text-pass-200/70 sm:text-[9px]">
+              Errors
+            </p>
+            <p className="text-sm font-bold leading-tight text-pass-200 sm:text-lg">
+              {errors}
+              <span className="text-pass-200/60">/{totalHazards}</span>
+            </p>
+          </div>
+          <div
+            className={`border-l border-pass-600/60 px-2.5 py-1.5 sm:px-3.5 ${
+              urgent ? 'animate-pulse bg-stop-600/25' : ''
+            }`}
+          >
+            <p className="text-[8px] font-bold uppercase leading-none tracking-[0.15em] text-pass-200/70 sm:text-[9px]">
+              Time left
+            </p>
+            <p
+              className={`text-sm font-bold leading-tight sm:text-lg ${
+                urgent ? 'text-stop-200' : 'text-pass-200'
+              }`}
+            >
+              {formatClock(timeLeft ?? totalTime ?? 0)}
+            </p>
           </div>
         </div>
-      )}
-      {!locked && (seenInstruction || lockEverEngaged) && (
-        <div className="absolute bottom-16 left-1/2 z-10 -translate-x-1/2 rounded-md border border-white/15 bg-dark-card/70 px-3 py-1.5 text-[11px] font-semibold text-white/80">
-          Click inside the warehouse to resume looking around.
+        <div className="mx-auto mt-1 h-0.5 w-24 overflow-hidden rounded-full bg-white/15">
+          <div
+            className={`h-full transition-[width] duration-1000 ${
+              urgent ? 'bg-stop-200' : 'bg-pass-200'
+            }`}
+            style={{ width: `${timePct}%` }}
+          />
+        </div>
+      </div>
+
+      /* Centre reticle */
+      <div className="pointer-events-none absolute left-1/2 top-1/2 z-10 flex -translate-x-1/2 -translate-y-1/2 items-center justify-center">
+        <div className="relative h-6 w-6">
+          <span className="absolute left-1/2 top-0 h-1.5 w-px -translate-x-1/2 bg-white/80" />
+          <span className="absolute bottom-0 left-1/2 h-1.5 w-px -translate-x-1/2 bg-white/80" />
+          <span className="absolute left-0 top-1/2 h-px w-1.5 -translate-y-1/2 bg-white/80" />
+          <span className="absolute right-0 top-1/2 h-px w-1.5 -translate-y-1/2 bg-white/80" />
+          <span
+            className={`absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full transition-all ${
+              inspected ? 'h-2.5 w-2.5 bg-primary-500 ring-2 ring-primary-500/40' : 'h-1 w-1 bg-white/90'
+            }`}
+          />
+        </div>
+      </div>
+
+      {/* ── Equipment readout: what the reticle is on ── */}
+      {inspected && (
+        <div className="pointer-events-none absolute left-1/2 top-[58%] z-30 -translate-x-1/2 animate-fade-in">
+          <div className="rounded-control border border-primary-500/60 bg-dark-card/95 px-3 py-2 text-center shadow-pop backdrop-blur-sm">
+            <p className="text-[9px] font-bold uppercase tracking-[0.16em] text-primary-400">
+              {inspected.kind}
+            </p>
+            <p className="mt-0.5 text-xs font-bold text-white">{inspected.label}</p>
+          </div>
         </div>
       )}
 
       {/* Feedback banner */}
       {feedback && (
         <div
-          className={`absolute left-1/2 top-6 z-20 -translate-x-1/2 rounded-md border px-4 py-2 text-xs font-bold ${
+          key={feedback.key}
+          className={`pointer-events-none absolute left-1/2 top-16 z-30 max-w-[90%] -translate-x-1/2 animate-fade-in rounded-control border px-3 py-1.5 text-center text-[11px] font-bold shadow-pop sm:top-20 sm:px-4 sm:py-2 sm:text-xs ${
             feedback.type === 'good'
-              ? 'border-emerald-500/60 bg-emerald-950/80 text-emerald-200'
-              : 'border-red-500/60 bg-red-950/80 text-red-200'
+              ? 'border-pass-600/60 bg-pass-600/95 text-pass-100 dark:text-pass-200'
+              : 'border-stop-600/60 bg-stop-600/95 text-stop-200'
           }`}
         >
           {feedback.text}
         </div>
       )}
 
-      {/* Controls hint */}
-      <div className="absolute bottom-4 left-4 z-20 rounded-md border border-white/20 bg-dark-card/80 px-3 py-1.5 text-[11px] font-semibold text-white/90">
-        WASD move · Mouse look · Click report hazard · Esc pause
+      {/* ── Spotted hazard ticker ── */}
+      {foundHotspots.length > 0 && (
+        <div className="pointer-events-none absolute bottom-2 left-2 right-2 z-20 flex flex-wrap gap-1.5 sm:bottom-3 sm:left-3 sm:right-auto sm:max-w-[60%]">
+          {foundHotspots.slice(-3).map((h) => (
+            <span
+              key={h.id}
+              className="animate-fade-in rounded-control border border-pass-600/60 bg-dark-card/95 px-2 py-1 text-[10px] font-bold text-pass-200 backdrop-blur-sm"
+            >
+              ✓ {h.title}
+            </span>
+          ))}
+          {foundHotspots.length > 3 && (
+            <span className="rounded-control border border-white/20 bg-black/80 px-2 py-1 text-[10px] font-bold text-white/70">
+              +{foundHotspots.length - 3} more
+            </span>
+          )}
+        </div>
+      )}
+
+      {/* ── Desktop pointer-lock hint ── */}
+      {!isTouch && !locked && !hasLooked && (
+        <div className="absolute bottom-16 left-1/2 z-10 -translate-x-1/2 rounded-control border border-white/20 bg-black/80 px-4 py-3 text-left text-white backdrop-blur-sm">
+          <p className="text-xs font-bold">Click inside the warehouse to look around</p>
+          <div className="mt-1.5 grid grid-cols-[auto_1fr] gap-x-3 gap-y-0.5 text-[11px] text-mist-300">
+            <span className="font-mono font-bold text-primary-400">Mouse</span>
+            <span>Look</span>
+            <span className="font-mono font-bold text-primary-400">W A S D</span>
+            <span>Move</span>
+            <span className="font-mono font-bold text-primary-400">Ctrl</span>
+            <span>Release mouse</span>
+          </div>
+        </div>
+      )}
+      {!isTouch && !locked && hasLooked && (
+        <div className="absolute bottom-16 left-1/2 z-10 -translate-x-1/2 rounded-control border border-white/15 bg-black/70 px-3 py-1.5 text-[11px] font-semibold text-white/80 backdrop-blur-sm">
+          Click inside the warehouse to resume looking around.
+        </div>
+      )}
+
+      {/* ── Touch controls ── */}
+      {isTouch && (
+        <>
+          {/* Virtual movement stick */}
+          <div className="pointer-events-none absolute bottom-6 left-5 z-20 h-28 w-28">
+            <div className="flex h-full w-full items-center justify-center rounded-full border border-white/25 bg-black/35 backdrop-blur-sm">
+              <div
+                className="h-12 w-12 rounded-full border border-white/60 bg-white/25 shadow-pop transition-transform"
+                style={{
+                  transform: `translate(${joystick.dx}px, ${joystick.dy}px)`,
+                }}
+              />
+            </div>
+            {!joystick.active && (
+              <span className="absolute inset-x-0 -bottom-4 text-center text-[9px] font-bold uppercase tracking-wider text-white/70">
+                Drag to move
+              </span>
+            )}
+          </div>
+
+          {/* Report-hazard button */}
+          <button
+            type="button"
+            onPointerDown={(e) => e.stopPropagation()}
+            onClick={reportHazard}
+            disabled={isEnded}
+            className="absolute bottom-8 right-5 z-30 flex h-20 w-20 flex-col items-center justify-center rounded-full border-2 border-primary-300 bg-primary-500/90 text-white shadow-pop transition-transform active:scale-95 disabled:opacity-40"
+            aria-label="Report a hazard at the reticle"
+          >
+            <AlertTriangle className="h-6 w-6" />
+            <span className="mt-0.5 text-[9px] font-bold uppercase tracking-wide">Report</span>
+          </button>
+        </>
+      )}
+
+      {/* ── Utility buttons ── */}
+      <div className="absolute right-3 top-3 z-30 flex flex-col gap-1.5 sm:right-4 sm:top-4">
+        <button
+          type="button"
+          onPointerDown={(e) => e.stopPropagation()}
+          onClick={toggleFullscreen}
+          className="rounded-control border border-white/20 bg-black/80 p-2 text-white backdrop-blur-sm"
+          title={isFullscreen ? 'Exit fullscreen' : 'Fullscreen'}
+          aria-label={isFullscreen ? 'Exit fullscreen' : 'Enter fullscreen'}
+        >
+          {isFullscreen ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
+        </button>
+        <button
+          type="button"
+          onPointerDown={(e) => e.stopPropagation()}
+          onClick={resetView}
+          className="rounded-control border border-white/20 bg-black/80 p-2 text-white backdrop-blur-sm"
+          title="Return to the staging bay"
+          aria-label="Return to the staging bay"
+        >
+          <RotateCcw className="h-4 w-4" />
+        </button>
+        <button
+          type="button"
+          onPointerDown={(e) => e.stopPropagation()}
+          onClick={() => setShowHelp((v) => !v)}
+          className="rounded-control border border-white/20 bg-black/80 p-2 text-white backdrop-blur-sm"
+          title="Controls"
+          aria-label="Show controls"
+        >
+          <Navigation className="h-4 w-4" />
+        </button>
       </div>
 
-      <button
-        type="button"
-        onClick={toggleFullscreen}
-        className="absolute right-4 top-4 z-20 rounded-md border border-white/20 bg-dark-card/80 p-2 text-white"
-        title={isFullscreen ? 'Exit fullscreen' : 'Fullscreen'}
-      >
-        {isFullscreen ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
-      </button>
+      {showHelp && (
+        <div className="absolute bottom-16 right-3 z-30 w-56 rounded-lg border border-white/20 bg-black/90 p-3 text-[11px] text-white backdrop-blur-md sm:right-4">
+          <p className="mb-2 flex items-center gap-1.5 text-xs font-bold">
+            <Compass className="h-3.5 w-3.5 text-primary-400" />
+            Walkthrough controls
+          </p>
+          <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-mist-300">
+            {isTouch ? (
+              <>
+                <dt className="font-mono font-bold text-primary-400">Left pad</dt>
+                <dd>Drag to walk</dd>
+                <dt className="font-mono font-bold text-primary-400">Right side</dt>
+                <dd>Drag to look</dd>
+                <dt className="font-mono font-bold text-primary-400">Report</dt>
+                <dd>Flag the reticle</dd>
+              </>
+            ) : (
+              <>
+                <dt className="font-mono font-bold text-primary-400">W A S D</dt>
+                <dd>Walk</dd>
+                <dt className="font-mono font-bold text-primary-400">Mouse</dt>
+                <dd>Look (click to capture)</dd>
+                <dt className="font-mono font-bold text-primary-400">Click</dt>
+                <dd>Report reticle</dd>
+                <dt className="font-mono font-bold text-primary-400">Ctrl</dt>
+                <dd>Release mouse</dd>
+              </>
+            )}
+          </dl>
+          <p className="mt-2 border-t border-white/15 pt-2 text-[10px] text-mist-400">
+            Hazards are re-staged in new positions on every attempt.
+          </p>
+        </div>
+      )}
+
+      {/* Compact control legend */}
+      {!isTouch && (
+        <div className="absolute bottom-3 left-3 hidden rounded-control border border-white/20 bg-black/80 px-2.5 py-1.5 text-[11px] font-semibold text-white/90 backdrop-blur-sm sm:block">
+          WASD move · Mouse look · Click report · Ctrl release
+        </div>
+      )}
     </div>
   );
 };
+
+export default WalkthroughViewer;

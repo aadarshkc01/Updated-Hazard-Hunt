@@ -10,11 +10,13 @@ export const DiagnosticSummary = ({ diagnostic, onRetryPractice, onReturnHome })
     if (diagnostic.passed) {
       soundEngine.playFanfare();
       try {
+        // Brand palette only. A green particle here was the last non-brand
+        // colour in the product and broke the hazard-orange convention.
         confetti({
           particleCount: 90,
           spread: 75,
           origin: { y: 0.6 },
-          colors: ['#FF6115', '#10B981', '#F59E0B'],
+          colors: ['#FF6115', '#E24C00', '#F0C419'],
         });
       } catch (e) {}
     } else {
@@ -72,272 +74,275 @@ export const DiagnosticSummary = ({ diagnostic, onRetryPractice, onReturnHome })
   };
 
   return (
-    <div className="max-w-4xl mx-auto py-6 px-4 animate-fade-in transition-colors duration-200">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-5">
+    <div className="app-page max-w-4xl animate-fade-in py-6">
+      <header className="mb-4 flex flex-wrap items-end justify-between gap-3">
         <div>
-          <p className="text-[11px] uppercase tracking-widest font-bold text-primary-500">Assessment complete</p>
-          <p className="text-sm text-mist-600 dark:text-dark-muted mt-1">Review the result below or choose your next step.</p>
+          <p className="app-eyebrow-accent">Assessment complete</p>
+          <p className="app-body mt-1">Review the result below or choose your next step.</p>
         </div>
         <div className="flex flex-wrap gap-2">
-          <button onClick={onRetryPractice} className="px-3 py-2 rounded-lg border border-mist-300 dark:border-dark-border text-mist-700 dark:text-dark-muted hover:border-primary-400 hover:text-primary-600 text-xs font-bold">
-            Retry in Practice Mode
+          <button type="button" onClick={onRetryPractice} className="app-btn app-btn-secondary">
+            Retry in practice
           </button>
-          <button onClick={handleDownloadReport} disabled={isPracticeMode} className="px-3 py-2 rounded-lg border border-primary-500 text-primary-600 hover:bg-primary-50 dark:hover:bg-primary-950/30 text-xs font-bold disabled:opacity-40 disabled:cursor-not-allowed">
-            Download Score Report
+          <button
+            type="button"
+            onClick={handleDownloadReport}
+            disabled={isPracticeMode}
+            className="app-btn app-btn-secondary"
+          >
+            Score report
           </button>
-          <button onClick={onReturnHome} className="px-3 py-2 rounded-lg bg-primary-500 hover:bg-primary-600 text-white text-xs font-bold">
-            Return to Dashboard
+          <button type="button" onClick={onReturnHome} className="app-btn app-btn-primary">
+            Return to dashboard
           </button>
         </div>
-      </div>
+      </header>
       {/* 1. Pass/Fail Compliance Banner */}
-      <div
-        className={`rounded-xl p-6 sm:p-8 text-white shadow-sm border mb-8 relative overflow-hidden ${
+      <section
+        className={`mb-4 overflow-hidden rounded-panel border p-5 sm:p-7 ${
           passed
-            ? 'bg-emerald-600 border-emerald-700'
-            : 'bg-red-600 border-red-700'
+            ? 'border-pass-200 bg-pass-50 dark:border-pass-600/40 dark:bg-pass-600/10'
+            : 'border-stop-200 bg-stop-50 dark:border-stop-600/40 dark:bg-stop-600/10'
         }`}
       >
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6 relative z-10">
-          <div className="flex items-center space-x-4">
-            <div>
-              <div className="flex items-center space-x-2">
-                <span
-                  className={`text-[11px] font-extrabold uppercase tracking-widest px-2.5 py-0.5 rounded-full ${
-                    passed ? 'bg-emerald-500/20 text-emerald-300' : 'bg-red-500/20 text-red-300'
-                  }`}
-                >
-                  {isPracticeMode ? 'PRACTICE ASSESSMENT' : 'OFFICIAL COMPLIANCE AUDIT'}
+        <div className="flex flex-wrap items-start justify-between gap-6">
+          <div className="min-w-0">
+            <div className="flex flex-wrap items-center gap-2">
+              <span className={`app-chip ${passed ? 'app-chip-pass' : 'app-chip-stop'}`}>
+                {isPracticeMode ? 'Practice assessment' : 'Official compliance audit'}
+              </span>
+              <span className="app-num text-[11px] text-mist-500 dark:text-dark-muted">
+                {new Date(completedAt || Date.now()).toLocaleDateString('en-GB', {
+                  day: 'numeric',
+                  month: 'short',
+                  year: 'numeric',
+                })}
+              </span>
+            </div>
+            <h1
+              className={`mt-2.5 text-xl font-bold leading-tight sm:text-2xl ${
+                passed
+                  ? 'text-pass-700 dark:text-pass-200'
+                  : 'text-stop-700 dark:text-stop-200'
+              }`}
+            >
+              {passed ? 'Compliance certified' : 'Action required'}
+            </h1>
+            <p className="app-body mt-1">
+              {userName} · {scenarioTitle}
+            </p>
+          </div>
+
+          <div className="app-card-quiet shrink-0 px-5 py-3 text-right">
+            <p className="app-eyebrow">Composite score</p>
+            <p className="app-num mt-1 text-3xl font-bold leading-none text-mist-900 dark:text-dark-text">
+              {totalScore}%
+            </p>
+            <p className="app-stat-sub mt-1">{passingThreshold}% required</p>
+          </div>
+        </div>
+
+        {isPracticeMode && (
+          <p className="app-alert app-alert-caution mt-4">
+            <Info className="app-alert-icon" aria-hidden="true" />
+            <span>
+              This was a practice run. It does not overwrite your official compliance audit history.
+            </span>
+          </p>
+        )}
+      </section>
+
+      {/* 2. Key Diagnostic Metrics */}
+      <div className="mb-4 grid grid-cols-2 gap-px overflow-hidden rounded-panel border border-mist-200 bg-mist-200 dark:border-dark-border dark:bg-dark-border lg:grid-cols-4">
+        {[
+          {
+            label: 'Hazards found',
+            value: `${foundCount}/${totalHazards}`,
+            sub: `${Math.round((foundCount / totalHazards) * 100)}% detection rate`,
+          },
+          {
+            label: 'False clicks',
+            value: falseClicksCount,
+            sub: `−${falseClicksCount * 5}% accuracy penalty`,
+            tone: falseClicksCount > 0 ? 'stop' : 'neutral',
+          },
+          {
+            label: 'Time taken',
+            value: formatSeconds(timeTakenSeconds),
+            sub: `Limit ${timeLimitSeconds}s`,
+          },
+          {
+            label: 'Quiz score',
+            value: `${quizScore}%`,
+            sub: 'HSE regulations',
+          },
+        ].map(({ label, value, sub, tone }) => (
+          <div key={label} className="bg-white p-4 dark:bg-dark-card">
+            <p className="app-stat-value app-num">
+              <span
+                className={
+                  tone === 'stop' ? 'text-stop-600 dark:text-stop-200' : undefined
+                }
+              >
+                {value}
+              </span>
+            </p>
+            <p className="app-stat-label">{label}</p>
+            <p className="app-stat-sub">{sub}</p>
+          </div>
+        ))}
+      </div>
+
+      {/* 2b. Training recommendation */}
+      <div className="app-alert app-alert-brand mb-4">
+        <Info className="app-alert-icon" aria-hidden="true" />
+        <div className="min-w-0">
+          <p className="app-eyebrow-accent">Training recommendation</p>
+          <p className="mt-1 text-xs text-mist-800 dark:text-dark-text">{recommendation}</p>
+          {missedCategories.length > 0 && (
+            <p className="mt-1.5 text-[11px] text-mist-600 dark:text-dark-muted">
+              Missed this session: {missedCategories.join(' · ')}
+            </p>
+          )}
+        </div>
+      </div>
+
+      {/* 3. Corrections Sheet — reference-product analogue: error count first,
+             then the procedure for every error that went unnoticed. */}
+      <section className="app-card mb-4 overflow-hidden">
+        <div className="app-card-head">
+          <div>
+            <h2 className="app-section-title">Corrections sheet — Bay 4</h2>
+            <p className="app-body mt-0.5">
+              Review the procedure for each risk that went unnoticed before your next inspection.
+            </p>
+          </div>
+          <span className="app-chip app-chip-neutral shrink-0">
+            {missedCount} error{missedCount === 1 ? '' : 's'} of {totalHazards}
+          </span>
+        </div>
+        <div className="p-4 sm:p-5">
+
+        {/* Missed risks are listed first — that is what a corrections sheet is for. */}
+        <div className="space-y-2.5">
+          {hazardsMissed.map((h, idx) => (
+            <article
+              key={h.id}
+              className="rounded-control border border-stop-200 bg-stop-50 p-4 dark:border-stop-600/40 dark:bg-stop-600/10"
+            >
+              <div className="flex items-start gap-3">
+                <span className="app-num mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-stop-600 text-[11px] font-bold text-white">
+                  {idx + 1}
                 </span>
-                <span className="text-xs text-gray-400">
-                  {new Date(completedAt || Date.now()).toLocaleDateString('en-GB', {
-                    day: 'numeric',
-                    month: 'short',
-                    year: 'numeric',
-                  })}
-                </span>
+                <div className="min-w-0">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <h3 className="text-xs font-bold text-mist-900 sm:text-sm dark:text-dark-text">
+                      {h.title}
+                    </h3>
+                    <span className="app-chip app-chip-stop">Missed</span>
+                    <span className="text-[11px] font-semibold text-stop-700 dark:text-stop-200">
+                      {h.severity}
+                    </span>
+                  </div>
+                  <p className="app-body mt-1.5">{h.explanation}</p>
+                  <p className="mt-2 rounded-control border border-stop-200 bg-white p-2.5 text-[11px] font-semibold text-mist-800 dark:border-stop-600/30 dark:bg-dark-card/70 dark:text-dark-text">
+                    <span className="text-stop-700 dark:text-stop-200">Required procedure: </span>
+                    {h.correctAction}
+                  </p>
+                  <p className="app-num mt-1.5 text-[11px] text-mist-500 dark:text-dark-muted">
+                    {h.category}
+                  </p>
+                </div>
               </div>
-              <h1 className="text-xl sm:text-2xl font-black tracking-tight mt-1">
-                {passed ? 'COMPLIANCE CERTIFIED: PASS' : 'COMPLIANCE AUDIT: ACTION REQUIRED'}
-              </h1>
-              <p className="text-xs sm:text-sm text-gray-300 mt-1 font-medium">
-                Trainee: <strong>{userName}</strong> • Scenario: <em>{scenarioTitle}</em>
+            </article>
+          ))}
+
+          {hazardsMissed.length === 0 && (
+            <p className="app-alert app-alert-pass">
+              <CheckCircle2 className="app-alert-icon" aria-hidden="true" />
+              No errors recorded — every staged risk was identified during this inspection.
+            </p>
+          )}
+
+          {hazardsFound.map((h) => (
+            <article
+              key={h.id}
+              className="rounded-control border border-mist-200 bg-white p-4 dark:border-dark-border dark:bg-dark-card"
+            >
+              <div className="flex items-start gap-3">
+                <CheckCircle2
+                  className="mt-0.5 h-4 w-4 shrink-0 text-pass-600 dark:text-pass-200"
+                  aria-hidden="true"
+                />
+                <div className="min-w-0">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <h3 className="text-xs font-bold text-mist-900 sm:text-sm dark:text-dark-text">
+                      {h.title}
+                    </h3>
+                    <span className="app-chip app-chip-pass">Spotted</span>
+                  </div>
+                  <p className="app-body mt-1.5">{h.explanation}</p>
+                  <p className="app-body mt-1.5 font-semibold">
+                    <span className="text-pass-700 dark:text-pass-200">Correct action: </span>
+                    {h.correctAction}
+                  </p>
+                  <p className="app-num mt-1.5 text-[11px] text-mist-500 dark:text-dark-muted">
+                    {h.category}
+                  </p>
+                </div>
+              </div>
+            </article>
+          ))}
+        </div>
+        </div>
+      </section>
+
+      {/* 4. Quiz Review */}
+      {quizReview.length > 0 && (
+        <section className="app-card mb-4 overflow-hidden">
+          <div className="app-card-head">
+            <div>
+              <h2 className="app-section-title">Safety knowledge review</h2>
+              <p className="app-body mt-0.5">
+                {quizReview.filter((q) => q.isCorrect).length} of {quizReview.length} answered
+                correctly
               </p>
             </div>
           </div>
 
-          {/* Overall Score Badge */}
-          <div className="flex flex-col items-end bg-white/15 px-6 py-4 rounded-lg border border-white/30">
-            <span className="text-[11px] uppercase tracking-wider text-gray-300 font-bold">
-              Overall Composite Score
-            </span>
-            <div className="flex items-baseline space-x-1.5 mt-0.5">
-              <span
-                className={`text-3xl sm:text-4xl font-black font-mono ${
-                  passed ? 'text-emerald-400' : 'text-red-400'
-                }`}
-              >
-                {totalScore}%
-              </span>
-              <span className="text-xs text-gray-400 font-semibold">/ {passingThreshold}% Req</span>
-            </div>
-          </div>
-        </div>
-
-        {/* Practice Mode Notice */}
-        {isPracticeMode && (
-          <div className="mt-4 pt-4 border-t border-white/10 flex items-center space-x-2 text-xs text-amber-300">
-            <Info className="w-4 h-4 flex-shrink-0" />
-            <span>
-              This session was completed in <strong>Practice Mode</strong>. It does not overwrite your official compliance audit history.
-            </span>
-          </div>
-        )}
-      </div>
-
-      {/* 2. Key Diagnostic Metrics Grid */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-        <div className="bg-white dark:bg-dark-card rounded-xl p-5 shadow-sm border border-mist-300 dark:border-dark-border transition-colors">
-          <div className="text-mist-600 dark:text-dark-muted mb-1">
-            <span className="text-xs font-bold uppercase">Hazards Found</span>
-          </div>
-          <div className="text-xl font-black text-mist-900 dark:text-white font-mono">
-            {foundCount} <span className="text-xs text-mist-500 dark:text-dark-muted font-normal">/ {totalHazards}</span>
-          </div>
-          <span className="text-[11px] text-mist-600 dark:text-dark-muted mt-1 block">
-            {Math.round((foundCount / totalHazards) * 100)}% detection rate
-          </span>
-        </div>
-
-        <div className="bg-white dark:bg-dark-card rounded-xl p-5 shadow-sm border border-mist-300 dark:border-dark-border transition-colors">
-          <div className="text-mist-600 dark:text-dark-muted mb-1">
-            <span className="text-xs font-bold uppercase">False Clicks</span>
-          </div>
-          <div className="text-xl font-black text-mist-900 dark:text-white font-mono">
-            {falseClicksCount}
-          </div>
-          <span className="text-[11px] text-mist-500 dark:text-dark-muted mt-1 block font-medium">
-            -{falseClicksCount * 5}% accuracy penalty
-          </span>
-        </div>
-
-        <div className="bg-white dark:bg-dark-card rounded-xl p-5 shadow-sm border border-mist-300 dark:border-dark-border transition-colors">
-          <div className="text-mist-600 dark:text-dark-muted mb-1">
-            <span className="text-xs font-bold uppercase">Time Taken</span>
-          </div>
-          <div className="text-xl font-black text-mist-900 dark:text-white font-mono">
-            {formatSeconds(timeTakenSeconds)}
-          </div>
-          <span className="text-[11px] text-mist-600 dark:text-dark-muted mt-1 block">
-            Time limit: {timeLimitSeconds}s
-          </span>
-        </div>
-
-        <div className="bg-white dark:bg-dark-card rounded-xl p-5 shadow-sm border border-mist-300 dark:border-dark-border transition-colors">
-          <div className="text-mist-600 dark:text-dark-muted mb-1">
-            <span className="text-xs font-bold uppercase">Quiz Score</span>
-          </div>
-          <div className="text-xl font-black text-mist-900 dark:text-white font-mono">
-            {quizScore}%
-          </div>
-          <span className="text-[11px] text-mist-600 dark:text-dark-muted mt-1 block">
-            HSE Regulations (4 Qs)
-          </span>
-        </div>
-      </div>
-
-      {/* 2b. Training recommendation */}
-      <div className="mb-8 rounded-lg border border-primary-200 bg-primary-50/60 p-4 dark:border-primary-900/50 dark:bg-primary-950/20">
-        <p className="text-[11px] font-bold uppercase tracking-widest text-primary-600 dark:text-primary-400">Training recommendation</p>
-        <p className="mt-1 text-xs text-mist-800 dark:text-dark-text">{recommendation}</p>
-        {missedCategories.length > 0 && (
-          <p className="mt-2 text-[11px] text-mist-600 dark:text-dark-muted">
-            Missed categories this session: {missedCategories.join(' · ')}
-          </p>
-        )}
-      </div>
-
-      {/* 3. Detailed Itemized Hazards Review */}
-      <div className="bg-white dark:bg-dark-card rounded-xl shadow-sm border border-mist-300 dark:border-dark-border p-6 sm:p-7 mb-8 transition-colors">
-        <h2 className="text-base font-bold text-mist-900 dark:text-white mb-4">
-          Warehouse Inspection Breakdown (Bay 4)
-        </h2>
-
-        <div className="space-y-3">
-          {hazardsFound.map((h) => (
-            <div
-              key={h.id}
-              className="p-4 rounded-xl border border-mist-300 dark:border-dark-border bg-white dark:bg-dark-card flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3"
-            >
-              <div className="flex items-start space-x-3">
-                <div className="mt-0.5 text-primary-600 dark:text-primary-400">
-                  <CheckCircle2 className="w-5 h-5" />
-                </div>
-                <div>
-                  <div className="flex items-center space-x-2">
-                    <span className="font-bold text-xs sm:text-sm text-mist-900 dark:text-white">
-                      {h.title}
-                    </span>
-                    <span className="text-[11px] font-bold px-2 py-0.2 rounded bg-mist-100 text-mist-700 dark:bg-dark-surface dark:text-dark-muted">
-                      SPOTTED
-                    </span>
-                  </div>
-                  <p className="text-xs text-mist-600 dark:text-dark-muted mt-1">{h.explanation}</p>
-                  <p className="text-[11px] text-mist-700 dark:text-dark-muted font-semibold mt-1">
-                    Correct Action: {h.correctAction}
-                  </p>
-                </div>
-              </div>
-              <span className="text-[11px] font-mono font-bold text-mist-500 dark:text-dark-muted flex-shrink-0">
-                {h.category}
-              </span>
-            </div>
-          ))}
-
-          {hazardsMissed.map((h) => (
-            <div
-              key={h.id}
-              className="p-4 rounded-xl border border-mist-300 dark:border-dark-border bg-white dark:bg-dark-card flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3"
-            >
-              <div className="flex items-start space-x-3">
-                <div className="mt-0.5 text-mist-500 dark:text-dark-muted">
-                  <XCircle className="w-5 h-5" />
-                </div>
-                <div>
-                  <div className="flex items-center space-x-2">
-                    <span className="font-bold text-xs sm:text-sm text-mist-900 dark:text-white">
-                      {h.title}
-                    </span>
-                    <span className="text-[11px] font-bold px-2 py-0.2 rounded bg-mist-100 text-mist-700 dark:bg-dark-surface dark:text-dark-muted">
-                      MISSED HAZARD
-                    </span>
-                  </div>
-                  <p className="text-xs text-mist-600 dark:text-dark-muted mt-1">{h.explanation}</p>
-                  <p className="text-[11px] text-mist-700 dark:text-dark-muted font-semibold mt-1">
-                    Remediation: {h.correctAction}
-                  </p>
-                </div>
-              </div>
-              <span className="text-[11px] font-mono font-bold text-mist-600 dark:text-dark-muted flex-shrink-0">
-                {h.severity} Priority
-              </span>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* 4. Quiz Review */}
-      {quizReview.length > 0 && (
-        <div className="bg-white dark:bg-dark-card rounded-xl shadow-sm border border-mist-300 dark:border-dark-border p-6 sm:p-7 mb-8 transition-colors">
-          <h2 className="text-base font-bold text-mist-900 dark:text-white mb-4">
-            Safety Regulatory Knowledge Review
-          </h2>
-
-          <div className="space-y-3.5">
+          <ul className="divide-y divide-mist-100 dark:divide-dark-border/60">
             {quizReview.map((q, idx) => (
-              <div
-                key={q.questionId || idx}
-                className={`p-4 rounded-xl border ${
-                  q.isCorrect
-                    ? 'border-mist-300 dark:border-dark-border bg-white dark:bg-dark-card'
-                    : 'border-mist-300 dark:border-dark-border bg-white dark:bg-dark-card'
-                }`}
-              >
-                <div className="flex items-start justify-between">
-                  <span className="text-xs font-bold text-mist-900 dark:text-white">
-                    Q{idx + 1}: {q.question}
-                  </span>
+              <li key={q.questionId || idx} className="p-4">
+                <div className="flex items-start justify-between gap-3">
+                  <p className="min-w-0 text-xs font-semibold text-mist-900 dark:text-dark-text">
+                    <span className="app-num text-mist-400 dark:text-dark-muted">
+                      Q{idx + 1}{' '}
+                    </span>
+                    {q.question}
+                  </p>
                   <span
-                    className={`text-[11px] font-bold px-2 py-0.5 rounded-full flex items-center space-x-1 ${
-                      q.isCorrect
-                        ? 'bg-mist-100 text-mist-700 dark:bg-dark-surface dark:text-dark-muted'
-                        : 'bg-mist-100 text-mist-700 dark:bg-dark-surface dark:text-dark-muted'
-                    }`}
+                    className={`app-chip shrink-0 ${q.isCorrect ? 'app-chip-pass' : 'app-chip-stop'}`}
                   >
                     {q.isCorrect ? (
-                      <>
-                        <CheckCircle2 className="w-3.5 h-3.5" />
-                        <span>Correct</span>
-                      </>
+                      <CheckCircle2 className="h-3 w-3" aria-hidden="true" />
                     ) : (
-                      <>
-                        <XCircle className="w-3.5 h-3.5" />
-                        <span>Incorrect</span>
-                      </>
+                      <XCircle className="h-3 w-3" aria-hidden="true" />
                     )}
+                    {q.isCorrect ? 'Correct' : 'Incorrect'}
                   </span>
                 </div>
-                <p className="text-xs text-mist-600 dark:text-dark-muted mt-2 font-medium">
-                  <strong>Standard:</strong> {q.explanation}
+                <p className="app-body mt-2">
+                  <span className="font-semibold text-mist-700 dark:text-dark-text">Standard: </span>
+                  {q.explanation}
                 </p>
-              </div>
+              </li>
             ))}
-          </div>
-        </div>
+          </ul>
+        </section>
       )}
 
-      <p className="text-[11px] text-mist-500 dark:text-dark-muted mt-5 pt-4 border-t border-mist-300 dark:border-dark-border">
-        Practice mode runs do not overwrite official compliance audits.
+      <p className="app-stat-sub app-divider pt-4">
+        Practice runs never overwrite official compliance audits.
       </p>
     </div>
   );

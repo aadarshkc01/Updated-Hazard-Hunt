@@ -1,77 +1,14 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { api } from '../../services/api';
 import { useToast } from '../../context/ToastContext';
-import { useAuth } from '../../context/AuthContext';
 import { soundEngine } from '../../utils/audio';
-import { KeyRound, Server, Database, Layers, UserPlus, Users, Search, CheckCircle2, RefreshCw, Lock, X, Activity, BarChart3, Shield, AlertTriangle, ArrowUpRight, ArrowDownRight, ChevronRight, Cpu, Wifi, HardDrive, LogOut, Moon, Sun, LayoutDashboard, Download } from 'lucide-react';
-import { useTheme } from '../../context/ThemeContext';
+import { Server, Database, Layers, UserPlus, Users, Search, CheckCircle2, RefreshCw, Lock, X, Activity, Shield, AlertTriangle, ChevronRight, Cpu, Wifi, HardDrive, Download, Target } from 'lucide-react';
 import { ConfirmModal } from '../common/ConfirmModal';
 import { UserAuditModal } from '../common/UserAuditModal';
-
-// ── Mini bar chart (CSS only, no external lib) ──────────────────────────────
-const MiniBar = ({ value, max, color = 'bg-primary-500' }) => {
-  const pct = max > 0 ? Math.round((value / max) * 100) : 0;
-  return (
-    <div className="flex items-center gap-2">
-      <div className="flex-1 h-1.5 bg-mist-200 dark:bg-dark-surface rounded-full overflow-hidden">
-        <div
-          className={`h-full ${color} rounded-full transition-all duration-700`}
-          style={{ width: `${pct}%` }}
-        />
-      </div>
-      <span className="text-[11px] font-bold text-mist-600 dark:text-dark-muted w-8 text-right">
-        {pct}%
-      </span>
-    </div>
-  );
-};
-
-// ── KPI Stat Card ────────────────────────────────────────────────────────────
-const KpiCard = ({ label, value, sub, trend }) => (
-  <div className="bg-white dark:bg-dark-card rounded-xl p-5 shadow-sm border border-mist-300 dark:border-dark-border hover:border-primary-300 dark:hover:border-primary-700 transition-all duration-200">
-    <div className="flex-1 min-w-0">
-      <p className="text-[11px] font-bold uppercase tracking-widest text-mist-500 dark:text-dark-muted mb-0.5">{label}</p>
-      <p className="text-2xl font-black text-mist-900 dark:text-white leading-none">{value}</p>
-      {sub && <p className="text-[11px] text-mist-500 dark:text-dark-muted mt-1">{sub}</p>}
-    </div>
-    {trend !== undefined && (
-      <div className={`flex items-center gap-0.5 text-[11px] font-bold ${trend >= 0 ? 'text-primary-500' : 'text-mist-500 dark:text-dark-muted'}`}>
-        {trend >= 0 ? <ArrowUpRight className="w-3.5 h-3.5" /> : <ArrowDownRight className="w-3.5 h-3.5" />}
-        {Math.abs(trend)}%
-      </div>
-    )}
-  </div>
-);
-
-// ── System health indicator ──────────────────────────────────────────────────
-const HealthDot = ({ online = true, label }) => (
-  <div className="flex items-center gap-2">
-    <span className={`w-2 h-2 rounded-full ${online ? 'bg-emerald-500 animate-pulse' : 'bg-red-500'}`} />
-    <span className="text-xs text-mist-600 dark:text-dark-muted">{label}</span>
-    <span className={`text-[11px] font-bold ${online ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600'}`}>
-      {online ? 'ONLINE' : 'OFFLINE'}
-    </span>
-  </div>
-);
-
-// ── Role badge ───────────────────────────────────────────────────────────────
-const RoleBadge = ({ role }) => {
-  const styles = {
-    admin: 'bg-primary-100 text-primary-800 dark:bg-primary-950/60 dark:text-primary-300 border-primary-200 dark:border-primary-800',
-    supervisor: 'bg-mist-100 text-mist-800 dark:bg-dark-surface dark:text-dark-text border-mist-300 dark:border-dark-border',
-    employee: 'bg-primary-100 text-primary-800 dark:bg-primary-950/60 dark:text-primary-300 border-primary-200 dark:border-primary-800',
-  };
-  return (
-    <span className={`px-2 py-0.5 rounded-full text-[11px] font-bold border uppercase tracking-wider ${styles[role] || styles.employee}`}>
-      {role}
-    </span>
-  );
-};
+import { PageHeader, StatTile, BarList, ColumnChart, Metric, EmptyState, SectionCard } from '../ui';
 
 export const AdminDashboard = ({ onLaunchTrainer }) => {
   const { showToast } = useToast();
-  const { logout } = useAuth();
-  const { isDark, toggleTheme } = useTheme();
 
   const [activeTab, setActiveTab] = useState('overview');
   const [scenario, setScenario] = useState(null);
@@ -92,8 +29,6 @@ export const AdminDashboard = ({ onLaunchTrainer }) => {
   const [newDept, setNewDept] = useState('Health, Safety & Environment');
   const [isCreating, setIsCreating] = useState(false);
 
-  // Logout confirm modal
-  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const [userPendingDelete, setUserPendingDelete] = useState(null);
   const [selectedUser, setSelectedUser] = useState(null);
   const [selectedUserAudit, setSelectedUserAudit] = useState(null);
@@ -219,225 +154,356 @@ export const AdminDashboard = ({ onLaunchTrainer }) => {
   const totalAttempts = analytics?.totalAudits ?? 0;
   const worstCategory = analytics?.categoryBreakdown?.sort((a, b) => b.missRatePercentage - a.missRatePercentage)[0];
 
+  // ── Semantic tone helpers — only ok / warn / bad / brand are ever used ────
+  const passTone = (value) => (value >= 75 ? 'pass' : value > 0 ? 'caution' : 'neutral');
+  const scoreTone = (value) => (value >= 75 ? 'pass' : value >= 60 ? 'caution' : value > 0 ? 'stop' : 'neutral');
+  const riskTone = (missRate) => (missRate > 40 ? 'stop' : missRate > 20 ? 'caution' : 'pass');
+  const riskChip = (missRate) => (missRate > 40 ? 'app-chip-stop' : missRate > 20 ? 'app-chip-caution' : 'app-chip-pass');
+
+
+  // Derived metrics, all computed server-side from the same record set as the
+  // category breakdown so the two can never disagree with each other.
+  const derived = analytics?.analytics ?? null;
+  const trend = derived?.scoreTrend ?? null;
+  const trendChip =
+    trend?.direction === 'IMPROVING' ? 'app-chip-pass'
+      : trend?.direction === 'DECLINING' ? 'app-chip-stop'
+        : trend?.direction === 'STABLE' ? 'app-chip-caution'
+          : 'app-chip-neutral';
+  const trendLabel =
+    trend?.direction === 'IMPROVING' ? 'Improving'
+      : trend?.direction === 'DECLINING' ? 'Declining'
+        : trend?.direction === 'STABLE' ? 'Holding steady'
+          : 'Not enough data';
+
+  /** Seconds to m:ss, so timing figures are readable at a glance. */
+  const mmss = (seconds) => {
+    const s = Math.max(0, Math.round(Number(seconds) || 0));
+    return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
+  };
+
+  // Score distribution, expressed as a share of every logged session.
+  const scoreBands = [
+    { label: 'Distinction (90–100%)', value: analytics?.scoreDistribution?.distDistinction ?? 0, tone: 'pass' },
+    { label: 'Pass (75–89%)', value: analytics?.scoreDistribution?.distPass ?? 0, tone: 'brand' },
+    { label: 'Near-Miss (60–74%)', value: analytics?.scoreDistribution?.distNearMiss ?? 0, tone: 'caution' },
+    { label: 'Fail (<60%)', value: analytics?.scoreDistribution?.distFail ?? 0, tone: 'stop' },
+  ].map(({ label, value, tone }) => {
+    const share = totalAttempts > 0 ? Math.round((value / totalAttempts) * 100) : 0;
+    return { label, value: share, tone, display: `${value} sessions · ${share}%` };
+  });
+
+  // Hazard miss-rate radar, straight from the analytics payload.
+  const radarItems = (analytics?.categoryBreakdown ?? []).map(cat => ({
+    label: cat.category,
+    value: cat.missRatePercentage,
+    tone: riskTone(cat.missRatePercentage),
+    display: `${cat.riskLevel} · ${cat.missRatePercentage}%`,
+  }));
+
+  // Spot vs miss split per category — the other half of the picture, and what
+  // shows whether a high miss rate is a broad problem or a narrow one.
+  const balanceItems = (analytics?.categoryBreakdown ?? []).map(cat => ({
+    label: cat.category,
+    value: cat.totalOccurrences,
+    tone: riskTone(cat.missRatePercentage),
+    display: `${cat.spotted} spotted · ${cat.missed} missed`,
+  }));
+
+  // Tabs are labelled, not icon-led. An icon beside every tab label competes with
+  // the text instead of aiding it, and the four tabs sit directly under a page
+  // header that already names the section.
   const tabs = [
-    { id: 'overview', label: 'Overview', icon: LayoutDashboard },
-    { id: 'users', label: 'User Management', icon: Users },
-    { id: 'analytics', label: 'Safety Analytics', icon: BarChart3 },
-    { id: 'system', label: 'System Status', icon: Server },
+    { id: 'overview', label: 'Overview' },
+    { id: 'users', label: 'User Management' },
+    { id: 'analytics', label: 'Safety Analytics' },
+    { id: 'system', label: 'System Status' },
   ];
 
   return (
-    <div className="min-h-screen bg-app-shell dark:bg-dark-bg">
-      {/* Top Admin Header Bar */}
-      <div className="bg-white dark:bg-dark-card border-b border-mist-300 dark:border-dark-border sticky top-0 z-40 shadow-card">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-14">
-            <div className="flex items-center gap-3">
-              <div className="w-8 h-8 rounded-xl bg-primary-500 flex items-center justify-center">
-                <KeyRound className="w-4 h-4 text-white" />
-              </div>
-              <div>
-                <p className="text-xs font-black text-mist-900 dark:text-white tracking-tight">ADMIN CONSOLE</p>
-                <p className="text-[11px] text-mist-500 dark:text-dark-muted">System Administrator Portal</p>
-              </div>
-            </div>
-            <div className="flex items-center gap-2">
+    <div>
+      <div className="app-page py-6">
+        {/* ── Page header ──────────────────────────────────────────────────── */}
+        <PageHeader
+          eyebrow="System Administrator Console"
+          title="Hazard Hunt — Enterprise Control"
+          description="Full system oversight: manage users, monitor 360° training compliance, and inspect safety vulnerability analytics across all warehouse bays."
+          actions={
+            <>
               {lastRefresh && (
-                <span className="hidden sm:block text-[11px] text-mist-500 dark:text-dark-muted">
+                <span className="hidden text-[11px] text-mist-500 dark:text-dark-muted sm:block">
                   Synced {lastRefresh.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}
                 </span>
               )}
-              <button onClick={handleRefresh} title="Refresh all data"
-                className="p-2 rounded-xl hover:bg-mist-100 dark:hover:bg-dark-surface text-mist-600 dark:text-dark-muted transition-colors">
-                <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin text-primary-500' : ''}`} />
+              <button type="button" onClick={handleRefresh} title="Refresh all data" aria-label="Refresh all data"
+                className="app-icon-btn">
+                <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
               </button>
-              <button onClick={toggleTheme}
-                className="p-2 rounded-xl hover:bg-mist-100 dark:hover:bg-dark-surface text-mist-600 dark:text-dark-muted transition-colors">
-                {isDark ? <Sun className="w-4 h-4 text-amber-400" /> : <Moon className="w-4 h-4" />}
+              <button type="button" onClick={() => setIsCreateModalOpen(true)}
+                className="app-btn app-btn-primary">
+                <UserPlus className="h-3.5 w-3.5" /> Provision
               </button>
-              <button onClick={() => setIsCreateModalOpen(true)}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-primary-500 hover:bg-primary-600 text-white text-xs font-bold shadow-primary transition-all">
-                <UserPlus className="w-3.5 h-3.5" /> Provision
+              <button type="button" onClick={handleExportCSV}
+                className="app-btn app-btn-secondary hidden sm:inline-flex">
+                <Download className="h-3.5 w-3.5" /> Export CSV
               </button>
-              <button onClick={handleExportCSV}
-                className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-mist-100 dark:bg-dark-surface text-mist-800 dark:text-white text-xs font-semibold border border-mist-300 dark:border-dark-border hover:border-primary-500/40 transition-colors">
-                <Download className="w-3.5 h-3.5 text-primary-500" /> Export CSV
-              </button>
-              <button onClick={() => setShowLogoutConfirm(true)}
-                className="p-2 rounded-xl hover:bg-red-50 dark:hover:bg-red-950/30 text-mist-500 dark:text-dark-muted hover:text-red-600 transition-colors">
-                <LogOut className="w-4 h-4" />
-              </button>
-            </div>
-          </div>
+            </>
+          }
+        />
 
-          {/* Tab Navigation */}
-          <div className="flex gap-1 pb-0 -mb-px overflow-x-auto">
-            {tabs.map(({ id, label, icon: Icon }) => (
-              <button key={id} onClick={() => setActiveTab(id)}
-                className={`flex items-center gap-1.5 px-4 py-2.5 text-xs font-semibold whitespace-nowrap border-b-2 transition-all ${
-                  activeTab === id
-                    ? 'border-primary-500 text-primary-600 dark:text-primary-400'
-                    : 'border-transparent text-mist-500 dark:text-dark-muted hover:text-mist-800 dark:hover:text-white'
-                }`}>
-                <Icon className="w-3.5 h-3.5" /> {label}
-              </button>
-            ))}
-          </div>
+        {/* ── Tab navigation ───────────────────────────────────────────────── */}
+        <div className="app-seg mb-5">
+          {tabs.map(({ id, label }) => (
+            <button key={id} type="button" onClick={() => setActiveTab(id)}
+              className={`app-seg-item whitespace-nowrap ${
+                activeTab === id ? 'app-seg-item-active' : ''
+              }`}>
+              {label}
+            </button>
+          ))}
         </div>
-      </div>
-
-      {/* Main Content */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
 
         {/* ── OVERVIEW TAB ────────────────────────────────────────────────── */}
         {activeTab === 'overview' && (
-          <div className="space-y-6 animate-fade-in">
-            {/* Hero greeting */}
-            <div className="bg-primary-600 rounded-xl p-6 text-white shadow-sm relative overflow-hidden">
-              <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHZpZXdCb3g9IjAgMCA2MCA2MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZyBmaWxsPSJub25lIiBmaWxsLXJ1bGU9ImV2ZW5vZGQiPjxnIGZpbGw9IiNmZmZmZmYiIGZpbGwtb3BhY2l0eT0iMC4wNCI+PHBhdGggZD0iTTM2IDM0djZoNnYtNmgtNnptMCAwdi02aC02djZoNnoiLz48L2c+PC9nPjwvc3ZnPg==')] opacity-30" />
-              <div className="relative">
-                <div className="flex items-start justify-between">
-                  <div>
-                    <p className="text-primary-200 text-xs font-semibold uppercase tracking-widest mb-1">System Administrator Console</p>
-                    <h1 className="text-2xl sm:text-3xl font-black tracking-tight mb-2">Hazard Hunt — Enterprise Control</h1>
-                    <p className="text-primary-200 text-sm max-w-xl">
-                      Full system oversight: manage users, monitor 360° training compliance, and inspect safety vulnerability analytics across all warehouse bays.
-                    </p>
-                  </div>
-                </div>
-                <div className="flex flex-wrap gap-3 mt-4">
-                  <div className="bg-white/15 backdrop-blur-sm rounded-xl px-4 py-2 text-sm font-bold">
-                    {users.length} Total Accounts
-                  </div>
-                  <div className="bg-white/15 backdrop-blur-sm rounded-xl px-4 py-2 text-sm font-bold">
-                    {passRate}% Pass Rate
-                  </div>
-                  <div className="bg-white/15 backdrop-blur-sm rounded-xl px-4 py-2 text-sm font-bold">
-                    {totalAttempts} Sessions Logged
-                  </div>
-                </div>
+          <div className="app-stack animate-fade-in">
+            {/* Hero summary band */}
+            <div className="app-band p-5">
+              <p className="app-eyebrow-accent">Enterprise oversight</p>
+              <h2 className="app-title mt-1 text-lg">Hazard Hunt — Enterprise Control</h2>
+              <p className="app-body mt-1 max-w-2xl">
+                Full system oversight: manage users, monitor 360° training compliance, and inspect safety vulnerability analytics across all warehouse bays.
+              </p>
+              <div className="mt-4 flex flex-wrap gap-2">
+                <span className="app-chip app-chip-brand">{users.length} Total Accounts</span>
+                <span className={`app-chip ${passRate >= 75 ? 'app-chip-pass' : passRate > 0 ? 'app-chip-caution' : 'app-chip-neutral'}`}>
+                  {passRate}% Pass Rate
+                </span>
+                <span className="app-chip app-chip-neutral">{totalAttempts} Sessions Logged</span>
               </div>
             </div>
 
             {/* KPI Grid */}
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-              <KpiCard label="Total Accounts" value={users.length}
-                sub={`${adminCount} admin · ${supervisorCount} sup · ${employeeCount} emp`}
-                color="bg-primary-100 dark:bg-primary-950/40 text-primary-600 dark:text-primary-400" />
-              <KpiCard label="Overall Pass Rate" value={`${passRate}%`}
-                sub={`${teamData?.stats?.passedCount ?? 0} of ${teamData?.stats?.attemptedCount ?? 0} trainees passed`}
-                color="bg-mist-100 dark:bg-dark-surface text-mist-600 dark:text-dark-muted"
-                trend={passRate >= 75 ? 8 : -12} />
-              <KpiCard label="Average Score" value={`${avgScore}%`}
-                sub="Across all official sessions"
-                color="bg-mist-100 dark:bg-dark-surface text-mist-600 dark:text-dark-muted" />
-              <KpiCard label="Audit Sessions" value={totalAttempts}
-                sub="Official + practice combined"
-                color="bg-mist-100 dark:bg-dark-surface text-mist-600 dark:text-dark-muted" />
+            <div className="app-stat-row">
+              <StatTile label="Total Accounts" value={users.length}
+                sub={`${adminCount} admin · ${supervisorCount} sup · ${employeeCount} emp`} />
+              <StatTile label="Overall Pass Rate" value={`${passRate}%`} tone={passTone(passRate)} meter={passRate}
+                sub={`${teamData?.stats?.passedCount ?? 0} of ${teamData?.stats?.attemptedCount ?? 0} trainees passed`} />
+              <StatTile label="Average Score" value={`${avgScore}%`} tone={scoreTone(avgScore)} meter={avgScore}
+                sub={derived ? `Median ${derived.medianScore}% · spread ${derived.scoreSpread} pts` : 'Across all official sessions'} />
+              <StatTile label="Audit Sessions" value={totalAttempts}
+                sub={derived ? `${derived.officialAttempts} official · ${derived.practiceAttempts} practice` : 'Official + practice combined'} />
+            </div>
+
+            {/* ── Derived analytics ────────────────────────────────────────────
+                Figures a supervisor can act on, rather than restatements of the
+                same counts: detection accuracy, timing percentiles, and the
+                direction the cohort is actually moving in. */}
+            <div className="mt-4 grid gap-4 lg:grid-cols-3">
+              <SectionCard
+                title="Detection Accuracy"
+                description="Of everything clicked, how much was a real hazard"
+                bodyClass="p-4"
+                actions={<span className="app-chip app-chip-brand">Derived</span>}
+              >
+                <Metric
+                  label="Precision"
+                  value={derived ? derived.detectionAccuracyPercentage : 0}
+                  unit="%"
+                  baseline={
+                    derived
+                      ? `${derived.totalSpotted} real · ${derived.totalMissed + derived.totalFalseClicks} false`
+                      : undefined
+                  }
+                  hint={
+                    derived && derived.totalFalseClicks > 0
+                      ? `${derived.totalFalseClicks} false clicks recorded across all sessions.`
+                      : 'No false clicks have been recorded.'
+                  }
+                />
+              </SectionCard>
+
+              <SectionCard
+                title="Completion Time"
+                description="Median and slowest-decile timings"
+                bodyClass="p-4"
+              >
+                <div className="grid grid-cols-3 gap-3">
+                  <Metric label="Median" value={mmss(derived?.medianTimeTakenSeconds ?? 0)}
+                    baseline={`Mean ${mmss(analytics?.avgTimeTakenSeconds ?? 0)}`} />
+                  <Metric label="Slowest 10%" value={mmss(derived?.p90TimeTakenSeconds ?? 0)}
+                    baseline="90th percentile" />
+                  <Metric label="Fastest" value={mmss(derived?.fastestTimeSeconds ?? 0)}
+                    baseline="Best recorded" />
+                </div>
+              </SectionCard>
+
+              <SectionCard
+                title="Cohort Direction"
+                description="Recent half of attempts vs earlier half"
+                bodyClass="p-4"
+                actions={<span className={`app-chip ${trendChip}`}>{trendLabel}</span>}
+              >
+                <Metric
+                  label="Score movement"
+                  value={derived ? derived.recentAvg : 0}
+                  unit="%"
+                  delta={trend?.deltaPoints ?? null}
+                  baseline={
+                    trend && trend.direction !== 'INSUFFICIENT_DATA'
+                      ? `Earlier average ${trend.earlierAvg}%`
+                      : 'Needs at least 2 sessions'
+                  }
+                />
+              </SectionCard>
             </div>
 
             {/* Row: Scenario Card + Risk Radar */}
-            <div className="grid lg:grid-cols-2 gap-4">
+            <div className="grid gap-4 lg:grid-cols-2">
               {/* Active Scenario */}
-              <div className="app-card p-5">
-                <div className="flex items-center justify-between mb-4">
-                  <div className="flex items-center gap-2.5">
-                    <div className="w-9 h-9 rounded-xl bg-primary-100 dark:bg-primary-950/60 text-primary-600 dark:text-primary-400 flex items-center justify-center">
-                      <Layers className="w-5 h-5" />
-                    </div>
-                    <div>
-                      <p className="text-[11px] uppercase font-bold tracking-wider text-primary-500">Active Training Module</p>
-                      <h3 className="text-sm font-bold text-mist-900 dark:text-white">
-                        {scenario?.title || 'Bay 4: Automotive Logistics & Inbound Storage'}
-                      </h3>
-                    </div>
-                  </div>
-                  <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold bg-white dark:bg-dark-card text-mist-700 dark:text-dark-muted border border-mist-300 dark:border-dark-border">
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" /> LIVE
+              <SectionCard
+                title={
+                  <span className="flex items-center gap-2.5">
+                    <span className="app-icon-well"><Layers className="h-4 w-4" /></span>
+                    <span className="min-w-0">
+                      <span className="app-eyebrow block">Active training module</span>
+                      <span className="app-title block">{scenario?.title || 'Bay 4: Automotive Logistics & Inbound Storage'}</span>
+                    </span>
                   </span>
-                </div>
-                <p className="text-xs text-mist-600 dark:text-dark-muted mb-4 leading-relaxed">{scenario?.description}</p>
-                <div className="grid grid-cols-4 gap-2">
+                }
+                actions={<span className="app-chip app-chip-pass">Live</span>}
+                bodyClass="p-4"
+              >
+                <p className="app-body">{scenario?.description}</p>
+                <div className="mt-4 grid grid-cols-4 gap-2">
                   {[
-                    { label: 'Code', val: scenario?.code || 'WH-BAY-04', mono: true },
+                    { label: 'Code', val: scenario?.code || 'WH-BAY-04' },
                     { label: 'Duration', val: `${scenario?.timeLimitSeconds || 90}s` },
                     { label: 'Hazards', val: `${scenario?.hotspots?.length || 5}`, highlight: 'text-primary-600 dark:text-primary-400' },
                     { label: 'Pass At', val: `${scenario?.passingScorePercentage || 75}%` },
-                  ].map(({ label, val, mono, highlight }) => (
-                    <div key={label} className="bg-mist-100 dark:bg-dark-surface rounded-xl p-2.5 text-center">
-                      <p className="text-[11px] text-mist-500 dark:text-dark-muted">{label}</p>
-                      <p className={`text-xs font-bold mt-0.5 ${highlight || 'text-mist-900 dark:text-white'} ${mono ? 'font-mono' : ''}`}>{val}</p>
+                  ].map(({ label, val, highlight }) => (
+                    <div key={label} className="app-card-quiet p-2.5 text-center">
+                      <p className="app-eyebrow">{label}</p>
+                      <p className={`app-num mt-1 text-xs font-bold ${highlight || 'text-mist-900 dark:text-dark-text'}`}>{val}</p>
                     </div>
                   ))}
                 </div>
-              </div>
+              </SectionCard>
 
               {/* Hazard Risk Radar */}
-              <div className="app-card p-5">
-                <div className="flex items-center gap-2.5 mb-4">
-                  <div className="w-9 h-9 rounded-xl bg-mist-100 dark:bg-dark-surface text-mist-600 dark:text-dark-muted flex items-center justify-center">
-                    <AlertTriangle className="w-5 h-5" />
-                  </div>
-                  <div>
-                    <p className="text-[11px] uppercase font-bold tracking-wider text-primary-500">Hazard Miss Rate Radar</p>
-                    <p className="text-sm font-bold text-mist-900 dark:text-white">Category Vulnerability Analysis</p>
-                  </div>
-                </div>
+              <SectionCard
+                title={
+                  <span className="flex items-center gap-2.5">
+                    <span className="app-icon-well"><AlertTriangle className="h-4 w-4" /></span>
+                    Hazard Miss Rate Radar
+                  </span>
+                }
+                description="Category vulnerability analysis"
+                bodyClass="p-4"
+              >
                 {analytics?.categoryBreakdown?.length > 0 ? (
-                  <div className="space-y-3">
-                    {analytics.categoryBreakdown.map((cat) => (
-                      <div key={cat.category}>
-                        <div className="flex justify-between items-center mb-1">
-                          <span className="text-[11px] font-semibold text-mist-700 dark:text-dark-muted truncate flex-1 mr-2">{cat.category}</span>
-                          <span className={`text-[11px] font-bold px-1.5 py-0.5 rounded-full ${
-                            'bg-white dark:bg-dark-card text-mist-700 dark:text-dark-muted border border-mist-300 dark:border-dark-border'
-                          }`}>{cat.riskLevel}</span>
-                        </div>
-                        <MiniBar value={cat.missRatePercentage} max={100}
-                          color={'bg-primary-500'} />
-                      </div>
-                    ))}
-                  </div>
+                  <>
+                    <BarList items={radarItems} />
+                    {derived?.topGapCategory && (
+                      <p className="app-alert app-alert-caution mt-4">
+                        <Target className="app-alert-icon" aria-hidden="true" />
+                        <span>
+                          <strong>Biggest gap:</strong> {derived.topGapCategory.category} — missed{' '}
+                          {derived.topGapCategory.missed} time
+                          {derived.topGapCategory.missed === 1 ? '' : 's'} (
+                          {derived.topGapCategory.missRatePercentage}% miss rate). Prioritise this in
+                          the next toolbox talk.
+                        </span>
+                      </p>
+                    )}
+                  </>
                 ) : (
-                  <div className="flex flex-col items-center justify-center h-32 text-mist-400 dark:text-dark-muted">
-                    <Activity className="w-8 h-8 mb-2 opacity-40" />
-                    <p className="text-xs text-center">No session data yet.<br/>Analytics populate as trainees complete sessions.</p>
+                  <EmptyState
+                    title="No session data yet"
+                    description="Analytics populate as trainees complete 360° sessions."
+                  />
+                )}
+              </SectionCard>
+            </div>
+
+            {/* ── Weekly activity + spotted/missed balance ───────────────────── */}
+            <div className="mt-4 grid gap-4 lg:grid-cols-2">
+              <SectionCard
+                title="7-Day Activity"
+                description="Sessions completed per day, with the daily average score"
+                bodyClass="p-4"
+              >
+                {/* Plot well: the chart is recessed into the card rather than
+                    floating on it, so the data reads as the panel's content. */}
+                <div className="app-chart">
+                  <ColumnChart
+                    data={derived?.weeklyActivity ?? []}
+                    valueKey="attempts"
+                    formatValue={(v) => `${v} sessions`}
+                  />
+                </div>
+                {derived?.weeklyActivity?.length > 0 && (
+                  <div className="app-divider mt-4 flex flex-wrap items-center justify-between gap-2 pt-3">
+                    <p className="app-body">
+                      Peak day:{' '}
+                      <strong className="text-mist-800 dark:text-dark-text">
+                        {derived.weeklyActivity.reduce((best, d) => (d.attempts > (best?.attempts ?? -1) ? d : best), null)?.label ?? '—'}
+                      </strong>
+                    </p>
+                    <p className="app-body">
+                      {derived.practiceSharePercentage}% of all attempts are practice
+                    </p>
                   </div>
                 )}
-              </div>
+              </SectionCard>
+
+              <SectionCard
+                title="Spotted vs Missed"
+                description="Volume behind each miss rate"
+                bodyClass="p-4"
+              >
+                <BarList
+                  items={balanceItems}
+                  emptyLabel="No hazard observations recorded yet."
+                />
+              </SectionCard>
             </div>
 
             {/* Recent Users Quick View */}
-            <div className="app-card overflow-hidden">
-              <div className="flex items-center justify-between px-5 py-3.5 border-b border-mist-200 dark:border-dark-border bg-mist-50/50 dark:bg-dark-surface/30">
-                <div className="flex items-center gap-2">
-                  <Users className="w-4 h-4 text-primary-500" />
-                  <h3 className="text-sm font-bold text-mist-900 dark:text-white">Recently Provisioned ({users.length})</h3>
-                </div>
-                <button onClick={() => setActiveTab('users')}
-                  className="text-xs text-primary-500 hover:text-primary-700 font-semibold flex items-center gap-0.5">
-                  View All <ChevronRight className="w-3.5 h-3.5" />
+            <SectionCard
+              title={
+                <span className="flex items-center gap-2">
+                  <Users className="h-4 w-4" /> Recently Provisioned ({users.length})
+                </span>
+              }
+              actions={
+                <button type="button" onClick={() => setActiveTab('users')}
+                  className="app-btn app-btn-ghost app-btn-sm">
+                  View All <ChevronRight className="h-3.5 w-3.5" />
                 </button>
-              </div>
-              <div className="overflow-x-auto">
-                <table className="w-full text-left">
+              }
+              bodyClass="p-0"
+            >
+              <div className="app-table-wrap">
+                <table className="app-table">
                   <thead>
-                    <tr className="text-[11px] uppercase tracking-wider text-mist-500 dark:text-dark-muted bg-mist-50 dark:bg-dark-surface/20 border-b border-mist-200 dark:border-dark-border">
-                      <th className="py-2.5 px-5 font-bold">Name</th>
-                      <th className="py-2.5 px-4 font-bold">Username</th>
-                      <th className="py-2.5 px-4 font-bold">Role</th>
-                      <th className="py-2.5 px-4 font-bold hidden sm:table-cell">Department</th>
-                      <th className="py-2.5 px-4 font-bold hidden md:table-cell">Since</th>
+                    <tr>
+                      <th className="app-th">Name</th>
+                      <th className="app-th">Username</th>
+                      <th className="app-th">Role</th>
+                      <th className="app-th hidden sm:table-cell">Department</th>
+                      <th className="app-th hidden md:table-cell">Since</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-mist-100 dark:divide-dark-border text-xs">
+                  <tbody>
                     {users.slice(0, 6).map(u => (
-                      <tr key={u._id} className="hover:bg-primary-50/30 dark:hover:bg-primary-950/10 transition-colors">
-                        <td className="py-3 px-5 font-semibold text-mist-900 dark:text-white">{u.name}</td>
-                        <td className="py-3 px-4 font-mono text-mist-500 dark:text-dark-muted">@{u.username}</td>
-                        <td className="py-3 px-4"><RoleBadge role={u.role} /></td>
-                        <td className="py-3 px-4 text-mist-500 dark:text-dark-muted hidden sm:table-cell truncate max-w-[140px]">{u.department}</td>
-                        <td className="py-3 px-4 text-mist-400 dark:text-dark-muted font-mono text-[11px] hidden md:table-cell">
+                      <tr key={u._id} className="transition-colors hover:bg-mist-50 dark:hover:bg-dark-surface">
+                        <td className="app-td pl-5 font-semibold text-mist-900 dark:text-dark-text">{u.name}</td>
+                        <td className="app-td app-num text-mist-500 dark:text-dark-muted">@{u.username}</td>
+                        <td className="app-td">
+                          <span className={`app-chip ${u.role === 'admin' ? 'app-chip-brand' : 'app-chip-neutral'}`}>{u.role}</span>
+                        </td>
+                        <td className="app-td hidden max-w-[140px] truncate text-mist-500 dark:text-dark-muted sm:table-cell">{u.department}</td>
+                        <td className="app-num app-td hidden text-[11px] text-mist-400 dark:text-dark-muted md:table-cell">
                           {new Date(u.createdAt).toLocaleDateString('en-GB')}
                         </td>
                       </tr>
@@ -445,86 +511,82 @@ export const AdminDashboard = ({ onLaunchTrainer }) => {
                   </tbody>
                 </table>
               </div>
-            </div>
+            </SectionCard>
           </div>
         )}
 
         {/* ── USER MANAGEMENT TAB ─────────────────────────────────────────── */}
         {activeTab === 'users' && (
-          <div className="space-y-5 animate-fade-in">
+          <div className="app-stack animate-fade-in">
             {/* User stats summary row */}
             <div className="grid grid-cols-3 gap-3">
-              {[
-                { label: 'Administrators', count: adminCount, color: 'text-primary-600 dark:text-primary-400 bg-primary-50 dark:bg-primary-950/40 border-primary-200 dark:border-primary-800' },
-                { label: 'Supervisors', count: supervisorCount, color: 'text-mist-700 dark:text-dark-text bg-mist-100 dark:bg-dark-surface border-mist-300 dark:border-dark-border' },
-                { label: 'Employees', count: employeeCount, color: 'text-primary-600 dark:text-primary-400 bg-primary-50 dark:bg-primary-950/40 border-primary-200 dark:border-primary-800' },
-              ].map(({ label, count, color }) => (
-                <div key={label} className={`rounded-xl p-4 border text-center ${color} shadow-sm`}>
-                  <p className="text-2xl font-black">{count}</p>
-                  <p className="text-[11px] font-bold mt-0.5">{label}</p>
-                </div>
-              ))}
+              <StatTile label="Administrators" value={adminCount} />
+              <StatTile label="Supervisors" value={supervisorCount} />
+              <StatTile label="Employees" value={employeeCount} />
             </div>
 
             {/* Toolbar */}
-            <div className="flex flex-col sm:flex-row gap-3">
+            <div className="flex flex-col gap-3 sm:flex-row">
               <div className="relative flex-1">
-                <Search className="w-4 h-4 text-mist-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                <Search className="pointer-events-none absolute inset-y-0 left-3.5 my-auto h-4 w-4 text-mist-400" />
                 <input type="text" placeholder="Search by name, username, department…"
                   value={searchTerm} onChange={e => setSearchTerm(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2.5 text-xs rounded-xl border border-mist-300 dark:border-dark-border bg-white dark:bg-dark-card text-mist-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary-500/40 focus:border-primary-500 transition-all" />
+                  className="app-input pl-10" />
               </div>
               <select value={roleFilter} onChange={e => setRoleFilter(e.target.value)}
-                className="px-3.5 py-2.5 text-xs rounded-xl border border-mist-300 dark:border-dark-border bg-white dark:bg-dark-card text-mist-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary-500/40">
+                aria-label="Filter by role"
+                className="app-input sm:w-auto">
                 <option value="ALL">All Roles</option>
                 <option value="admin">Admin</option>
                 <option value="supervisor">Supervisor</option>
                 <option value="employee">Employee</option>
               </select>
-              <button onClick={() => setIsCreateModalOpen(true)}
-                className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-primary-500 hover:bg-primary-600 text-white text-xs font-bold shadow-primary transition-all whitespace-nowrap">
-                <UserPlus className="w-3.5 h-3.5" /> Provision Account
+              <button type="button" onClick={() => setIsCreateModalOpen(true)}
+                className="app-btn app-btn-primary whitespace-nowrap">
+                <UserPlus className="h-3.5 w-3.5" /> Provision Account
               </button>
             </div>
 
             {/* Full User Table */}
-            <div className="app-card overflow-hidden">
-              <div className="overflow-x-auto">
-                <table className="w-full text-left border-collapse">
+            <SectionCard bodyClass="p-0">
+              <div className="app-table-wrap">
+                <table className="app-table">
                   <thead>
-                    <tr className="text-[11px] uppercase tracking-widest text-mist-500 dark:text-dark-muted bg-mist-50 dark:bg-dark-surface/50 border-b border-mist-200 dark:border-dark-border">
-                      <th className="py-3 px-5 font-bold">Full Name</th>
-                      <th className="py-3 px-4 font-bold">Username</th>
-                      <th className="py-3 px-4 font-bold">Role</th>
-                      <th className="py-3 px-4 font-bold">Department</th>
-                      <th className="py-3 px-4 font-bold">Onboarded</th>
-                      <th className="py-3 px-4 font-bold">Provisioned</th>
-                      <th className="py-3 px-4 font-bold">Actions</th>
+                    <tr>
+                      <th className="app-th pl-5">Full Name</th>
+                      <th className="app-th">Username</th>
+                      <th className="app-th">Role</th>
+                      <th className="app-th">Department</th>
+                      <th className="app-th">Onboarded</th>
+                      <th className="app-th">Provisioned</th>
+                      <th className="app-th">Actions</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-mist-100 dark:divide-dark-border text-xs">
+                  <tbody>
                     {filteredUsers.map(u => (
-                      <tr key={u._id} className="hover:bg-primary-50/30 dark:hover:bg-primary-950/10 transition-colors group">
-                        <td className="py-3.5 px-5 font-semibold text-mist-900 dark:text-white">{u.name}</td>
-                        <td className="py-3.5 px-4 font-mono text-mist-500 dark:text-dark-muted">@{u.username}</td>
-                        <td className="py-3.5 px-4"><RoleBadge role={u.role} /></td>
-                        <td className="py-3.5 px-4 text-mist-600 dark:text-dark-muted max-w-[180px] truncate">{u.department}</td>
-                        <td className="py-3.5 px-4">
-                          {u.hasCompletedOnboarding
-                            ? <span className="flex items-center gap-1 text-emerald-600 dark:text-emerald-400"><CheckCircle2 className="w-3.5 h-3.5" /> Done</span>
-                            : <span className="text-amber-600 dark:text-amber-400">Pending</span>}
+                      <tr key={u._id} className="group transition-colors hover:bg-mist-50 dark:hover:bg-dark-surface">
+                        <td className="app-td pl-5 font-semibold text-mist-900 dark:text-dark-text">{u.name}</td>
+                        <td className="app-td app-num text-mist-500 dark:text-dark-muted">@{u.username}</td>
+                        <td className="app-td">
+                          <span className={`app-chip ${u.role === 'admin' ? 'app-chip-brand' : 'app-chip-neutral'}`}>{u.role}</span>
                         </td>
-                        <td className="py-3.5 px-4 font-mono text-mist-400 dark:text-dark-muted text-[11px]">
+                        <td className="app-td max-w-[180px] truncate text-mist-600 dark:text-dark-muted">{u.department}</td>
+                        <td className="app-td">
+                          {u.hasCompletedOnboarding
+                            ? <span className="app-chip app-chip-pass"><CheckCircle2 className="h-3.5 w-3.5" /> Done</span>
+                            : <span className="app-chip app-chip-caution">Pending</span>}
+                        </td>
+                        <td className="app-num app-td text-[11px] text-mist-400 dark:text-dark-muted">
                           {new Date(u.createdAt).toLocaleDateString('en-GB')}
                         </td>
-                        <td className="py-3.5 px-4">
+                        <td className="app-td">
                           <div className="flex items-center gap-2">
-                            <button onClick={() => handleViewUser(u)}
-                              className="px-2.5 py-1.5 rounded-lg border border-mist-300 dark:border-dark-border text-mist-600 dark:text-dark-muted hover:border-primary-400 hover:text-primary-600 text-[11px] font-bold transition-colors">
+                            <button type="button" onClick={() => handleViewUser(u)}
+                              className="app-btn app-btn-secondary app-btn-sm">
                               View
                             </button>
-                            <button onClick={() => handleDeleteUser(u._id, u.name)}
-                              className="px-2.5 py-1.5 rounded-lg border border-mist-300 dark:border-dark-border text-mist-600 dark:text-dark-muted hover:border-primary-400 hover:text-primary-600 text-[11px] font-bold transition-colors">
+                            <button type="button" onClick={() => handleDeleteUser(u._id, u.name)}
+                              className="app-btn app-btn-ghost app-btn-sm hover:border-stop-600 hover:text-stop-600 dark:hover:text-stop-200">
                               Delete
                             </button>
                           </div>
@@ -533,125 +595,105 @@ export const AdminDashboard = ({ onLaunchTrainer }) => {
                     ))}
                     {filteredUsers.length === 0 && (
                       <tr>
-                        <td colSpan={7} className="py-12 text-center text-mist-400 dark:text-dark-muted text-sm">
-                          <Search className="w-8 h-8 mx-auto mb-2 opacity-30" />
-                          No accounts match your search criteria
+                        <td colSpan={7} className="py-10 text-center">
+                          <Search className="mx-auto mb-2 h-7 w-7 text-mist-400" aria-hidden="true" />
+                          <p className="app-body">No accounts match your search criteria</p>
                         </td>
                       </tr>
                     )}
                   </tbody>
                 </table>
               </div>
-              <div className="px-5 py-3 border-t border-mist-100 dark:border-dark-border flex items-center justify-between bg-mist-50/30 dark:bg-dark-surface/20">
-                <p className="text-[11px] text-mist-500 dark:text-dark-muted">
+              <div className="app-divider flex items-center justify-between gap-3 px-5 py-3">
+                <p className="app-eyebrow">
                   Showing {filteredUsers.length} of {users.length} accounts
                 </p>
-                <button onClick={handleRefresh}
-                  className="text-[11px] text-primary-500 hover:text-primary-700 font-semibold flex items-center gap-1">
-                  <RefreshCw className="w-3 h-3" /> Sync
+                <button type="button" onClick={handleRefresh}
+                  className="app-btn app-btn-ghost app-btn-sm">
+                  <RefreshCw className="h-3 w-3" /> Sync
                 </button>
               </div>
-            </div>
+            </SectionCard>
           </div>
         )}
 
         {/* ── ANALYTICS TAB ───────────────────────────────────────────────── */}
         {activeTab === 'analytics' && (
-          <div className="space-y-5 animate-fade-in">
+          <div className="app-stack animate-fade-in">
             {/* Score Distribution */}
-            <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
-              {[
-                { label: 'Distinction (90–100%)', value: analytics?.scoreDistribution?.distDistinction ?? 0, color: 'bg-primary-500', textColor: 'text-mist-700 dark:text-dark-muted' },
-                { label: 'Pass (75–89%)', value: analytics?.scoreDistribution?.distPass ?? 0, color: 'bg-primary-500', textColor: 'text-mist-700 dark:text-dark-muted' },
-                { label: 'Near-Miss (60–74%)', value: analytics?.scoreDistribution?.distNearMiss ?? 0, color: 'bg-primary-500', textColor: 'text-mist-700 dark:text-dark-muted' },
-                { label: 'Fail (<60%)', value: analytics?.scoreDistribution?.distFail ?? 0, color: 'bg-primary-500', textColor: 'text-mist-700 dark:text-dark-muted' },
-              ].map(({ label, value, color, textColor }) => {
-                const total = totalAttempts || 1;
-                const pct = Math.round((value / total) * 100);
-                return (
-                  <div key={label} className="rounded-xl p-4 border border-mist-300 dark:border-dark-border bg-white dark:bg-dark-card">
-                    <p className={`text-[11px] font-bold uppercase tracking-wider mb-2 ${textColor}`}>{label}</p>
-                    <p className="text-3xl font-black mb-1 text-mist-900 dark:text-white">{value}</p>
-                    <div className="w-full h-1.5 bg-black/10 rounded-full overflow-hidden">
-                      <div className={`h-full ${color} rounded-full transition-all duration-700`} style={{ width: `${pct}%` }} />
-                    </div>
-                    <p className="text-[11px] mt-1 text-mist-500 dark:text-dark-muted">{pct}% of all sessions</p>
-                  </div>
-                );
-              })}
-            </div>
+            <SectionCard
+              title="Score distribution"
+              description="Every logged session grouped by its final score band"
+              bodyClass="p-4"
+            >
+              <BarList items={scoreBands} emptyLabel="No sessions logged yet" />
+            </SectionCard>
 
             {/* Detailed Category Breakdown */}
-            <div className="app-card p-5">
-              <div className="mb-5">
-                <p className="text-[11px] uppercase font-bold tracking-wider text-primary-500">Safety analytics</p>
-                <h3 className="text-sm font-bold text-mist-900 dark:text-white mt-1">Hazard category miss rates</h3>
-              </div>
+            <SectionCard
+              title="Hazard category miss rates"
+              description="Sorted by vulnerability — highest miss rate first"
+              bodyClass="p-4"
+            >
               {analytics?.categoryBreakdown?.length > 0 ? (
-                <div className="space-y-4">
-                  {analytics.categoryBreakdown.sort((a, b) => b.missRatePercentage - a.missRatePercentage).map(cat => (
-                    <div key={cat.category} className="space-y-1.5">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          <span className={`w-2.5 h-2.5 rounded-full flex-shrink-0 ${
-                            'bg-primary-500'
-                          }`} />
-                          <span className="text-xs font-semibold text-mist-800 dark:text-white">{cat.category}</span>
+                <ul className="space-y-3">
+                  {analytics.categoryBreakdown.sort((a, b) => b.missRatePercentage - a.missRatePercentage).map(cat => {
+                    const tone = riskTone(cat.missRatePercentage);
+                    return (
+                      <li key={cat.category}>
+                        <div className="mb-1.5 flex flex-wrap items-center justify-between gap-2">
+                          <span className="text-xs font-semibold text-mist-700 dark:text-dark-text">{cat.category}</span>
+                          <div className="flex items-center gap-2">
+                            <span className="app-num text-[11px] text-mist-500 dark:text-dark-muted">
+                              {cat.spotted} spotted · {cat.missed} missed
+                            </span>
+                            <span className={`app-chip ${riskChip(cat.missRatePercentage)}`}>
+                              {cat.riskLevel} · {cat.missRatePercentage}%
+                            </span>
+                          </div>
                         </div>
-                        <div className="flex items-center gap-3">
-                          <span className="text-[11px] text-mist-500 dark:text-dark-muted">
-                            {cat.spotted} spotted · {cat.missed} missed
-                          </span>
-                          <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full ${
-                            'bg-white dark:bg-dark-card text-mist-700 dark:text-dark-muted border border-mist-300 dark:border-dark-border'
-                          }`}>{cat.riskLevel} · {cat.missRatePercentage}% miss</span>
+                        <div className="app-meter">
+                          <div
+                            className={`app-meter-fill ${tone === 'stop' ? 'app-meter-fill-stop' : ''}`}
+                            style={{ width: `${cat.missRatePercentage}%` }}
+                          />
                         </div>
-                      </div>
-                      <div className="w-full h-2.5 bg-mist-100 dark:bg-dark-surface rounded-full overflow-hidden">
-                        <div className={`h-full rounded-full transition-all duration-700 ${
-                          'bg-primary-500'
-                        }`} style={{ width: `${cat.missRatePercentage}%` }} />
-                      </div>
-                    </div>
-                  ))}
-                </div>
+                      </li>
+                    );
+                  })}
+                </ul>
               ) : (
-                <div className="text-center py-16 text-mist-400 dark:text-dark-muted">
-                  <p className="text-sm font-medium">No analytics data yet</p>
-                  <p className="text-xs mt-1">Analytics populate as trainees complete 360° sessions.</p>
+                <div className="flex flex-col items-center">
+                  <EmptyState
+                    title="No analytics data yet"
+                    description="Analytics populate as trainees complete 360° sessions."
+                  />
                 </div>
               )}
-            </div>
+            </SectionCard>
 
             {/* Summary stats row */}
-            <div className="grid sm:grid-cols-3 gap-4">
-              <div className="app-card p-4">
-                <p className="text-[11px] uppercase font-bold tracking-wider text-mist-500 dark:text-dark-muted mb-1">Avg. Session Time</p>
-                <p className="text-3xl font-black text-mist-900 dark:text-white">
-                  {analytics?.avgTimeTakenSeconds ?? 0}<span className="text-base font-medium ml-1">s</span>
-                </p>
-                <p className="text-[11px] text-mist-500 mt-1">Time to complete inspection phase</p>
-              </div>
-              <div className="app-card p-4">
-                <p className="text-[11px] uppercase font-bold tracking-wider text-mist-500 dark:text-dark-muted mb-1">Avg. False Clicks</p>
-                <p className="text-3xl font-black text-mist-900 dark:text-white">{analytics?.avgFalseClicksCount ?? 0}</p>
-                <p className="text-[11px] text-mist-500 mt-1">Penalty clicks per session (avg)</p>
-              </div>
-              <div className="app-card p-4">
-                <p className="text-[11px] uppercase font-bold tracking-wider text-mist-500 dark:text-dark-muted mb-1">Highest Risk Category</p>
-                <p className="text-sm font-black text-red-600 dark:text-red-400 leading-tight">
-                  {worstCategory?.category || 'N/A'}
-                </p>
-                <p className="text-[11px] text-mist-500 mt-1">{worstCategory?.missRatePercentage ?? 0}% miss rate</p>
-              </div>
+            <div className="grid gap-4 sm:grid-cols-3">
+              <StatTile label="Avg. Session Time"
+                value={
+                  <>
+                    {analytics?.avgTimeTakenSeconds ?? 0}<span className="ml-1 text-sm font-semibold">s</span>
+                  </>
+                }
+                sub="Time to complete inspection phase" />
+              <StatTile label="Avg. False Clicks" value={analytics?.avgFalseClicksCount ?? 0}
+                sub="Penalty clicks per session (avg)" />
+              <StatTile label="Highest Risk Category" value={worstCategory?.category || 'N/A'}
+                tone={worstCategory ? 'stop' : 'neutral'}
+                sub={`${worstCategory?.missRatePercentage ?? 0}% miss rate`} />
             </div>
           </div>
         )}
 
         {/* ── SYSTEM STATUS TAB ───────────────────────────────────────────── */}
         {activeTab === 'system' && (
-          <div className="space-y-5 animate-fade-in">
-            <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div className="app-stack animate-fade-in">
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
               {[
                 { icon: Server, label: 'API Server', sub: 'Node.js 20 + Express', status: true, meta: 'Port 5000 • REST API' },
                 { icon: Database, label: 'Database', sub: 'MongoDB (embedded)', status: true, meta: `${users.length} accounts stored` },
@@ -660,37 +702,33 @@ export const AdminDashboard = ({ onLaunchTrainer }) => {
                 { icon: HardDrive, label: 'Storage Engine', sub: 'Compliance Records', status: true, meta: `${totalAttempts} sessions stored` },
                 { icon: Cpu, label: 'Session Engine', sub: '360° Pannellum Viewer', status: true, meta: 'Client-side renderer' },
               ].map(({ icon: Icon, label, sub, status, meta }) => (
-                <div key={label} className="app-card p-5">
-                  <div className="flex items-start justify-between mb-3">
-                    <div className="w-10 h-10 rounded-xl bg-mist-100 dark:bg-dark-surface flex items-center justify-center">
-                      <Icon className="w-5 h-5 text-primary-500" />
-                    </div>
-                    <span className="flex items-center gap-1.5 text-[11px] font-bold text-emerald-600 dark:text-emerald-400">
-                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                      ONLINE
+                <div key={label} className="app-card p-4">
+                  <div className="mb-3 flex items-start justify-between gap-2">
+                    <span className="app-icon-well h-10 w-10"><Icon className="h-5 w-5" /></span>
+                    <span className={`app-chip ${status ? 'app-chip-pass' : 'app-chip-stop'}`}>
+                      {status ? 'Online' : 'Offline'}
                     </span>
                   </div>
-                  <p className="text-sm font-bold text-mist-900 dark:text-white">{label}</p>
-                  <p className="text-xs text-mist-600 dark:text-dark-muted">{sub}</p>
-                  <p className="text-[11px] text-mist-400 dark:text-dark-muted mt-1.5 font-mono">{meta}</p>
+                  <p className="app-title">{label}</p>
+                  <p className="app-body">{sub}</p>
+                  <p className="app-num mt-1.5 text-[11px] text-mist-400 dark:text-dark-muted">{meta}</p>
                 </div>
               ))}
             </div>
 
             {/* Tech stack breakdown */}
-            <div className="app-card p-5">
-              <h3 className="text-sm font-bold text-mist-900 dark:text-white mb-4">Technology Stack</h3>
-              <div className="grid sm:grid-cols-2 gap-4">
+            <SectionCard title="Technology Stack" bodyClass="p-4">
+              <div className="grid gap-4 sm:grid-cols-2">
                 {[
                   { section: 'Frontend', items: ['React 18 + Vite (SPA)', 'Tailwind CSS v3', 'Pannellum (360° viewer)', 'Lucide Icons', 'DM Sans typography'] },
                   { section: 'Backend', items: ['Node.js 20 + Express 4', 'Mongoose v8 ODM', 'MongoDB (embedded MMS)', 'JWT Authentication', 'bcryptjs password hashing'] },
                 ].map(({ section, items }) => (
-                  <div key={section}>
-                    <p className="text-[11px] uppercase font-bold tracking-wider text-primary-500 mb-2">{section}</p>
-                    <ul className="space-y-1.5">
+                  <div key={section} className="app-card-quiet p-4">
+                    <p className="app-eyebrow-accent">{section}</p>
+                    <ul className="mt-2 space-y-1.5">
                       {items.map(item => (
                         <li key={item} className="flex items-center gap-2 text-xs text-mist-700 dark:text-dark-muted">
-                          <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 flex-shrink-0" />
+                          <CheckCircle2 className="h-3.5 w-3.5 shrink-0 text-pass-600 dark:text-pass-200" aria-hidden="true" />
                           {item}
                         </li>
                       ))}
@@ -698,11 +736,10 @@ export const AdminDashboard = ({ onLaunchTrainer }) => {
                   </div>
                 ))}
               </div>
-            </div>
+            </SectionCard>
 
-            <div className="app-card p-5">
-              <h3 className="text-sm font-bold text-mist-900 dark:text-white mb-3">Security Controls</h3>
-              <div className="grid sm:grid-cols-2 gap-2">
+            <SectionCard title="Security Controls" bodyClass="p-4">
+              <div className="grid gap-2 sm:grid-cols-2">
                 {[
                   'Role-locked login portals (employee/supervisor/admin tabs)',
                   'Server-side role verification on every protected endpoint',
@@ -712,12 +749,12 @@ export const AdminDashboard = ({ onLaunchTrainer }) => {
                   'Passwords hashed with bcrypt (salt rounds: 12)',
                 ].map(item => (
                   <div key={item} className="flex items-start gap-2 text-xs text-mist-700 dark:text-dark-muted">
-                    <Lock className="w-3.5 h-3.5 text-primary-500 flex-shrink-0 mt-0.5" />
+                    <Lock className="mt-0.5 h-3.5 w-3.5 shrink-0 text-mist-400" aria-hidden="true" />
                     {item}
                   </div>
                 ))}
               </div>
-            </div>
+            </SectionCard>
           </div>
         )}
       </div>
@@ -732,84 +769,71 @@ export const AdminDashboard = ({ onLaunchTrainer }) => {
 
       {/* ── CREATE USER MODAL ─────────────────────────────────────────────── */}
       {isCreateModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in">
-          <div className="bg-white dark:bg-dark-card rounded-xl shadow-sm max-w-md w-full border border-mist-300 dark:border-dark-border overflow-hidden animate-slide-up">
-            <div className="bg-primary-600 p-5 text-white">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2.5">
-                  <UserPlus className="w-5 h-5" />
-                  <h3 className="text-base font-bold">Provision New Account</h3>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-mist-950/60 p-4 backdrop-blur-sm animate-fade-in">
+          <div className="app-card w-full max-w-md overflow-hidden shadow-pop animate-slide-up">
+            <div className="app-card-head">
+              <div className="flex min-w-0 items-center gap-2.5">
+                <span className="app-icon-well"><UserPlus className="h-4 w-4" /></span>
+                <div className="min-w-0">
+                  <h3 className="app-title">Provision New Account</h3>
+                  <p className="app-body mt-0.5">Admin can create Supervisor or Employee accounts</p>
                 </div>
-                <button onClick={() => setIsCreateModalOpen(false)} className="text-primary-200 hover:text-white transition-colors">
-                  <X className="w-5 h-5" />
-                </button>
               </div>
-              <p className="text-primary-200 text-xs mt-1">Admin can create Supervisor or Employee accounts</p>
+              <button type="button" onClick={() => setIsCreateModalOpen(false)}
+                className="app-icon-btn" aria-label="Close">
+                <X className="h-4 w-4" />
+              </button>
             </div>
-            <form onSubmit={handleCreateUser} className="p-6 space-y-4">
+            <form onSubmit={handleCreateUser} className="space-y-4 p-5">
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-bold text-mist-700 dark:text-dark-muted mb-1.5">Full Name *</label>
+                  <label className="app-label">Full Name *</label>
                   <input type="text" required placeholder="e.g. David Ross" value={newName} onChange={e => setNewName(e.target.value)}
-                    className="w-full px-3.5 py-2.5 text-xs rounded-xl border border-mist-300 dark:border-dark-border bg-mist-50 dark:bg-dark-surface dark:text-white focus:outline-none focus:ring-2 focus:ring-primary-500/40 focus:border-primary-500 transition-all" />
+                    className="app-input" />
                 </div>
                 <div>
-                  <label className="block text-xs font-bold text-mist-700 dark:text-dark-muted mb-1.5">Username *</label>
+                  <label className="app-label">Username *</label>
                   <input type="text" required placeholder="e.g. supervisor2" value={newUsername} onChange={e => setNewUsername(e.target.value)}
-                    className="w-full px-3.5 py-2.5 text-xs rounded-xl border border-mist-300 dark:border-dark-border bg-mist-50 dark:bg-dark-surface dark:text-white focus:outline-none focus:ring-2 focus:ring-primary-500/40 focus:border-primary-500 transition-all" />
+                    className="app-input" />
                 </div>
               </div>
               <div>
-                <label className="block text-xs font-bold text-mist-700 dark:text-dark-muted mb-1.5">Password *</label>
+                <label className="app-label">Password *</label>
                 <input type="password" required placeholder="Min. 6 characters" value={newPassword} onChange={e => setNewPassword(e.target.value)}
-                  className="w-full px-3.5 py-2.5 text-xs rounded-xl border border-mist-300 dark:border-dark-border bg-mist-50 dark:bg-dark-surface dark:text-white focus:outline-none focus:ring-2 focus:ring-primary-500/40 focus:border-primary-500 transition-all" />
+                  className="app-input" />
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-bold text-mist-700 dark:text-dark-muted mb-1.5">Role</label>
-                  <select value={newRole} onChange={e => setNewRole(e.target.value)}
-                    className="w-full px-3.5 py-2.5 text-xs rounded-xl border border-mist-300 dark:border-dark-border bg-mist-50 dark:bg-dark-surface dark:text-white focus:outline-none focus:ring-2 focus:ring-primary-500/40">
+                  <label className="app-label">Role</label>
+                  <select value={newRole} onChange={e => setNewRole(e.target.value)} className="app-input">
                     <option value="supervisor">Supervisor (HSE)</option>
                     <option value="employee">Employee (Trainee)</option>
                   </select>
                 </div>
                 <div>
-                  <label className="block text-xs font-bold text-mist-700 dark:text-dark-muted mb-1.5">Department</label>
-                  <input type="text" value={newDept} onChange={e => setNewDept(e.target.value)}
-                    className="w-full px-3.5 py-2.5 text-xs rounded-xl border border-mist-300 dark:border-dark-border bg-mist-50 dark:bg-dark-surface dark:text-white focus:outline-none focus:ring-2 focus:ring-primary-500/40" />
+                  <label className="app-label">Department</label>
+                  <input type="text" value={newDept} onChange={e => setNewDept(e.target.value)} className="app-input" />
                 </div>
               </div>
-              <div className="bg-mist-100 dark:bg-dark-surface border border-mist-300 dark:border-dark-border rounded-xl p-3">
-                <p className="text-[11px] text-mist-700 dark:text-dark-muted flex items-start gap-1.5">
-                  <Lock className="w-3.5 h-3.5 flex-shrink-0 mt-0.5" />
-                  <span>Admin can provision both Supervisors and Employees. Supervisors may only provision Employees.</span>
-                </p>
+              <div className="app-alert app-alert-brand">
+                <Lock className="app-alert-icon" aria-hidden="true" />
+                <span>Admin can provision both Supervisors and Employees. Supervisors may only provision Employees.</span>
               </div>
               <div className="flex gap-2 pt-2">
                 <button type="button" onClick={() => setIsCreateModalOpen(false)}
-                  className="flex-1 py-2.5 rounded-xl text-xs font-semibold text-mist-700 dark:text-dark-muted bg-mist-100 dark:bg-dark-surface hover:bg-mist-200 dark:hover:bg-dark-border transition-colors">
+                  className="app-btn app-btn-secondary flex-1">
                   Cancel
                 </button>
-                <button type="submit" disabled={isCreating}
-                  className="flex-1 py-2.5 rounded-xl bg-primary-500 hover:bg-primary-600 text-white text-xs font-bold shadow-primary transition-all disabled:opacity-50 flex items-center justify-center gap-2">
-                  {isCreating ? <><span className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" /> Provisioning…</> : <><CheckCircle2 className="w-3.5 h-3.5" /> Provision Account</>}
+                <button type="submit" disabled={isCreating} className="app-btn app-btn-primary flex-1">
+                  {isCreating
+                    ? <><span className="app-spinner" /> Provisioning…</>
+                    : <><CheckCircle2 className="h-3.5 w-3.5" /> Provision Account</>}
                 </button>
               </div>
             </form>
           </div>
         </div>
       )}
-
-      <ConfirmModal
-        isOpen={showLogoutConfirm}
-        title="Sign Out of Admin Console?"
-        message="You'll need to re-authenticate to access the System Administrator portal."
-        confirmText="Sign Out"
-        cancelText="Stay Signed In"
-        isDestructive
-        onConfirm={() => { logout(); setShowLogoutConfirm(false); }}
-        onCancel={() => setShowLogoutConfirm(false)}
-      />
 
       <ConfirmModal
         isOpen={Boolean(userPendingDelete)}

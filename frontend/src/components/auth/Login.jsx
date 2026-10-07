@@ -4,7 +4,21 @@ import { useTheme } from '../../context/ThemeContext';
 import { useToast } from '../../context/ToastContext';
 import { UserManualModal } from '../common/UserManualModal';
 import { soundEngine } from '../../utils/audio';
-import { ShieldAlert, UserCheck, Briefcase, KeyRound, ArrowRight, AlertCircle, Eye, EyeOff, Lock, Sun, Moon } from 'lucide-react';
+import {
+  ShieldAlert,
+  ArrowRight,
+  AlertCircle,
+  Eye,
+  EyeOff,
+  Sun,
+  Moon,
+} from 'lucide-react';
+
+const PORTALS = [
+  { role: 'employee', label: 'Trainee', user: 'trainee1', pass: 'SafetyPass123!' },
+  { role: 'supervisor', label: 'Supervisor', user: 'supervisor1', pass: 'SuperVisor2026!' },
+  { role: 'admin', label: 'Admin', user: 'admin1', pass: 'AdminMaster2026!' },
+];
 
 export const Login = () => {
   const { login } = useAuth();
@@ -20,11 +34,10 @@ export const Login = () => {
   const [termsAccepted, setTermsAccepted] = useState(false);
   const [showManual, setShowManual] = useState(false);
 
-  // Quick preset configurations for instant demo presentation
-  const setPreset = (role, user, pass) => {
-    setSelectedRole(role);
-    setUsername(user);
-    setPassword(pass);
+  const setPreset = (portal) => {
+    setSelectedRole(portal.role);
+    setUsername(portal.user);
+    setPassword(portal.pass);
     setError(null);
     soundEngine.playTick();
   };
@@ -34,15 +47,13 @@ export const Login = () => {
     setError(null);
     setLoading(true);
     soundEngine.init();
-
     try {
-      // Pass requestedRole to enforce strict role-portal boundaries
       await login(username, password, selectedRole);
       soundEngine.playSuccess();
-      showToast(`Welcome back! Signed in as ${selectedRole.toUpperCase()}`, 'success');
+      showToast(`Signed in to the ${selectedRole} portal`, 'success');
     } catch (err) {
       soundEngine.playWarning();
-      const msg = err.message || 'Authentication failed. Please check credentials.';
+      const msg = err.message || 'Authentication failed. Please check your credentials.';
       setError(msg);
       showToast(msg, 'error');
     } finally {
@@ -51,218 +62,179 @@ export const Login = () => {
   };
 
   return (
-    <div className="min-h-screen bg-app-shell dark:bg-dark-bg text-mist-900 dark:text-dark-text flex flex-col justify-between transition-colors duration-200 selection:bg-primary-500 selection:text-white">
-      {/* Top Academic Banner */}
-      <div className="bg-mist-900 dark:bg-black text-white py-2 px-4 text-xs font-medium border-b border-primary-500/30 flex items-center justify-between">
-        <div className="max-w-7xl mx-auto w-full flex items-center justify-between">
-          <span className="inline-flex items-center space-x-2">
-            <span className="w-2 h-2 rounded-full bg-primary-500 animate-ping" />
-            <span>
-              <strong>CET257 Enterprise Project</strong> (University of Sunderland) — Team: <strong>Macro Thinkers</strong> | Client: <em>Automotive Logistics & Warehousing</em>
-            </span>
-          </span>
-
+    <div className="flex min-h-screen flex-col bg-app-shell dark:bg-dark-bg">
+      {/* Academic banner */}
+      <div className="border-b border-mist-200 bg-mist-900 px-4 py-2 text-mist-200 dark:border-dark-border dark:bg-dark-card">
+        <div className="app-page flex items-center justify-between gap-3 text-[11px]">
+          <p className="min-w-0 truncate">
+            <strong className="font-bold">CET257 Enterprise Project</strong> · Team Macro Thinkers ·
+            <span className="hidden sm:inline"> Automotive Logistics &amp; Warehousing</span>
+          </p>
           <button
+            type="button"
             onClick={toggleTheme}
-            className="p-1 rounded-lg hover:bg-white/10 text-gray-300 hover:text-white transition-colors"
+            className="app-icon-btn h-8 w-8 border-dark-border bg-dark-surface text-mist-300 hover:border-primary-500 hover:text-primary-400"
             title="Toggle theme"
+            aria-label="Toggle colour theme"
           >
-            {isDark ? <Sun className="w-3.5 h-3.5 text-amber-400" /> : <Moon className="w-3.5 h-3.5" />}
+            {isDark ? <Sun className="h-3.5 w-3.5" /> : <Moon className="h-3.5 w-3.5" />}
           </button>
         </div>
       </div>
 
-      {/* Main Login Card Container */}
-      <div className="flex-1 flex items-center justify-center p-4 sm:p-6 lg:p-8">
+      {/* Sign-in */}
+      <div className="flex flex-1 items-center justify-center p-4 sm:p-6">
         <div className="w-full max-w-md">
-          {/* Brand Header */}
-          <div className="text-center mb-8">
-            <div className="inline-flex items-center justify-center w-16 h-16 rounded-xl bg-primary-500 text-white shadow-sm mb-4">
-              <ShieldAlert className="w-8 h-8" />
+          <div className="mb-6 text-center">
+            <div className="app-icon-well mx-auto mb-3 h-14 w-14">
+              <ShieldAlert className="h-7 w-7" aria-hidden="true" />
             </div>
-            <h1 className="text-3xl font-extrabold tracking-tight text-mist-900 dark:text-white">
-              HAZARD <span className="text-primary-500">HUNT</span>
+            <h1 className="text-2xl font-extrabold tracking-tight text-mist-900 dark:text-dark-text">
+              HAZARD<span className="text-primary-500">HUNT</span>
             </h1>
-            <p className="mt-2 text-xs sm:text-sm text-mist-600 dark:text-dark-muted font-medium">
-              360° Interactive Warehouse Hazard Perception Trainer
+            <p className="app-body mt-1.5">
+              360° interactive warehouse hazard perception trainer
             </p>
           </div>
 
-          {/* Card */}
-          <div className="bg-white dark:bg-dark-card rounded-xl shadow-sm border border-mist-300 dark:border-dark-border p-6 sm:p-8 relative overflow-hidden transition-all">
-
-            {/* Role Selector Tabs */}
-            <div className="mb-6">
-              <label className="block text-[11px] font-bold uppercase tracking-wider text-mist-600 dark:text-dark-muted mb-2">
-                Select Your Portal Role
-              </label>
-              <div className="grid grid-cols-3 gap-1.5 p-1 bg-mist-200 dark:bg-dark-surface rounded-xl border border-mist-300 dark:border-dark-border">
-                <button
-                  type="button"
-                  onClick={() => setPreset('employee', 'trainee1', 'SafetyPass123!')}
-                  className={`py-2 px-2 text-xs font-bold rounded-lg transition-all flex flex-col items-center space-y-1 ${
-                    selectedRole === 'employee'
-                      ? 'bg-white dark:bg-dark-card text-mist-900 dark:text-white shadow-sm border border-primary-500/30'
-                      : 'text-mist-600 dark:text-dark-muted hover:text-mist-900 dark:hover:text-white'
-                  }`}
-                >
-                  <UserCheck className={`w-4 h-4 ${selectedRole === 'employee' ? 'text-primary-500' : ''}`} />
-                  <span>Employee</span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => setPreset('supervisor', 'supervisor1', 'SuperVisor2026!')}
-                  className={`py-2 px-2 text-xs font-bold rounded-lg transition-all flex flex-col items-center space-y-1 ${
-                    selectedRole === 'supervisor'
-                      ? 'bg-white dark:bg-dark-card text-mist-900 dark:text-white shadow-sm border border-primary-500/30'
-                      : 'text-mist-600 dark:text-dark-muted hover:text-mist-900 dark:hover:text-white'
-                  }`}
-                >
-                  <Briefcase className={`w-4 h-4 ${selectedRole === 'supervisor' ? 'text-primary-500' : ''}`} />
-                  <span>Supervisor</span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => setPreset('admin', 'admin1', 'AdminMaster2026!')}
-                  className={`py-2 px-2 text-xs font-bold rounded-lg transition-all flex flex-col items-center space-y-1 ${
-                    selectedRole === 'admin'
-                      ? 'bg-white dark:bg-dark-card text-mist-900 dark:text-white shadow-sm border border-primary-500/30'
-                      : 'text-mist-600 dark:text-dark-muted hover:text-mist-900 dark:hover:text-white'
-                  }`}
-                >
-                  <KeyRound className={`w-4 h-4 ${selectedRole === 'admin' ? 'text-primary-500' : ''}`} />
-                  <span>Admin</span>
-                </button>
+          <div className="app-card p-5 sm:p-7">
+            {/* Portal picker */}
+            <div className="mb-5">
+              <p className="app-label">Select your portal</p>
+              <div className="app-seg">
+                {PORTALS.map((p) => (
+                  <button
+                    key={p.role}
+                    type="button"
+                    onClick={() => setPreset(p)}
+                    aria-pressed={selectedRole === p.role}
+                    className={`app-seg-item ${
+                      selectedRole === p.role ? 'app-seg-item-active' : ''
+                    }`}
+                  >
+                    {p.label}
+                  </button>
+                ))}
               </div>
             </div>
 
-            {/* Error Message with Role Boundary notice */}
             {error && (
-              <div className="mb-5 p-4 rounded-xl bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-900/50 text-red-700 dark:text-red-300 text-xs flex items-start space-x-2.5 animate-slide-down">
-                <AlertCircle className="w-4 h-4 mt-0.5 flex-shrink-0" />
-                <span className="leading-relaxed font-medium">{error}</span>
-              </div>
+              <p className="app-alert app-alert-stop mb-4">
+                <AlertCircle className="app-alert-icon" aria-hidden="true" />
+                <span>{error}</span>
+              </p>
             )}
 
-            {/* Login Form */}
             <form onSubmit={handleSubmit} className="space-y-4">
               <div>
-                <label className="block text-xs font-bold text-mist-700 dark:text-dark-muted mb-1.5">
-                  Assigned Username
+                <label htmlFor="username" className="app-label">
+                  Username
                 </label>
-                <div className="relative">
-                  <input
-                    type="text"
-                    required
-                    value={username}
-                    onChange={(e) => setUsername(e.target.value)}
-                    placeholder="e.g. trainee1"
-                    className="w-full px-3.5 py-2.5 rounded-lg border border-mist-300 dark:border-dark-border text-xs focus:outline-none focus:ring-2 focus:ring-primary-500/40 focus:border-primary-500 bg-mist-100 dark:bg-dark-surface dark:text-white"
-                  />
-                </div>
+                <input
+                  id="username"
+                  type="text"
+                  required
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value)}
+                  placeholder="e.g. trainee1"
+                  autoComplete="username"
+                  className="app-input"
+                />
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-mist-700 dark:text-dark-muted mb-1.5">
+                <label htmlFor="password" className="app-label">
                   Password
                 </label>
                 <div className="relative">
                   <input
+                    id="password"
                     type={showPassword ? 'text' : 'password'}
                     required
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     placeholder="••••••••"
-                    className="w-full px-3.5 py-2.5 rounded-lg border border-mist-300 dark:border-dark-border text-xs focus:outline-none focus:ring-2 focus:ring-primary-500/40 focus:border-primary-500 bg-mist-100 dark:bg-dark-surface dark:text-white pr-10"
+                    autoComplete="current-password"
+                    className="app-input pr-10"
                   />
                   <button
                     type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"
+                    onClick={() => setShowPassword((v) => !v)}
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-mist-400 hover:text-mist-700 dark:hover:text-dark-text"
+                    aria-label={showPassword ? 'Hide password' : 'Show password'}
                   >
-                    {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                   </button>
                 </div>
               </div>
 
-              <div className="flex items-start space-x-2 py-1">
+              <div className="flex items-start gap-2.5">
                 <input
                   type="checkbox"
                   id="terms"
                   checked={termsAccepted}
                   onChange={(e) => setTermsAccepted(e.target.checked)}
-                  className="mt-0.5 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+                  className="mt-0.5 h-4 w-4 shrink-0 rounded border-mist-300 text-primary-500 focus:ring-primary-500 dark:border-dark-border dark:bg-dark-surface"
                 />
-                <label htmlFor="terms" className="text-xs text-mist-600 dark:text-dark-muted leading-tight">
-                  I agree to the Terms and Conditions. By logging in, I consent to the recording of my compliance audit sessions.{' '}
-                  <button type="button" onClick={() => setShowManual(true)} className="text-primary-500 hover:underline">View User Manual</button>
+                <label htmlFor="terms" className="app-body">
+                  I consent to my compliance assessment sessions being recorded.{' '}
+                  <button
+                    type="button"
+                    onClick={() => setShowManual(true)}
+                    className="app-link"
+                  >
+                    Read the user manual
+                  </button>
                 </label>
               </div>
 
               <button
                 type="submit"
                 disabled={loading || !termsAccepted}
-                className="w-full mt-2 py-3 px-4 rounded-lg bg-primary-500 hover:bg-primary-600 text-white font-bold text-xs transition-all flex items-center justify-center space-x-2 disabled:opacity-60"
+                className="app-btn app-btn-primary w-full py-2.5"
               >
                 {loading ? (
-                  <span className="inline-block w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  <>
+                    <span className="app-spinner" aria-hidden="true" />
+                    Signing in
+                  </>
                 ) : (
                   <>
-                    <span>Enter {selectedRole.toUpperCase()} Portal</span>
-                    <ArrowRight className="w-4 h-4" />
+                    Enter {selectedRole} portal
+                    <ArrowRight className="h-4 w-4" aria-hidden="true" />
                   </>
                 )}
               </button>
             </form>
 
-            {/* FR-11 Notice */}
-            <div className="mt-5 pt-4 border-t border-mist-200 dark:border-dark-border text-center">
-              <p className="text-[11px] text-mist-600 dark:text-dark-muted flex items-center justify-center">
-                <Lock className="w-3 h-3 inline mr-1 text-gray-400" />
-                No public registration. Credentials are electronically issued by HSE Supervisors.
+            {/* Demo credentials */}
+            <div className="app-divider mt-5 pt-4">
+              <p className="app-eyebrow mb-2">Demo credentials · one click</p>
+              <div className="grid gap-1.5">
+                {PORTALS.map((p) => (
+                  <button
+                    key={p.role}
+                    type="button"
+                    onClick={() => setPreset(p)}
+                    className="app-btn app-btn-secondary app-btn-sm justify-between"
+                  >
+                    <span>{p.label}</span>
+                    <span className="app-num text-[11px] font-medium text-mist-500 dark:text-dark-muted">
+                      {p.user}
+                    </span>
+                  </button>
+                ))}
+              </div>
+              <p className="app-stat-sub mt-3">
+                No public registration — credentials are issued by HSE supervisors.
               </p>
-            </div>
-
-            {/* Quick Demo Pre-fill Chips */}
-            <div className="mt-4 pt-3 border-t border-dashed border-mist-300 dark:border-dark-border">
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-[11px] font-bold uppercase tracking-wider text-mist-500 dark:text-dark-muted flex items-center">
-                  1-Click Demo Fill:
-                </span>
-              </div>
-              <div className="flex flex-wrap gap-1.5">
-                <button
-                  type="button"
-                  onClick={() => setPreset('employee', 'trainee1', 'SafetyPass123!')}
-                  className="px-2.5 py-1 rounded-md text-[11px] font-medium bg-mist-100 dark:bg-dark-surface hover:bg-mist-200 dark:hover:bg-mist-800 text-mist-900 dark:text-white border border-mist-300 dark:border-dark-border transition-colors"
-                >
-                  Trainee (Alex Morgan)
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setPreset('supervisor', 'supervisor1', 'SuperVisor2026!')}
-                  className="px-2.5 py-1 rounded-md text-[11px] font-medium bg-mist-100 dark:bg-dark-surface hover:bg-mist-200 dark:hover:bg-mist-800 text-mist-900 dark:text-white border border-mist-300 dark:border-dark-border transition-colors"
-                >
-                  Supervisor (Eleanor Vance)
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setPreset('admin', 'admin1', 'AdminMaster2026!')}
-                  className="px-2.5 py-1 rounded-md text-[11px] font-medium bg-mist-100 dark:bg-dark-surface hover:bg-mist-200 dark:hover:bg-mist-800 text-mist-900 dark:text-white border border-mist-300 dark:border-dark-border transition-colors"
-                >
-                  Admin (Marcus Sterling)
-                </button>
-              </div>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Footer */}
-      <footer className="py-4 px-6 text-center text-xs text-mist-600 dark:text-dark-muted border-t border-mist-300 dark:border-dark-border">
-        Hazard Hunt 360° Perception Trainer &copy; 2026 Macro Thinkers — CET257 Enterprise Project
+      <footer className="app-divider px-4 py-4 text-center text-[11px] text-mist-500 dark:text-dark-muted">
+        Hazard Hunt © 2026 Macro Thinkers — CET257 Enterprise Project, University of Sunderland
       </footer>
 
       <UserManualModal isOpen={showManual} onClose={() => setShowManual(false)} />

@@ -4,10 +4,44 @@
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.ico" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#0E1216" />
     <title>Hazard Hunt — 360° Warehouse Hazard Perception Trainer</title>
-    <meta name="description" content="Enterprise 360° warehouse safety perception & compliance training platform for automotive logistics." />
+    <meta
+      name="description"
+      content="Enterprise 360° warehouse safety perception and compliance training platform for automotive logistics."
+    />
+    <script>
+      /*
+       * Applies the stored theme BEFORE the stylesheet paints.
+       *
+       * Without this the page renders light, then React mounts and adds the
+       * `dark` class — a visible white flash on every load for anyone who chose
+       * dark mode. This script and ThemeProvider must agree on both the storage
+       * key and the default, or the class flips once on mount.
+       */
+      (function () {
+        try {
+          var stored = localStorage.getItem('hazard_hunt_theme');
+          var dark = stored ? stored === 'dark' : true;
+          document.documentElement.classList.toggle('dark', dark);
+          document.documentElement.style.colorScheme = dark ? 'dark' : 'light';
+        } catch (e) {
+          document.documentElement.classList.add('dark');
+        }
+      })();
+    </script>
   </head>
-  <body class="bg-mist-200 text-mist-900 dark:bg-dark-bg dark:text-dark-text font-sans antialiased selection:bg-violet-500 selection:text-white min-h-screen transition-colors duration-200">
+  <!--
+    Body classes are the document-level defaults; everything else comes from the
+    component layer in index.css.
+
+    `bg-app-shell` (a warm off-white) rather than a grey: the canvas has to sit a
+    step away from the white cards sitting on it, or every card reads as a flat
+    white field with a hairline border.
+  -->
+  <body
+    class="min-h-screen bg-app-shell font-sans text-mist-900 antialiased transition-colors duration-200 selection:bg-primary-200 selection:text-primary-900 dark:bg-dark-bg dark:text-dark-text"
+  >
     <div id="root"></div>
     <script type="module" src="/src/main.jsx"></script>
   </body>

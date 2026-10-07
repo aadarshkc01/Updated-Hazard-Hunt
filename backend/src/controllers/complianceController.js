@@ -14,6 +14,7 @@ export const submitAttempt = async (req, res) => {
       quizAnswers = [],
       isPracticeMode = false,
       trainingMode = 'panorama360',
+      walkthroughLayoutSeed = null,
     } = req.body;
 
     if (!scenarioId) {
@@ -48,6 +49,10 @@ export const submitAttempt = async (req, res) => {
       scenarioTitle: scenario.title,
       isPracticeMode: Boolean(isPracticeMode),
       trainingMode: ['panorama360', 'walkthrough'].includes(trainingMode) ? trainingMode : 'panorama360',
+      // Sanitised, not trusted: only a finite non-negative integer is retained.
+      walkthroughLayoutSeed: Number.isInteger(walkthroughLayoutSeed) && walkthroughLayoutSeed >= 0
+        ? walkthroughLayoutSeed
+        : null,
       hazardsFound: diagnostic.hazardsFound,
       hazardsMissed: diagnostic.hazardsMissed,
       falseClicksCount: diagnostic.falseClicksCount,
@@ -259,6 +264,107 @@ export const getAnalyticsSummary = async (req, res) => {
     const totalFalse = records.reduce((acc, r) => acc + Number(r?.falseClicksCount ?? 0), 0);
     const avgFalseClicks = records.length > 0 ? (totalFalse / records.length).toFixed(1) : '0';
 
+    // ── Derived analytics ──────────────────────────────────────────────────────
+    // Everything below is computed from the same record set as
+    // `categoryBreakdown` rather than counted in the database, so the figures
+    // cannot drift apart. Every division is guarded: an empty deployment
+    // returns zeroes, never NaN.
+
+    const official = records.filter((r) => r?.isPracticeMode === false);
+    const practice = records.filter((r) => r?.isPracticeMode === true);
+    const num = (v) => Number(v ?? 0);
+
+    /** Median — far more representative than a mean for skewed timings. */
+    const median = (values) => {
+      if (!values.length) return 0;
+      const sorted = [...values].sort((a, b) => a - b);
+      const mid = Math.floor(sorted.length / 2);
+      return sorted.length % 2 ? sorted[mid] : Math.round((sorted[mid - 1] + sorted[mid]) / 2);
+    };
+
+    /** Order statistic, used for the "slowest 10%" figure. */
+    const percentile = (values, p) => {
+      if (!values.length) return 0;
+      const sorted = [...values].sort((a, b) => a - b);
+      return sorted[Math.min(sorted.length - 1, Math.floor((sorted.length - 1) * p))];
+    };
+
+    const mean = (list) => (list.length ? list.reduce((a, b) => a + b, 0) / list.length : 0);
+    const scores = records.map((r) => num(r?.totalScore));
+    const times = records.map((r) => num(r?.timeTakenSeconds)).filter((t) => t > 0);
+
+    /**
+     * Score trend: the most recent half of attempts against the earlier half.
+     * This is the figure a supervisor can act on — a single strong session can
+     * flatter a mean, but it cannot reverse a cohort-wide direction.
+     */
+    const half = Math.floor(scores.length / 2);
+    const recentAvg = mean(scores.slice(scores.length - half));
+    const earlierAvg = mean(scores.slice(0, scores.length - half));
+    const scoreTrend =
+      half === 0
+        ? { direction: 'INSUFFICIENT_DATA', deltaPoints: 0, recentAvg: 0, earlierAvg: 0 }
+        : {
+            direction:
+              recentAvg - earlierAvg > 2
+                ? 'IMPROVING'
+                : earlierAvg - recentAvg > 2
+                  ? 'DECLINING'
+                  : 'STABLE',
+            deltaPoints: Math.round((recentAvg - earlierAvg) * 10) / 10,
+            recentAvg: Math.round(recentAvg * 10) / 10,
+            earlierAvg: Math.round(earlierAvg * 10) / 10,
+          };
+
+    /**
+     * Detection accuracy: of everything a trainee clicked, how much was a real
+     * hazard. Precision and false-click count share one root cause (clicking
+     * without looking), so they are reported together.
+     */
+    const totalSpotted = Object.values(categoryStats).reduce((a, s) => a + s.spotted, 0);
+    const totalMissed = Object.values(categoryStats).reduce((a, s) => a + s.missed, 0);
+    const totalClicks = totalSpotted + totalMissed + totalFalse;
+    const precision = totalClicks > 0 ? Math.round((totalSpotted / totalClicks) * 1000) / 10 : 0;
+
+    /** Most-missed category — the single highest-value training message. */
+    const topGap = [...categoryBreakdown]
+      .filter((c) => c.missed > 0)
+      .sort((a, b) => b.missed - a.missed)[0] ?? null;
+
+    /**
+     * Seven-day activity, oldest first so it plots directly. Bucketed on the
+     * server clock so every client agrees on what "today" means.
+     */
+    const today = new Date();
+    today.setHours(23, 59, 59, 999);
+    const weeklyActivity = [];
+    for (let i = 6; i >= 0; i -= 1) {
+      const dayEnd = new Date(today);
+      dayEnd.setDate(dayEnd.getDate() - i);
+      const dayStart = new Date(dayEnd);
+      dayStart.setHours(0, 0, 0, 0);
+      const inDay = records.filter((r) => {
+        const at = new Date(r?.completedAt ?? 0);
+        return at >= dayStart && at <= dayEnd;
+      });
+      weeklyActivity.push({
+        date: dayStart.toISOString().slice(0, 10),
+        label: dayStart.toLocaleDateString('en-GB', { weekday: 'short' }),
+        attempts: inDay.length,
+        passed: inDay.filter((r) => r?.passed === true).length,
+        avgScore:
+          inDay.length > 0
+            ? Math.round((inDay.reduce((a, r) => a + num(r?.totalScore), 0) / inDay.length) * 10) / 10
+            : 0,
+      });
+    }
+
+    /**
+     * Practice vs official split. If most volume is practice, the compliance
+     * pass rate is not yet a meaningful figure — worth saying out loud.
+     */
+    const practiceShare = records.length > 0 ? Math.round((practice.length / records.length) * 100) : 0;
+
     return res.status(200).json({
       success: true,
       totalAudits: records.length,
@@ -266,6 +372,35 @@ export const getAnalyticsSummary = async (req, res) => {
       avgFalseClicksCount: Number(avgFalseClicks),
       categoryBreakdown,
       scoreDistribution: distribution,
+      analytics: {
+        officialAttempts: official.length,
+        practiceAttempts: practice.length,
+        practiceSharePercentage: practiceShare,
+
+        medianTimeTakenSeconds: median(times),
+        p90TimeTakenSeconds: percentile(times, 0.9),
+        fastestTimeSeconds: times.length ? Math.min(...times) : 0,
+
+        medianScore: median(scores),
+        scoreSpread: scores.length
+          ? Math.round((Math.max(...scores) - Math.min(...scores)) * 10) / 10
+          : 0,
+
+        detectionAccuracyPercentage: precision,
+        totalSpotted,
+        totalMissed,
+        totalFalseClicks: totalFalse,
+
+        scoreTrend,
+        topGapCategory: topGap
+          ? {
+              category: topGap.category,
+              missed: topGap.missed,
+              missRatePercentage: topGap.missRatePercentage,
+            }
+          : null,
+        weeklyActivity,
+      },
     });
   } catch (error) {
     console.error('getAnalyticsSummary error:', error);

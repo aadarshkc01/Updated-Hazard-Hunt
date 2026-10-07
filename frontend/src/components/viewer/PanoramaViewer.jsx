@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState, useCallback } from 'react';
 import 'pannellum/build/pannellum.css';
 import 'pannellum/build/pannellum.js';
 import { soundEngine } from '../../utils/audio';
-import { AlertTriangle, CheckCircle2, Eye, Crosshair, Maximize2, Minimize2, Move, ArrowLeft, ArrowRight } from 'lucide-react';
+import { CheckCircle2, Crosshair, Maximize2, Minimize2, Move, ArrowLeft, ArrowRight } from 'lucide-react';
 
 export const PanoramaViewer = ({
   scenario,
@@ -18,6 +18,9 @@ export const PanoramaViewer = ({
   const outerContainerRef = useRef(null);
   const pannellumDivRef = useRef(null);
   const viewerRef = useRef(null);
+  // Tightest permitted hit radius (degrees). Kept deliberately small so the
+  // trainee must visually locate and aim at each hazard.
+  const MAX_HIT_RADIUS = 5;
   const [yaw, setYaw] = useState(0);
   const [pitch, setPitch] = useState(0);
   const [ripples, setRipples] = useState([]);
@@ -134,7 +137,7 @@ export const PanoramaViewer = ({
       if (deltaYaw > 180) deltaYaw = 360 - deltaYaw;
       const deltaPitch = Math.abs(practicePitch - clickPitch);
       const dist = Math.sqrt(deltaYaw * deltaYaw + deltaPitch * deltaPitch);
-      if (dist <= 14) {
+      if (dist <= 8) {
         return {
           id: 'practice-target',
           title: 'Practice Target (Battery Pallet Infraction)',
@@ -154,7 +157,11 @@ export const PanoramaViewer = ({
       if (deltaYaw > 180) deltaYaw = 360 - deltaYaw;
       const deltaPitch = Math.abs(spot.pitch - clickPitch);
       const dist = Math.sqrt(deltaYaw * deltaYaw + deltaPitch * deltaPitch);
-      const hitRadius = spot.radius || 12;
+      // Tightened so a hazard must actually be located and aimed at, not just
+      // clicked somewhere in the right third of the panorama. The scenario value
+      // is the authority, clamped here so an oversized radius cannot make a
+      // hazard trivial to hit by accident.
+      const hitRadius = Math.min(spot.radius ?? MAX_HIT_RADIUS, MAX_HIT_RADIUS);
 
       if (dist <= hitRadius) {
         return spot;
@@ -191,14 +198,13 @@ export const PanoramaViewer = ({
                   div.style.borderRadius = '50%';
                   div.style.cursor = 'pointer';
                   if (practiceTargetFound) {
-                    div.innerHTML = `
-                      <div style="background: #10B981; width: 40px; height: 40px; border-radius: 50%; box-shadow: 0 0 20px #10B981; border: 2.5px solid white;"></div>
-                    `;
+                    div.innerHTML =
+                      '<div class="hotspot-confirmed" style="width:40px;height:40px;"></div>';
                   } else {
+                    // The calibration target is the one place a marker is
+                    // legitimate: it is an explicit teaching aid, not a hazard.
                     div.innerHTML = `
-                      <div class="hotspot-pulse" style="width: 40px; height: 40px; border-radius: 50%; border: 3px solid #FF6115; background: rgba(255, 97, 21, 0.25); display: flex; align-items: center; justify-content: center;">
-                        <div style="width: 14px; height: 14px; border-radius: 50%; background: #FF6115;"></div>
-                      </div>
+                      <div class="hotspot-pulse" style="width: 40px; height: 40px; border-radius: 50%; border: 3px solid #FF6115; background: rgba(255, 97, 21, 0.2);"></div>
                     `;
                   }
                 },
@@ -218,21 +224,19 @@ export const PanoramaViewer = ({
               createTooltipFunc: (hotSpotDiv) => {
                 hotSpotDiv.style.width = '38px';
                 hotSpotDiv.style.height = '38px';
-                hotSpotDiv.style.borderRadius = '50%';
                 hotSpotDiv.style.cursor = 'crosshair';
 
                 const isFound = foundHotspots.some((h) => h.id === spot.id);
-                if (isFound) {
-                  hotSpotDiv.innerHTML = `
-                    <div style="background: #10B981; width: 36px; height: 36px; border-radius: 50%; box-shadow: 0 0 16px rgba(16, 185, 129, 0.9); border: 2.5px solid white;"></div>
-                  `;
-                } else {
-                  // Subtle reticle zone
-                  hotSpotDiv.innerHTML = `
-                    <div class="unfound-marker" style="width: 36px; height: 36px; border-radius: 50%; border: 1.5px dashed rgba(255, 97, 21, 0.35); background: rgba(255, 97, 21, 0.06); transition: all 0.2s;">
-                    </div>
-                  `;
-                }
+                // Unfound hazards render NOTHING.
+                //
+                // The previous version drew a dashed orange reticle at every
+                // unfound hotspot, which marked the answer on the screen — a
+                // trainee could clear the scenario by clicking five circles
+                // without perceiving a single hazard. Only a confirmed find is
+                // ever marked, as positive reinforcement.
+                hotSpotDiv.innerHTML = isFound
+                  ? '<div class="hotspot-confirmed" style="width:36px;height:36px;"></div>'
+                  : '';
               },
               clickHandlerFunc: () => {
                 lastHotspotClickTime.current = Date.now();
@@ -403,10 +407,10 @@ export const PanoramaViewer = ({
   return (
     <div
       ref={outerContainerRef}
-      className={`relative w-full bg-dark-bg select-none transition-all ${
+      className={`relative w-full select-none bg-dark-bg ${
         isFullscreen
-          ? 'fixed inset-0 z-50 h-screen w-screen rounded-none border-none'
-          : 'h-[74vh] min-h-[500px] max-h-[800px] rounded-xl overflow-hidden shadow-sm border border-mist-300 dark:border-dark-border'
+          ? 'fixed inset-0 z-50 h-[100dvh] w-screen'
+          : 'h-[74vh] min-h-[440px] max-h-[820px] overflow-hidden rounded-panel border border-mist-200 shadow-card dark:border-dark-border'
         } cursor-grab active:cursor-grabbing`}
       onMouseDown={handleMouseDown}
       onMouseMove={handleMouseMove}
@@ -437,13 +441,9 @@ export const PanoramaViewer = ({
 
       {/* False Click Ripples */}
       {ripples.map((rip) => (
-        <div
-          key={rip.id}
-          className="ripple-error"
-          style={{ left: rip.x, top: rip.y }}
-        >
-          <span className="absolute -top-8 left-1/2 -translate-x-1/2 whitespace-nowrap bg-red-600 text-white text-xs font-bold px-2 py-0.5 rounded-lg shadow-lg">
-            False Click (-5%)
+        <div key={rip.id} className="ripple-error" style={{ left: rip.x, top: rip.y }}>
+          <span className="absolute -top-7 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-control bg-stop-600 px-2 py-0.5 text-[11px] font-bold text-white shadow-pop">
+            No hazard here · −5%
           </span>
         </div>
       ))}
@@ -462,45 +462,34 @@ export const PanoramaViewer = ({
           onPointerUp={(e) => e.stopPropagation()}
           onMouseDown={(e) => e.stopPropagation()}
           onMouseUp={(e) => e.stopPropagation()}
-          title={isFullscreen ? 'Exit Full Screen' : 'Expand to Full Screen'}
-          className="p-2.5 rounded-xl bg-dark-card/90 hover:bg-primary-600 text-white border border-white/20 backdrop-blur-md transition-all shadow-lg flex items-center space-x-1.5 text-xs font-bold"
+          title={isFullscreen ? 'Exit fullscreen' : 'Fullscreen'}
+          aria-label={isFullscreen ? 'Exit fullscreen' : 'Enter fullscreen'}
+          className="inline-flex h-9 items-center gap-1.5 rounded-control border border-white/20 bg-dark-card/90 px-2.5 text-xs font-bold text-white backdrop-blur-md hover:bg-primary-600"
         >
-          {isFullscreen ? (
-            <>
-              <Minimize2 className="w-4 h-4" />
-              <span className="hidden sm:inline">Exit Fullscreen</span>
-            </>
-          ) : (
-            <>
-              <Maximize2 className="w-4 h-4" />
-              <span className="hidden sm:inline">Full Screen 360°</span>
-            </>
-          )}
+          {isFullscreen ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
+          <span className="hidden sm:inline">{isFullscreen ? 'Exit' : 'Full screen'}</span>
         </button>
       </div>
 
-      {/* Navigation Hint Pills (Top Left) */}
-      <div className="absolute top-4 left-4 z-20 flex flex-wrap items-center gap-2 pointer-events-none">
-        <div className="bg-dark-card/85 text-white/90 border border-white/20 px-3.5 py-1.5 rounded-full text-xs font-semibold backdrop-blur-md flex items-center space-x-2 shadow-lg">
-          <Move className="w-3.5 h-3.5 text-primary-400" />
-          <span>Click & Drag to Look • Arrow Keys (← ↑ → ↓)</span>
-        </div>
+      {/* Control hint */}
+      <div className="pointer-events-none absolute left-3 top-3 z-20 flex flex-wrap gap-2 sm:left-4 sm:top-4">
+        <span className="inline-flex items-center gap-1.5 rounded-full border border-white/20 bg-dark-card/85 px-3 py-1.5 text-[11px] font-semibold text-white/90 backdrop-blur-md">
+          <Move className="h-3.5 w-3.5 text-primary-400" aria-hidden="true" />
+          Drag to look · arrow keys · click to report
+        </span>
       </div>
 
-      {/* Discovered Hazards Bottom Floating Bar */}
+      {/* Confirmed hazards */}
       {!isCalibrationMode && foundHotspots.length > 0 && (
-        <div className="absolute bottom-5 left-5 right-5 flex flex-wrap gap-2.5 pointer-events-none z-20">
+        <div className="pointer-events-none absolute bottom-3 left-3 right-3 z-20 flex flex-wrap gap-1.5">
           {foundHotspots.map((spot) => (
-            <div
+            <span
               key={spot.id}
-              className="pointer-events-auto bg-dark-card/95 text-white border border-emerald-500/80 backdrop-blur-sm px-4 py-2 rounded-xl text-xs font-bold flex items-center space-x-2 shadow-xl animate-fade-in"
+              className="inline-flex animate-fade-in items-center gap-1.5 rounded-control border border-pass-600 bg-dark-card/95 px-2.5 py-1 text-[11px] font-bold text-pass-200 backdrop-blur-sm"
             >
-              <CheckCircle2 className="w-4 h-4 text-emerald-400 flex-shrink-0" />
-              <span>{spot.title}</span>
-              <span className="text-[11px] uppercase font-mono px-2 py-0.5 bg-emerald-500/20 text-emerald-300 rounded font-bold">
-                SPOTTED
-              </span>
-            </div>
+              <CheckCircle2 className="h-3.5 w-3.5 text-pass-600" aria-hidden="true" />
+              {spot.title}
+            </span>
           ))}
         </div>
       )}

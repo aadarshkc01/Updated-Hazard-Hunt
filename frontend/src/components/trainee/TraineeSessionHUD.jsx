@@ -2,6 +2,19 @@ import React, { useState } from 'react';
 import { ConfirmModal } from '../common/ConfirmModal';
 import { Clock, ChevronRight } from 'lucide-react';
 
+const formatTime = (seconds) => {
+  const mins = Math.floor(Math.max(0, seconds) / 60);
+  const secs = Math.max(0, seconds) % 60;
+  return `${mins}:${secs < 10 ? '0' : ''}${secs}`;
+};
+
+/**
+ * Session bar shown above the inspection view.
+ *
+ * Note the three-way control set: "Proceed to quiz" completes the attempt,
+ * while "Cancel session" discards it entirely. Both are always reachable, so a
+ * trainee is never trapped in a run they need to stop.
+ */
 export const TraineeSessionHUD = ({
   timeLeft,
   totalTime,
@@ -9,127 +22,137 @@ export const TraineeSessionHUD = ({
   totalHazards,
   falseClicks,
   onFinishEarly,
+  onCancel,
   isPracticeMode,
   trainingMode,
 }) => {
   const [showConfirmFinish, setShowConfirmFinish] = useState(false);
 
-  const formatTime = (seconds) => {
-    const mins = Math.floor(seconds / 60);
-    const secs = seconds % 60;
-    return `${mins}:${secs < 10 ? '0' : ''}${secs}`;
-  };
-
-  const timePercentage = Math.max(0, (timeLeft / totalTime) * 100);
+  const pct = totalTime ? Math.max(0, (timeLeft / totalTime) * 100) : 0;
   const isUrgent = timeLeft <= 15;
   const isWarning = timeLeft <= 30 && timeLeft > 15;
-
-  const timerColorClass = isUrgent
-    ? 'text-red-500 bg-red-950/70 border-red-500/80 animate-pulse'
-    : isWarning
-    ? 'text-amber-400 bg-amber-950/70 border-amber-500/80'
-    : 'text-white bg-dark-card/90 border-white/20';
+  const allFound = foundCount === totalHazards;
+  const remaining = Math.max(0, totalHazards - foundCount);
 
   const handleFinishClick = () => {
-    if (foundCount === totalHazards) {
-      onFinishEarly();
-    } else {
-      setShowConfirmFinish(true);
-    }
+    if (allFound) onFinishEarly();
+    else setShowConfirmFinish(true);
   };
 
   return (
     <>
-      <div className="w-full mb-4">
-        {/* HUD Bar */}
-        <div className="bg-dark-card/90 text-white rounded-xl p-4 sm:p-5 shadow-sm border border-dark-border backdrop-blur-sm flex flex-wrap items-center justify-between gap-4">
-          {/* Left: Module Tag */}
-          <div className="flex items-center space-x-3.5">
+      <div className="app-card mb-4 overflow-hidden">
+        <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-3 p-4">
+          {/* Module */}
+          <div className="min-w-0">
+            <div className="flex flex-wrap items-center gap-2">
+              <p className="app-section-title">Bay 4 Inbound Logistics</p>
+              {isPracticeMode && <span className="app-chip app-chip-caution">Practice</span>}
+            </div>
+            <p className="app-body mt-0.5">
+              {trainingMode === 'walkthrough' ? 'First-person inspection' : '360° perception sweep'}
+            </p>
+          </div>
+
+          {/* Live metrics */}
+          <div className="flex items-center gap-6">
             <div>
-              <div className="flex items-center space-x-2">
-                <span className="text-sm font-bold tracking-tight text-white">
-                  Bay 4 Inbound Logistics
-                </span>
-                {isPracticeMode && (
-                  <span className="text-[11px] uppercase font-bold tracking-widest px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/40">
-                    Practice
-                  </span>
-                )}
-              </div>
-              <p className="text-xs text-dark-muted font-medium">
-                {trainingMode === 'walkthrough' ? 'First-person Warehouse Inspection' : '360° Safety Perception Sweep'}
+              <p className="app-eyebrow">Hazards spotted</p>
+              <p className="app-num text-lg font-bold leading-tight text-mist-900 dark:text-dark-text">
+                {foundCount}
+                <span className="text-xs font-normal text-mist-400"> / {totalHazards}</span>
               </p>
             </div>
-          </div>
-
-          {/* Center: Live Inspection Metrics */}
-          <div className="flex items-center space-x-6">
-            {/* Hazards Found Counter */}
-            <div className="flex items-center space-x-2.5">
-              <div className="text-right">
-                <span className="text-[11px] uppercase tracking-wider text-dark-muted font-bold block">
-                  Hazards Spotted
-                </span>
-                <span className="text-lg font-black text-primary-400 font-mono">
-                  {foundCount} <span className="text-xs text-dark-muted font-normal">/ {totalHazards}</span>
-                </span>
-              </div>
+            <div className="border-l border-mist-200 pl-6 dark:border-dark-border">
+              <p className="app-eyebrow">False clicks</p>
+              <p
+                className={`app-num text-lg font-bold leading-tight ${
+                  falseClicks > 0
+                    ? 'text-stop-600 dark:text-stop-200'
+                    : 'text-mist-400 dark:text-dark-muted'
+                }`}
+              >
+                {falseClicks}
+              </p>
             </div>
-
-            {/* False Clicks Counter */}
-            <div className="hidden sm:flex items-center space-x-2 border-l border-dark-border pl-6">
-              <div className="text-right">
-                <span className="text-[11px] uppercase tracking-wider text-dark-muted font-bold block">
-                  False Clicks
-                </span>
-                <span className={`text-lg font-black font-mono ${falseClicks > 0 ? 'text-primary-400' : 'text-gray-300'}`}>
-                  {falseClicks}
-                </span>
-              </div>
-            </div>
-
-            {/* Countdown Timer */}
-            <div className={`flex items-center space-x-2 px-3.5 py-1.5 rounded-xl border backdrop-blur-md transition-all ${timerColorClass}`}>
-              <Clock className={`w-4 h-4 ${isUrgent ? 'animate-spin' : ''}`} />
-              <div className="font-mono text-base font-extrabold tracking-wider">
-                {formatTime(timeLeft)}
-              </div>
-            </div>
-          </div>
-
-          {/* Right: Proceed Button */}
-          <div>
-            <button
-              onClick={handleFinishClick}
-              className="px-5 py-2.5 rounded-lg bg-primary-500 hover:bg-primary-600 text-white text-xs font-bold transition-all flex items-center space-x-2"
+            <div
+              className={`flex items-center gap-2 rounded-control border px-3 py-1.5 ${
+                isUrgent
+                  ? 'border-stop-600 bg-stop-50 dark:bg-stop-600/10'
+                  : isWarning
+                    ? 'border-caution-200 bg-caution-50 dark:bg-caution-600/10'
+                    : 'border-mist-200 bg-mist-50 dark:border-dark-border dark:bg-dark-surface'
+              }`}
             >
-              <span>{foundCount === totalHazards ? 'Proceed to Quiz' : 'Finish Sweep Early'}</span>
-              <ChevronRight className="w-4 h-4" />
+              <Clock
+                className={`h-4 w-4 ${
+                  isUrgent
+                    ? 'text-stop-600 dark:text-stop-200'
+                    : isWarning
+                      ? 'text-caution-600 dark:text-caution-200'
+                      : 'text-mist-500 dark:text-dark-muted'
+                }`}
+                aria-hidden="true"
+              />
+              <span
+                className={`app-num text-base font-bold ${
+                  isUrgent
+                    ? 'text-stop-700 dark:text-stop-200'
+                    : isWarning
+                      ? 'text-caution-700 dark:text-caution-200'
+                      : 'text-mist-900 dark:text-dark-text'
+                }`}
+              >
+                {formatTime(timeLeft)}
+              </span>
+            </div>
+          </div>
+
+          {/* Finish and Cancel sit side by side: complete the attempt, or
+              discard it. Neither is hidden behind the other. */}
+          <div className="flex flex-wrap items-center gap-2">
+            {onCancel && (
+              <button
+                type="button"
+                onClick={onCancel}
+                className="app-btn app-btn-secondary"
+                title="Discard this attempt and return to the dashboard (Esc)"
+              >
+                Cancel session
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={handleFinishClick}
+              className="app-btn app-btn-primary"
+            >
+              {allFound ? 'Proceed to quiz' : 'Finish early'}
+              <ChevronRight className="h-4 w-4" aria-hidden="true" />
             </button>
           </div>
         </div>
 
-        {/* Progress Line */}
-        <div className="w-full h-1.5 bg-dark-surface rounded-full mt-2 overflow-hidden">
+        {/* Depletion bar */}
+        <div className="app-meter rounded-none">
           <div
-            className={`h-full transition-all duration-1000 ${
-              isUrgent ? 'bg-red-500' : isWarning ? 'bg-amber-400' : 'bg-primary-500'
-            }`}
-            style={{ width: `${timePercentage}%` }}
+            className={
+              isUrgent ? 'app-meter-fill-stop' : isWarning ? 'bg-caution-600' : 'app-meter-fill'
+            }
+            style={{ width: `${pct}%` }}
           />
         </div>
       </div>
 
-      {/* Early Finish Confirmation Modal */}
       <ConfirmModal
         isOpen={showConfirmFinish}
-        title="Complete Inspection Sweep Early?"
+        title="Finish this inspection early?"
         message={`You have spotted ${foundCount} of ${totalHazards} hazards with ${formatTime(
           timeLeft
-        )} remaining. Undetected hazards will be graded as missed. Proceed to the safety knowledge quiz?`}
-        confirmText="Proceed to Quiz"
-        cancelText="Resume Sweep"
-        isDestructive={false}
+        )} remaining. ${
+          remaining === 1 ? '1 hazard is' : `${remaining} hazards are`
+        } still hidden and will be graded as missed.`}
+        confirmText="Proceed to quiz"
+        cancelText="Resume sweep"
         onConfirm={() => {
           setShowConfirmFinish(false);
           onFinishEarly();

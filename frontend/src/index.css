@@ -2,37 +2,550 @@
 @tailwind components;
 @tailwind utilities;
 
+/**
+ * Hazard Hunt component layer.
+ *
+ * Every visual pattern in the app resolves to one of the classes below. This is
+ * deliberate: long ad-hoc Tailwind strings are what make a UI look machine
+ * generated, because they drift apart one component at a time.
+ *
+ * Rules enforced here:
+ *  - Exactly three surface levels, and only three: the page canvas, a card, and
+ *    a nested quiet surface. Adding a fourth is what makes a layout drift.
+ *  - Orange (`primary`) marks brand and the single primary action per screen.
+ *  - `pass` / `caution` / `stop` are the only state colours. There is no green
+ *    and no red anywhere; state is carried by visual weight instead.
+ *  - Type comes from one ramp (10/11 uppercase, 12 body, 14 section, 16 title,
+ *    26 figures) and figures are always monospace + tabular.
+ *  - Radius: panels `panel`, controls `control`, pills `rounded-full`.
+ *  - Borders are always 1px (`border`), never 2px, except focus rings.
+ */
 @layer components {
+  /* ── Layout ─────────────────────────────────────────────────────────────── */
+  .app-page {
+    @apply mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8;
+  }
+
+  .app-stack {
+    @apply flex flex-col gap-5;
+  }
+
+  /* ── Surfaces ───────────────────────────────────────────────────────────────
+     Three levels, and only three. Everything else is a border or a tint.
+       canvas  — the page (app.shell / dark.bg)
+       card    — a raised panel, pure white
+       quiet   — a nested surface inside a card
+     Using one colour for two of these levels is what makes a dashboard look
+     flat, so each level gets a genuinely different value. */
+
   .app-card {
-    @apply bg-white dark:bg-dark-card border border-mist-300 dark:border-dark-border rounded-xl shadow-sm;
+    @apply rounded-panel border border-mist-200 bg-white shadow-card
+           dark:border-dark-border dark:bg-dark-card;
   }
 
-  .app-muted-panel {
-    @apply bg-mist-100 dark:bg-dark-surface border border-mist-200 dark:border-dark-border rounded-lg;
+  /* Nested / secondary surface: a table inside a card, a chart well, a stat
+     strip. One step off the card so the nesting is visible without a shadow. */
+  .app-card-quiet {
+    @apply rounded-control border border-mist-200 bg-mist-50
+           dark:border-dark-border dark:bg-dark-surface;
   }
 
-  .app-action {
-    @apply inline-flex items-center justify-center rounded-lg px-3 py-2 text-xs font-bold transition-colors;
+  /* Hero strip. The one place a warm brand tint is allowed on a surface, and it
+     is used sparingly: a page header, never a card. */
+  .app-band {
+    @apply rounded-panel border border-primary-200 bg-primary-50/70
+           dark:border-primary-900 dark:bg-dark-surface;
+  }
+
+  /* Full-bleed row that groups stat tiles without nesting a card in a card. */
+  .app-stat-row {
+    @apply grid gap-4 sm:grid-cols-2 lg:grid-cols-4;
+  }
+
+  .app-card-head {
+    @apply flex flex-wrap items-center justify-between gap-3 border-b border-mist-200 px-4 py-3
+           dark:border-dark-border;
+  }
+
+  .app-divider {
+    @apply border-t border-mist-200 dark:border-dark-border;
+  }
+
+  /* ── Floating navbar ─────────────────────────────────────────────────────────
+     Two elements, deliberately:
+
+       .app-navbar      the sticky, full-bleed BAR — always `inset-inline: 0`
+       .app-navbar-pill the visible SURFACE — carries radius, blur and shadow
+
+     Two states, driven by one class the Navbar toggles on scroll:
+       top       flush to the viewport edges, transparent, square, no shadow
+       floating  inset with a margin, translucent + blurred, rounded, elevated
+                 shadow, and a hairline that only appears once detached
+
+     The bar must stay full-bleed. A `position: sticky` element resolves `left`
+     and `right` against the viewport only while it is *stuck*, so insetting the
+     bar itself did nothing at rest and then shifted it sideways the moment it
+     detached — which is what produced a gap on one side and not the other.
+
+     Putting the visible pill on an inner element also keeps it locked to
+     `.app-page`, so the brand, the controls and the page content below all
+     share one alignment instead of drifting apart when the bar floats.
+
+     Translucency is restrained on purpose: at 92% the bar read as an opaque
+     white band. 72% over a blurred backdrop keeps content faintly legible
+     through it while still reading as a distinct floating object. */
+
+  .app-navbar {
+    position: sticky;
+    top: 0;
+    z-index: 40;
+    inset-inline: 0;
+  }
+
+  .app-navbar-pill {
+    transition:
+      padding 300ms cubic-bezier(0.22, 1, 0.36, 1),
+      background-color 300ms cubic-bezier(0.22, 1, 0.36, 1),
+      border-color 300ms cubic-bezier(0.22, 1, 0.36, 1),
+      border-radius 300ms cubic-bezier(0.22, 1, 0.36, 1),
+      box-shadow 300ms cubic-bezier(0.22, 1, 0.36, 1);
+  }
+
+  /* At rest: transparent, square, no shadow. */
+  .app-navbar-top .app-navbar-pill {
+    padding-block: 0;
+    border: 1px solid transparent;
+    border-radius: 0;
+    background-color: transparent;
+    box-shadow: none;
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
+
+  /* Scrolled: a floating, translucent, blurred pill. */
+  .app-navbar-floating .app-navbar-pill {
+    padding-block: 0.75rem;
+    border: 1px solid theme('colors.mist.300');
+    border-radius: 0.875rem;
+    background-color: rgb(255 255 255 / 0.72);
+    box-shadow:
+      0 1px 2px rgb(22 27 32 / 0.06),
+      0 10px 26px -8px rgb(22 27 32 / 0.2);
+    backdrop-filter: blur(14px) saturate(1.6);
+    -webkit-backdrop-filter: blur(14px) saturate(1.6);
+  }
+
+  .dark .app-navbar-floating .app-navbar-pill {
+    border-color: theme('colors.dark.raised');
+    background-color: rgb(22 27 32 / 0.72);
+  }
+
+  /* Horizontal breathing room for the pill, via padding on the bar rather than
+     insets — symmetric by construction and unaffected by the scrollbar gutter. */
+  .app-navbar-floating {
+    padding-inline: 0.75rem;
+  }
+
+  @media (min-width: 640px) {
+    .app-navbar-floating {
+      padding-inline: 1.25rem;
+    }
+  }
+
+  /* ── Page header ─────────────────────────────────────────────────────────────
+     A 3px brand rule down the leading edge. This is the one place the brand
+     colour is allowed to be a large solid shape on a dashboard, and 3px is
+     deliberate — enough to signal, too little to tint. */
+
+  .app-page-header {
+    @apply relative pl-4;
+  }
+
+  .app-page-header::before {
+    content: '';
+    @apply absolute inset-y-0 left-0 w-[3px] rounded-full bg-primary-500;
+  }
+
+  /* ── Type ───────────────────────────────────────────────────────────────────
+     One ramp, used everywhere: 10/11 uppercase labels, 12 body, 14 section,
+     16 title, 20+ figures. Stepping outside this ramp is what produces the
+     "every card picked its own font size" look. */
+
+  /* Page / card title. */
+  .app-title {
+    @apply text-base font-bold leading-tight tracking-tight text-mist-900
+           dark:text-dark-text;
+  }
+
+  /* Page title. The only size that steps outside the body ramp, because it is
+     the largest text on any screen and has to anchor the hierarchy. The size is
+     declared rather than composed from `text-*` utilities so the responsive
+     step does not emit a second, lower-specificity `.app-display` rule that
+     competes with the `dark:` colour declared in the same block. */
+  .app-display {
+    @apply text-[22px] font-extrabold leading-tight tracking-tight
+           text-mist-900 dark:text-dark-text;
+  }
+
+  @media (min-width: 640px) {
+    .app-display {
+      font-size: 1.5rem;
+    }
+  }
+
+  /* Card section heading. */
+  .app-section-title {
+    @apply text-sm font-bold leading-snug text-mist-900 dark:text-dark-text;
+  }
+
+  /* Uppercase micro-label. Orange only when it flags something actionable. */
+  .app-eyebrow {
+    @apply text-[10px] font-bold uppercase tracking-[0.14em] text-mist-500
+           dark:text-dark-muted;
+  }
+
+  .app-eyebrow-accent {
+    @apply text-[10px] font-bold uppercase tracking-[0.14em] text-primary-600
+           dark:text-primary-400;
+  }
+
+  /* Form label. */
+  .app-label {
+    @apply mb-1.5 block text-xs font-bold text-mist-700 dark:text-dark-muted;
+  }
+
+  /* Running prose. */
+  .app-body {
+    @apply text-xs leading-relaxed text-mist-600 dark:text-dark-muted;
+  }
+
+  /* All figures. Monospace + tabular so columns of numbers align on the
+     decimal rather than jittering as values change. */
+  .app-num {
+    @apply font-mono tabular-nums tracking-tight;
+  }
+
+  /* ── Buttons ────────────────────────────────────────────────────────────── */
+  .app-btn {
+    @apply inline-flex items-center justify-center gap-2 rounded-control border px-3.5 py-2
+           text-xs font-bold transition-colors
+           disabled:cursor-not-allowed disabled:opacity-50;
+  }
+
+  .app-btn-primary {
+    @apply border-primary-600 bg-primary-500 text-white hover:bg-primary-600;
+  }
+
+  .app-btn-secondary {
+    @apply border-mist-300 bg-white text-mist-700 hover:bg-mist-100
+           dark:border-dark-border dark:bg-dark-card dark:text-dark-text dark:hover:bg-dark-surface;
+  }
+
+  .app-btn-ghost {
+    @apply border-transparent bg-transparent text-mist-600 hover:bg-mist-100
+           dark:text-dark-muted dark:hover:bg-dark-surface;
+  }
+
+  /* Destructive only for irreversible actions (delete, sign out).
+     Solid ink rather than red — heavy and final, still in-palette. */
+  .app-btn-danger {
+    @apply border-stop-700 bg-stop-700 text-white hover:bg-stop-800;
+  }
+
+  .app-btn-sm {
+    @apply px-2.5 py-1.5 text-[11px];
+  }
+
+  /* Square icon control used in toolbars and viewer overlays. */
+  .app-icon-btn {
+    @apply inline-flex h-9 w-9 items-center justify-center rounded-control border
+           border-mist-300 bg-white text-mist-600 transition-colors
+           hover:border-primary-500 hover:text-primary-600
+           dark:border-dark-border dark:bg-dark-card dark:text-dark-muted
+           dark:hover:border-primary-500 dark:hover:text-primary-400;
+  }
+
+  /* Icon well — a neutral container, never a colour-coded bubble. */
+  .app-icon-well {
+    @apply inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-control
+           border border-mist-200 bg-mist-50 text-primary-600
+           dark:border-dark-border dark:bg-dark-surface dark:text-primary-400;
+  }
+
+  /* ── Form controls ──────────────────────────────────────────────────────── */
+  .app-input {
+    @apply w-full rounded-control border border-mist-300 bg-white px-3 py-2 text-xs text-mist-900
+           placeholder:text-mist-400 focus:border-primary-500 focus:outline-none focus:ring-2
+           focus:ring-primary-500/25
+           dark:border-dark-border dark:bg-dark-surface dark:text-dark-text
+           dark:placeholder:text-mist-500;
+  }
+
+  /* Segmented role / mode picker. */
+  .app-seg {
+    @apply flex gap-1 rounded-control border border-mist-200 bg-mist-100 p-1
+           dark:border-dark-border dark:bg-dark-surface;
+  }
+
+  .app-seg-item {
+    @apply flex-1 rounded-control border border-transparent px-3 py-2 text-xs font-bold
+           text-mist-600 transition-colors
+           hover:text-mist-900 dark:text-dark-muted dark:hover:text-dark-text;
+  }
+
+  .app-seg-item-active {
+    @apply border-mist-200 bg-white text-mist-900 shadow-card
+           dark:border-primary-700 dark:bg-dark-card dark:text-white;
+  }
+
+  /* ── Chips (status pills) ───────────────────────────────────────────────── */
+  /* Three compliance states, three visual WEIGHTS — never three hues. */
+  .app-chip {
+    @apply inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5
+           text-[11px] font-bold uppercase tracking-wide;
+  }
+
+  .app-chip-neutral {
+    @apply border-mist-300 bg-mist-50 text-mist-600
+           dark:border-dark-border dark:bg-dark-surface dark:text-dark-muted;
+  }
+
+  .app-chip-brand {
+    @apply border-primary-200 bg-primary-50 text-primary-700
+           dark:border-primary-800 dark:bg-primary-950/40 dark:text-primary-300;
+  }
+
+  /* Compliant / done — filled orange tint. */
+  .app-chip-pass {
+    @apply border-pass-200 bg-pass-50 text-pass-700
+           dark:border-primary-800 dark:bg-primary-950/40 dark:text-primary-300;
+  }
+
+  /* Attention — outline only, so it reads lighter than `pass` at a glance. */
+  .app-chip-caution {
+    @apply border-caution-200 bg-white text-caution-700
+           dark:border-caution-600/50 dark:bg-dark-surface dark:text-caution-200;
+  }
+
+  /* Failed / final — solid ink fill, the heaviest weight in the system. */
+  .app-chip-stop {
+    @apply border-stop-700 bg-stop-700 text-white
+           dark:border-stop-600 dark:bg-stop-600 dark:text-white;
+  }
+
+  /* ── Stats / KPIs ──────────────────────────────────────────────────────────
+     Label above value above sub-label, left-aligned. The earlier centred /
+     label-first arrangement made a row of tiles read as a table of contents
+     rather than as figures, and it broke the alignment with the card content
+     directly beneath it. */
+  .app-stat {
+    @apply flex flex-col rounded-panel border border-mist-200 bg-white px-4 py-4
+           text-left shadow-card dark:border-dark-border dark:bg-dark-card;
+  }
+
+  /* The figure is the loudest thing on the tile; everything else steps back. */
+  .app-stat-value {
+    @apply font-mono text-[26px] font-bold leading-none tracking-tight
+           text-mist-900 dark:text-dark-text;
+  }
+
+  .app-stat-label {
+    @apply order-first mb-2 text-[10px] font-bold uppercase tracking-[0.14em]
+           text-mist-500 dark:text-dark-muted;
+  }
+
+  .app-stat-sub {
+    @apply mt-1.5 text-[11px] leading-snug text-mist-500 dark:text-dark-muted;
+  }
+
+  /* ── Tables ─────────────────────────────────────────────────────────────── */
+  .app-table {
+    @apply w-full border-collapse text-left text-xs;
+  }
+
+  .app-th {
+    @apply whitespace-nowrap border-b border-mist-200 px-4 py-2.5 text-[11px] font-bold
+           uppercase tracking-[0.1em] text-mist-500 dark:border-dark-border dark:text-dark-muted;
+  }
+
+  .app-td {
+    @apply border-b border-mist-100 px-4 py-3 align-middle dark:border-dark-border/60;
+  }
+
+  .app-table-wrap {
+    @apply w-full overflow-x-auto;
+  }
+
+  /* ── Alerts ─────────────────────────────────────────────────────────────────
+     Four states, and the palette does the work rather than a hue change.
+
+     The previous version read as a red alert box because it used two colours
+     that LOOK like error states on a screen: a heavy near-black bar down the
+     left edge, and a pink-orange `primary-200` border (`#FFC7AB` is a salmon).
+     Both are gone. Every
+     alert now sits on the same neutral ground and is distinguished by an
+     accent rule and its border treatment only, so an alert never reads as "the
+     system is broken" — which is exactly what a solid ink bar communicated.
+     State is never carried by colour alone: each alert takes an icon, and the
+     border STYLE differs per state (solid / stronger / dashed / heavy), so the
+     box is still distinguishable in greyscale and to a colour-blind reader.
+
+     Theme-agnostic by construction: the base values ARE the light theme and the
+     `.dark` overrides sit beside them, so a toggle re-resolves every property
+     rather than leaving one half-applied. No green and no red in any state. */
+
+  .app-alert {
+    @apply flex items-start gap-2.5 rounded-control border px-3.5 py-3 text-xs
+           leading-relaxed transition-colors duration-200;
+  }
+
+  /* Icon well. Neutral, so the state comes from the rule beside the box rather
+     than from a second colour inside it. */
+  .app-alert-icon {
+    @apply mt-0.5 h-4 w-4 shrink-0 text-primary-600 dark:text-primary-400;
+  }
+
+  /* Neutral information — plain surface, solid orange rule. */
+  .app-alert-brand {
+    @apply border-primary-200 border-l-4 border-l-primary-500
+           bg-mist-50 text-mist-700
+           dark:border-dark-border dark:border-l-primary-500
+           dark:bg-dark-surface dark:text-dark-text;
+  }
+
+  /* Compliant / done — the same warm ground, a step stronger border. */
+  .app-alert-pass {
+    @apply border-primary-300 border-l-4 border-l-primary-500
+           bg-mist-50 text-mist-700
+           dark:border-primary-800 dark:border-l-primary-500
+           dark:bg-dark-surface dark:text-dark-text;
+  }
+
+  /* Attention — a dashed rule reads as advisory rather than terminal. */
+  .app-alert-caution {
+    @apply border-dashed border-primary-200 border-l-4 border-l-primary-400
+           bg-mist-50 text-mist-700
+           dark:border-dark-border dark:border-l-primary-400
+           dark:bg-dark-surface dark:text-dark-text;
+  }
+
+  /* Hard stop — the only alert drawn with a full 2px border, and it relies on
+     the copy to state the severity rather than on colour to shout it. */
+  .app-alert-stop {
+    @apply border-2 border-primary-300 bg-app-shell text-mist-800
+           dark:border-primary-800 dark:bg-dark-surface dark:text-dark-text;
+  }
+
+  /* ── Charts ─────────────────────────────────────────────────────────────────
+     A plot well is a distinct surface from a card: it is recessed, not raised,
+     so the data sits *in* the panel rather than on it. */
+
+  .app-chart {
+    @apply rounded-control border border-mist-200 bg-mist-50 p-4
+           dark:border-dark-border dark:bg-dark-surface;
+  }
+
+  /* Dark-theme chart marks.
+     Tailwind cannot switch an SVG gradient's `stop-color` or a shape's `fill`
+     off an ancestor class alone, so the marks read their colours from CSS
+     variables declared here. A dark canvas needs a *dimmer* area fill than a
+     light one, otherwise the fill swamps the line drawn on top of it. */
+  .app-trend-line {
+    stroke: var(--app-trend-stroke, #e24c00);
+  }
+
+  .app-trend-dot {
+    fill: var(--app-trend-dot, #ffffff);
+    stroke: var(--app-trend-stroke, #e24c00);
+  }
+
+  .app-trend-dot-last {
+    fill: var(--app-trend-stroke, #e24c00);
+  }
+
+  .app-trend-ref {
+    color: var(--app-trend-ref, #cbd2d8);
+  }
+
+  .dark .app-trend-line {
+    stroke: var(--app-trend-stroke, #ff7a3c);
+  }
+
+  .dark .app-trend-dot {
+    fill: var(--app-trend-dot, #161b20);
+    stroke: var(--app-trend-stroke, #ff7a3c);
+  }
+
+  .dark .app-trend-dot-last {
+    fill: var(--app-trend-stroke, #ff7a3c);
+  }
+
+  .dark .app-trend-ref {
+    color: var(--app-trend-ref, #3b444d);
+  }
+
+  .app-trend-ref-label {
+    fill: var(--app-trend-ref-label, #9ba5ae);
+  }
+
+  .dark .app-trend-ref-label {
+    fill: var(--app-trend-ref-label, #6b7681);
+  }
+
+  /* ── Meters ─────────────────────────────────────────────────────────────────
+     Track is tinted rather than grey so an unfilled meter still reads as part
+     of the design instead of as a disabled element. */
+  .app-meter {
+    @apply h-1.5 w-full overflow-hidden rounded-full bg-mist-200/80
+           dark:bg-dark-raised;
+  }
+
+  .app-meter-fill {
+    @apply h-full rounded-full bg-primary-500 transition-[width] duration-500;
+  }
+
+  .app-meter-fill-pass {
+    @apply h-full rounded-full bg-primary-600 transition-[width] duration-500;
+  }
+
+  .app-meter-fill-stop {
+    @apply h-full rounded-full bg-stop-700 transition-[width] duration-500;
+  }
+
+  /* ── Misc ───────────────────────────────────────────────────────────────── */
+  .app-kbd {
+    @apply inline-flex h-5 min-w-[1.25rem] items-center justify-center rounded border
+           border-mist-300 bg-mist-50 px-1 font-mono text-[10px] font-bold
+           text-mist-700 dark:border-dark-border dark:bg-dark-surface dark:text-dark-muted;
+  }
+
+  .app-spinner {
+    @apply inline-block h-4 w-4 animate-spin rounded-full border-2 border-current
+           border-t-transparent;
+  }
+
+  /* Hairline underline for in-page links. */
+  .app-link {
+    @apply font-semibold text-primary-600 underline-offset-2 hover:underline
+           dark:text-primary-400;
   }
 }
 
 @layer base {
   html {
     font-size: 15px;
-    font-family: 'Segoe UI', 'Inter', system-ui, -apple-system, sans-serif;
+    font-family: 'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif;
+    -webkit-text-size-adjust: 100%;
   }
 
   body {
-    @apply transition-all duration-300 ease-in-out antialiased min-h-screen text-base bg-app-shell text-mist-900 selection:bg-primary-500 selection:text-white;
-  }
-
-  html.dark body {
-    @apply bg-dark-bg text-dark-text selection:bg-primary-500 selection:text-white;
+    @apply min-h-screen antialiased bg-app-shell text-mist-900
+           transition-colors duration-200 dark:bg-dark-bg dark:text-dark-text;
   }
 
   ::selection {
-    background: #FF6115;
-    color: #FFFFFF;
+    background: #ff6115;
+    color: #ffffff;
   }
 
   button,
@@ -40,7 +553,50 @@
   select,
   textarea,
   a {
-    @apply transition-colors duration-200 ease-in-out;
+    @apply transition-colors duration-150;
+  }
+
+  /* Visible only for keyboard users, so the app stays usable without a mouse. */
+  :focus-visible {
+    @apply outline-none ring-2 ring-primary-500/50 ring-offset-1 ring-offset-white
+           dark:ring-offset-dark-bg;
+  }
+}
+
+@layer utilities {
+  /* Panorama hit feedback ----------------------------------------------------
+     These two are rendered by Pannellum into its own DOM layer, so they cannot
+     use the semantic classes above and carry literal values instead. They still
+     obey the palette rule: no green, no red.
+
+       false click  -> ink ring, the heaviest weight, matching `stop`
+       confirmed    -> filled hazard orange, matching `brand`
+     A confirmed hazard is marked in the same orange the rest of the product uses
+     for "you have found something", so the 360° view and the walkthrough read
+     as one system. */
+  .ripple-error {
+    position: absolute;
+    width: 44px;
+    height: 44px;
+    margin: -22px 0 0 -22px;
+    border: 2px solid #3b444d;
+    border-radius: 9999px;
+    pointer-events: none;
+    animation: ripple-error 620ms ease-out forwards;
+  }
+
+  /* Confirmed hazard marker in 360° mode. Unfound hazards render nothing —
+     see PanoramaViewer for why. */
+  .hotspot-confirmed {
+    background: #ff6115;
+    border: 2px solid #ffffff;
+    border-radius: 9999px;
+    box-shadow: 0 0 0 4px rgb(255 97 21 / 0.28);
+  }
+
+  /* Subtle attention pulse used sparingly for the live scenario chip. */
+  .hotspot-pulse {
+    animation: hazard-pulse 2.2s ease-out infinite;
   }
 }
 
@@ -48,15 +604,12 @@
   width: 8px;
   height: 8px;
 }
-
 ::-webkit-scrollbar-track {
   background: transparent;
 }
-
 ::-webkit-scrollbar-thumb {
-  @apply bg-mist-300 dark:bg-dark-border rounded-full;
+  @apply rounded-full bg-mist-300 dark:bg-dark-border;
 }
-
 ::-webkit-scrollbar-thumb:hover {
   @apply bg-mist-400 dark:bg-mist-600;
 }

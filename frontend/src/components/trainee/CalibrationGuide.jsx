@@ -12,7 +12,7 @@ export const CalibrationGuide = ({
 
   return (
     <div className="w-full mb-4 animate-fade-in">
-      <div className="bg-white dark:bg-dark-card rounded-xl p-6 shadow-sm border border-mist-200 dark:border-dark-border transition-colors">
+      <div className="bg-white dark:bg-dark-card rounded-control p-6 shadow-card border border-mist-200 dark:border-dark-border transition-colors">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div className="flex items-center space-x-3.5">
             <div>
@@ -43,9 +43,9 @@ export const CalibrationGuide = ({
             <button
               onClick={onStartRealSweep}
               disabled={!isAllReady}
-              className={`px-6 py-2.5 rounded-xl text-sm font-bold transition-all ${
+              className={`px-6 py-2.5 rounded-control text-sm font-bold transition-colors ${
                 isAllReady
-                  ? 'bg-primary-500 hover:bg-primary-600 text-white shadow-sm'
+                  ? 'bg-primary-500 hover:bg-primary-600 text-white shadow-card'
                   : 'bg-mist-200 dark:bg-dark-surface text-mist-500 dark:text-dark-muted cursor-not-allowed'
               }`}
             >
@@ -55,7 +55,7 @@ export const CalibrationGuide = ({
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6 pt-6 border-t border-mist-200 dark:border-dark-border">
-          <div className="p-5 rounded-xl border border-mist-200 dark:border-dark-border">
+          <div className="p-5 rounded-control border border-mist-200 dark:border-dark-border">
             <div className="flex items-center justify-between mb-3">
               <span className="text-sm font-bold text-mist-900 dark:text-white">
                 Task 1: Rotate View (Drag or Arrow Keys)
@@ -71,11 +71,13 @@ export const CalibrationGuide = ({
                 </span>
               )}
             </div>
-            <div className="w-full h-1.5 bg-mist-200 dark:bg-dark-border rounded-full overflow-hidden mb-3">
+            <div className="app-meter mb-3">
               <div
-                className={`h-full transition-all duration-300 ${
-                  rotationAchieved ? 'bg-emerald-500' : 'bg-primary-500'
-                }`}
+                className={
+                  rotationAchieved
+                    ? 'app-meter-fill-pass'
+                    : 'h-full rounded-full bg-primary-500 transition-all duration-300'
+                }
                 style={{ width: `${Math.min(100, rotationProgress)}%` }}
               />
             </div>
@@ -86,7 +88,7 @@ export const CalibrationGuide = ({
             </p>
           </div>
 
-          <div className="p-5 rounded-xl border border-mist-200 dark:border-dark-border">
+          <div className="p-5 rounded-control border border-mist-200 dark:border-dark-border">
             <div className="flex items-center justify-between mb-3">
               <span className="text-sm font-bold text-mist-900 dark:text-white">
                 Task 2: Click the Practice Hazard

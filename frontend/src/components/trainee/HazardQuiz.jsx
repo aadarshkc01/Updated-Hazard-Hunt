@@ -1,24 +1,27 @@
 import React, { useState } from 'react';
 import { soundEngine } from '../../utils/audio';
 import { ConfirmModal } from '../common/ConfirmModal';
-import { FileQuestion, ArrowRight, ShieldCheck } from 'lucide-react';
+import { FileQuestion, ArrowRight, ArrowLeft, ShieldCheck } from 'lucide-react';
 
-export const HazardQuiz = ({ questions = [], onComplete, isSubmitting = false }) => {
+export const HazardQuiz = ({
+  questions = [],
+  onComplete,
+  isSubmitting = false,
+  onBack,
+}) => {
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [answers, setAnswers] = useState({});
   const [showConfirmSubmit, setShowConfirmSubmit] = useState(false);
+  const [showConfirmBack, setShowConfirmBack] = useState(false);
 
   const currentQ = questions[currentQuestionIndex];
   const totalQuestions = questions.length;
   const answeredCount = Object.keys(answers).length;
-  const allAnswered = answeredCount === totalQuestions;
+  const allAnswered = totalQuestions > 0 && answeredCount === totalQuestions;
 
   const handleSelectOption = (optionIndex) => {
     soundEngine.playTick();
-    setAnswers((prev) => ({
-      ...prev,
-      [currentQ.id]: optionIndex,
-    }));
+    setAnswers((prev) => ({ ...prev, [currentQ.id]: optionIndex }));
   };
 
   const handleNext = () => {
@@ -37,81 +40,91 @@ export const HazardQuiz = ({ questions = [], onComplete, isSubmitting = false })
 
   const executeSubmit = () => {
     soundEngine.playSuccess();
-    const formattedAnswers = Object.entries(answers).map(([questionId, selectedOption]) => ({
-      questionId,
-      selectedOption,
-    }));
-    onComplete(formattedAnswers);
+    onComplete(
+      Object.entries(answers).map(([questionId, selectedOption]) => ({
+        questionId,
+        selectedOption,
+      }))
+    );
   };
 
   if (!currentQ) {
     return (
-      <div className="p-8 text-center bg-white dark:bg-dark-card rounded-xl border border-mist-300 dark:border-dark-border">
-        <p className="text-xs text-mist-600 dark:text-dark-muted">No quiz questions configured for this scenario.</p>
-        <button
-          onClick={() => onComplete([])}
-          className="mt-4 px-4 py-2 bg-primary-500 text-white rounded-lg text-xs font-bold"
-        >
-          Skip to Diagnostic
-        </button>
+      <div className="app-page py-6">
+        <div className="app-card p-8 text-center">
+          <p className="app-body">No quiz questions are configured for this scenario.</p>
+          <button
+            type="button"
+            onClick={() => onComplete([])}
+            className="app-btn app-btn-primary mt-4"
+          >
+            Skip to results
+          </button>
+        </div>
       </div>
     );
   }
 
   const selectedOption = answers[currentQ.id];
+  const answeredPct = totalQuestions ? (answeredCount / totalQuestions) * 100 : 0;
 
   return (
     <>
-      <div className="max-w-3xl mx-auto py-6 animate-fade-in transition-colors duration-200">
-        {/* Header Banner */}
-        <div className="bg-primary-600 text-white rounded-xl p-6 sm:p-7 mb-6 shadow-sm border border-primary-700">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-3.5">
-              <div className="w-11 h-11 rounded-xl bg-white/10 backdrop-blur-md border border-white/20 flex items-center justify-center text-white">
-                <FileQuestion className="w-6 h-6" />
+      <div className="app-page max-w-3xl animate-slide-up py-6">
+        {/* ── Progress header ── */}
+        <header className="app-card mb-4 overflow-hidden">
+          <div className="flex flex-wrap items-center justify-between gap-4 p-5">
+            <div className="flex min-w-0 items-center gap-3">
+              <div className="app-icon-well h-10 w-10">
+                <FileQuestion className="h-5 w-5" aria-hidden="true" />
               </div>
-              <div>
-                <span className="text-[11px] font-bold uppercase tracking-wider text-primary-100">
-                  Regulatory Compliance Assessment (FR-07)
-                </span>
-                <h2 className="text-xl font-extrabold text-white">
-                  Warehouse Safety Knowledge Quiz
-                </h2>
+              <div className="min-w-0">
+                <p className="app-eyebrow-accent">Regulatory knowledge check</p>
+                <h1 className="mt-0.5 truncate text-lg font-bold text-mist-900 dark:text-dark-text">
+                  Warehouse Safety Quiz
+                </h1>
               </div>
             </div>
-            <div className="text-right">
-              <span className="text-xs text-primary-100 font-medium block">Completed</span>
-              <span className="text-xl font-mono font-bold text-white">
-                {answeredCount} <span className="text-xs font-normal">/ {totalQuestions}</span>
-              </span>
+            <div className="flex items-center gap-4">
+              <div className="text-right">
+                <p className="app-eyebrow">Answered</p>
+                <p className="app-num mt-0.5 text-lg font-bold leading-none text-mist-900 dark:text-dark-text">
+                  {answeredCount}
+                  <span className="text-xs font-normal text-mist-400"> / {totalQuestions}</span>
+                </p>
+              </div>
+              {/* The quiz is part of a graded attempt, so leaving discards it. */}
+              {onBack && (
+                <button
+                  type="button"
+                  onClick={() => setShowConfirmBack(true)}
+                  className="app-btn app-btn-secondary app-btn-sm"
+                >
+                  <ArrowLeft className="h-3.5 w-3.5" aria-hidden="true" />
+                  Back
+                </button>
+              )}
             </div>
           </div>
-
-          <div className="w-full h-1.5 bg-primary-900/40 rounded-full mt-4 overflow-hidden">
-            <div
-              className="h-full bg-white transition-all duration-300"
-              style={{ width: `${(answeredCount / totalQuestions) * 100}%` }}
-            />
+          <div className="app-meter rounded-none">
+            <div className="app-meter-fill" style={{ width: `${answeredPct}%` }} />
           </div>
-        </div>
+        </header>
 
-        {/* Question Card */}
-        <div className="bg-white dark:bg-dark-card rounded-xl shadow-card dark:shadow-card-dark border border-mist-300 dark:border-dark-border p-6 sm:p-8 mb-6 transition-colors">
-          <div className="flex items-center justify-between mb-4">
-            <span className="px-3 py-1 rounded-full text-xs font-bold bg-primary-100 dark:bg-primary-950/60 text-primary-700 dark:text-primary-300 border border-primary-200 dark:border-primary-800">
-              {currentQ.category || 'HSE Compliance'}
-            </span>
-            <span className="text-xs font-mono font-semibold text-mist-500 dark:text-dark-muted">
+        {/* ── Question ── */}
+        <section className="app-card p-5 sm:p-7">
+          <div className="mb-4 flex items-center justify-between gap-3">
+            <span className="app-chip app-chip-brand">{currentQ.category || 'HSE Compliance'}</span>
+            <span className="app-num text-xs font-semibold text-mist-500 dark:text-dark-muted">
               Question {currentQuestionIndex + 1} of {totalQuestions}
             </span>
           </div>
 
-          <h3 className="text-base sm:text-lg font-bold text-mist-900 dark:text-white mb-6 leading-snug">
+          <h2 className="mb-6 text-base font-bold leading-snug text-mist-900 sm:text-lg dark:text-dark-text">
             {currentQ.question}
-          </h3>
+          </h2>
 
-          {/* Options */}
-          <div className="space-y-3 mb-8">
+          <div className="space-y-2.5">
             {currentQ.options.map((option, idx) => {
               const isSelected = selectedOption === idx;
               return (
@@ -119,86 +132,98 @@ export const HazardQuiz = ({ questions = [], onComplete, isSubmitting = false })
                   key={idx}
                   type="button"
                   onClick={() => handleSelectOption(idx)}
-                  className={`w-full text-left p-4 rounded-xl border transition-all flex items-start space-x-3.5 ${
+                  aria-pressed={isSelected}
+                  className={`flex w-full items-start gap-3 rounded-control border p-3.5 text-left ${
                     isSelected
-                      ? 'border-primary-500 bg-primary-50 dark:bg-primary-950/40 text-mist-900 dark:text-white shadow-sm ring-1 ring-primary-500'
-                      : 'border-mist-300 dark:border-dark-border hover:border-primary-400 bg-white dark:bg-dark-surface text-mist-700 dark:text-dark-text'
+                      ? 'border-primary-500 bg-primary-50 text-mist-900 ring-1 ring-primary-500 dark:bg-primary-950/30 dark:text-dark-text'
+                      : 'border-mist-200 bg-white text-mist-700 hover:border-primary-400 dark:border-dark-border dark:bg-dark-surface dark:text-dark-text'
                   }`}
                 >
-                  <div
-                    className={`w-5 h-5 rounded-full border flex items-center justify-center flex-shrink-0 mt-0.5 transition-colors ${
+                  <span
+                    className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border ${
                       isSelected
-                        ? 'border-primary-500 bg-primary-500 text-white'
-                        : 'border-mist-400 dark:border-dark-border bg-white dark:bg-dark-card'
+                        ? 'border-primary-500 bg-primary-500'
+                        : 'border-mist-300 dark:border-dark-border'
                     }`}
+                    aria-hidden="true"
                   >
-                    {isSelected && <div className="w-2 h-2 rounded-full bg-white" />}
-                  </div>
-                  <span className="text-xs sm:text-sm font-medium leading-relaxed">
-                    {option}
+                    {isSelected && <span className="h-2 w-2 rounded-full bg-white" />}
                   </span>
+                  <span className="text-xs leading-relaxed sm:text-sm">{option}</span>
                 </button>
               );
             })}
           </div>
 
-          {/* Controls */}
-          <div className="flex items-center justify-between pt-6 border-t border-mist-200 dark:border-dark-border">
+          <div className="app-divider mt-6 flex items-center justify-between gap-3 pt-5">
             <button
               type="button"
               onClick={handlePrev}
               disabled={currentQuestionIndex === 0}
-              className="px-4 py-2 text-xs font-bold text-mist-600 dark:text-dark-muted hover:text-mist-900 dark:hover:text-white disabled:opacity-30 disabled:cursor-not-allowed"
+              className="app-btn app-btn-ghost disabled:cursor-not-allowed disabled:opacity-40"
             >
               Previous
             </button>
 
-            <div className="flex items-center space-x-3">
-              {currentQuestionIndex < totalQuestions - 1 ? (
-                <button
-                  type="button"
-                  onClick={handleNext}
-                  disabled={selectedOption === undefined}
-                  className="px-5 py-2.5 rounded-xl bg-mist-900 dark:bg-dark-surface hover:bg-mist-800 text-white text-xs font-bold transition-all disabled:opacity-40 disabled:cursor-not-allowed flex items-center space-x-1.5 shadow-sm"
-                >
-                  <span>Next Question</span>
-                  <ArrowRight className="w-3.5 h-3.5" />
-                </button>
-              ) : (
-                <button
-                  type="button"
-                  onClick={() => setShowConfirmSubmit(true)}
-                  disabled={!allAnswered || isSubmitting}
-                  className="px-6 py-2.5 rounded-lg bg-primary-500 hover:bg-primary-600 text-white text-xs font-bold transition-all disabled:opacity-40 disabled:cursor-not-allowed flex items-center space-x-2"
-                >
-                  {isSubmitting ? (
-                    <span className="inline-block w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                  ) : (
-                    <>
-                      <ShieldCheck className="w-4 h-4" />
-                      <span>Submit Compliance Quiz</span>
-                    </>
-                  )}
-                </button>
-              )}
-            </div>
+            {currentQuestionIndex < totalQuestions - 1 ? (
+              <button
+                type="button"
+                onClick={handleNext}
+                disabled={selectedOption === undefined}
+                className="app-btn app-btn-primary disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                Next question
+                <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={() => setShowConfirmSubmit(true)}
+                disabled={!allAnswered || isSubmitting}
+                className="app-btn app-btn-primary disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                {isSubmitting ? (
+                  <>
+                    <span className="app-spinner" aria-hidden="true" />
+                    Submitting
+                  </>
+                ) : (
+                  <>
+                    <ShieldCheck className="h-4 w-4" aria-hidden="true" />
+                    Submit quiz
+                  </>
+                )}
+              </button>
+            )}
           </div>
-        </div>
+        </section>
       </div>
 
-      {/* Confirmation Modal on Quiz Submission */}
       <ConfirmModal
         isOpen={showConfirmSubmit}
-        title="Submit Safety Assessment?"
-        message="Your hazard perception findings and quiz answers will be evaluated server-side against official UK HSE compliance standards. Confirm submission?"
-        confirmText="Confirm & Submit"
-        cancelText="Review Answers"
-        isDestructive={false}
+        title="Submit this assessment?"
+        message="Your hazard findings and quiz answers will be scored server-side against the official compliance standard. This cannot be undone."
+        confirmText="Confirm & submit"
+        cancelText="Review answers"
         onConfirm={() => {
           setShowConfirmSubmit(false);
           executeSubmit();
         }}
         onCancel={() => setShowConfirmSubmit(false)}
+      />
+
+      <ConfirmModal
+        isOpen={showConfirmBack}
+        title="Leave the quiz?"
+        message="This attempt has not been submitted yet. Leaving now discards your hazard findings and quiz answers, and nothing will be recorded."
+        confirmText="Discard & go back"
+        cancelText="Stay on this question"
+        isDestructive
+        onConfirm={() => {
+          setShowConfirmBack(false);
+          onBack?.();
+        }}
+        onCancel={() => setShowConfirmBack(false)}
       />
     </>
   );

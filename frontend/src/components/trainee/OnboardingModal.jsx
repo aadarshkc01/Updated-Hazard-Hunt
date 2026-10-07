@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { soundEngine } from '../../utils/audio';
-import { Compass, AlertTriangle, ArrowRight, X, Target, FileCheck } from 'lucide-react';
+import { Compass, AlertTriangle, ArrowRight, X, Target, FileCheck, OctagonX } from 'lucide-react';
 
 export const OnboardingModal = ({ isOpen, onClose, onComplete }) => {
   const [step, setStep] = useState(0);
@@ -12,7 +12,6 @@ export const OnboardingModal = ({ isOpen, onClose, onComplete }) => {
       title: 'Welcome to Hazard Hunt 360°',
       badge: 'Automotive Logistics Bay 4',
       icon: Compass,
-      color: 'bg-primary-600',
       description:
         'You are assigned to conduct a panoramic safety sweep of Bay 4 Inbound Logistics. Replaces passive posters with an active, timed perception test.',
       points: [
@@ -25,33 +24,44 @@ export const OnboardingModal = ({ isOpen, onClose, onComplete }) => {
       title: 'How to Inspect & Spot Hazards',
       badge: '5 Hidden Critical Violations',
       icon: Target,
-      color: 'bg-primary-600',
       description:
-        'Rotate your perspective by clicking and dragging with your mouse (or swiping on tablets/mobile screens).',
+        'Walk the depot in first person, or rotate the panorama, and report every dangerous condition you can find.',
       points: [
-        'Click directly on dangerous conditions to flag and secure them.',
-        'Target violations: Chemical fluid spills, leaning pallet stacks, blocked fire escapes, trailing 415V cables, and blind corners.',
-        'Confirmation reticle and audio chime indicate a successful find.',
+        'Target violations: chemical fluid spills, leaning pallet stacks, blocked fire exits, trailing 415V cables, and blind corners.',
+        'Point the centre reticle at equipment and it names it, so you can learn what belongs on a warehouse floor.',
+        'Follow the safety-yellow walkway � it is always kept clear so you can reach every aisle.',
+        'A confirmation reticle and audio chime indicate a successful find.',
       ],
     },
     {
       title: 'Scoring & Accuracy Rules',
       badge: 'Penalty-Aware Perception',
       icon: AlertTriangle,
-      color: 'bg-primary-600',
       description:
         'High-standard safety inspection requires avoiding false alarms while detecting true risks.',
       points: [
-        'Valid Hazard spotted: +20% base hazard perception score.',
+        'Valid hazard spotted: +20% base hazard perception score.',
         'False click (clicking non-hazard zones): -5% accuracy penalty per false alarm.',
         'Session ends automatically when the 90s timer runs out or all 5 hazards are discovered.',
+      ],
+    },
+    {
+      title: 'You Can Stop Anytime',
+      badge: 'Nothing Is Forced On You',
+      icon: OctagonX,
+      description:
+        'If you start the wrong session or simply need to stop, use Cancel session and nothing will be recorded.',
+      points: [
+        'Cancel session discards the attempt completely - it is never graded and never recorded.',
+        'Finish early submits what you have found so far; anything still hidden counts as missed.',
+        'Both buttons sit in the session bar, and pressing Esc opens the cancel confirmation from anywhere.',
+        'You can restart as many times as you like before submitting an official attempt.',
       ],
     },
     {
       title: 'Post-Inspection Knowledge Quiz & Compliance',
       badge: '75% Pass Standard',
       icon: FileCheck,
-      color: 'bg-primary-600',
       description:
         'Following the 360 sweep, you must complete a 4-question multiple choice knowledge quiz on UK HSE and warehouse regulations.',
       points: [
@@ -63,6 +73,7 @@ export const OnboardingModal = ({ isOpen, onClose, onComplete }) => {
   ];
 
   const currentSlide = slides[step];
+const Icon = currentSlide.icon;
   const handleNext = () => {
     soundEngine.playTick();
     if (step < slides.length - 1) {
@@ -79,83 +90,77 @@ export const OnboardingModal = ({ isOpen, onClose, onComplete }) => {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in">
-      <div className="bg-white dark:bg-dark-card rounded-xl shadow-sm max-w-xl w-full border border-mist-300 dark:border-dark-border overflow-hidden relative transition-all animate-slide-up">
-        {/* Banner */}
-        <div className={`h-24 ${currentSlide.color} p-6 flex items-center justify-between text-white relative`}>
-          <div className="flex items-center space-x-3.5">
-            <div>
-              <span className="text-[11px] font-bold uppercase tracking-wider bg-black/20 px-2.5 py-0.5 rounded-full">
-                {currentSlide.badge}
-              </span>
-              <h2 className="text-lg sm:text-xl font-bold mt-1 text-white">{currentSlide.title}</h2>
-            </div>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-mist-950/55 p-4 backdrop-blur-sm animate-fade-in">
+      <div
+        className="app-card relative w-full max-w-xl animate-slide-up overflow-hidden"
+        role="dialog"
+        aria-modal="true"
+        aria-label="Bay 4 induction briefing"
+      >
+        <div className="app-card-head">
+          <div className="min-w-0">
+            <p className="app-eyebrow-accent">{currentSlide.badge}</p>
+            <h2 className="mt-1 text-lg font-bold text-mist-900 dark:text-dark-text">
+              {currentSlide.title}
+            </h2>
           </div>
-
           <button
+            type="button"
             onClick={handleSkip}
-            title="Skip Onboarding"
-            className="p-1.5 rounded-full bg-black/20 hover:bg-black/30 text-white/80 hover:text-white transition-colors"
+            className="app-icon-btn"
+            title="Skip briefing"
+            aria-label="Skip briefing"
           >
-            <X className="w-5 h-5" />
+            <X className="h-4 w-4" />
           </button>
         </div>
 
-        {/* Content Body */}
-        <div className="p-6 sm:p-8">
-          <p className="text-mist-700 dark:text-dark-text text-xs sm:text-sm leading-relaxed mb-6 font-medium">
-            {currentSlide.description}
-          </p>
+        <div className="p-5 sm:p-7">
+          <p className="app-body text-sm">{currentSlide.description}</p>
 
-          <div className="space-y-3 mb-8">
+          <ul className="mb-6 mt-4 space-y-2">
             {currentSlide.points.map((pt, idx) => (
-              <div
+              <li
                 key={idx}
-                className="flex items-start space-x-3 p-3 rounded-xl bg-mist-100 dark:bg-dark-surface border border-mist-300/80 dark:border-dark-border text-xs text-mist-900 dark:text-dark-text"
+                className="app-card-quiet flex items-start gap-2.5 p-3 text-xs font-medium text-mist-800 dark:text-dark-text"
               >
-                <span className="leading-snug font-medium">{pt}</span>
-              </div>
+                <Icon className="mt-0.5 h-3.5 w-3.5 shrink-0 text-primary-600 dark:text-primary-400" />
+                <span>{pt}</span>
+              </li>
             ))}
-          </div>
+          </ul>
 
-          {/* Stepper */}
-          <div className="flex items-center justify-between pt-4 border-t border-mist-200 dark:border-dark-border">
-            <div className="flex items-center space-x-1.5">
+          <div className="app-divider flex items-center justify-between gap-3 pt-4">
+            <div className="flex items-center gap-1.5">
               {slides.map((_, i) => (
                 <button
                   key={i}
+                  type="button"
                   onClick={() => setStep(i)}
-                  className={`h-2 rounded-full transition-all ${
+                  aria-label={`Go to step ${i + 1}`}
+                  aria-current={step === i}
+                  className={`h-1.5 rounded-full transition-all ${
                     step === i ? 'w-6 bg-primary-500' : 'w-2 bg-mist-300 dark:bg-dark-border'
                   }`}
                 />
               ))}
             </div>
 
-            <div className="flex items-center space-x-2">
+            <div className="flex items-center gap-2">
               {step < slides.length - 1 ? (
                 <>
-                  <button
-                    onClick={handleSkip}
-                    className="px-3 py-2 text-xs font-semibold text-mist-600 dark:text-dark-muted hover:text-mist-900 dark:hover:text-white"
-                  >
+                  <button type="button" onClick={handleSkip} className="app-btn app-btn-ghost">
                     Skip
                   </button>
-                  <button
-                    onClick={handleNext}
-                    className="px-5 py-2.5 rounded-xl bg-mist-900 dark:bg-dark-surface hover:bg-mist-800 text-white text-xs font-bold transition-all flex items-center space-x-1.5 shadow-sm"
-                  >
-                    <span>Next</span>
-                    <ArrowRight className="w-3.5 h-3.5" />
+                  <button type="button" onClick={handleNext} className="app-btn app-btn-primary">
+                    Next
+                    <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
                   </button>
                 </>
               ) : (
-                <button
-                  onClick={handleNext}
-                  className="px-6 py-2.5 rounded-lg bg-primary-500 hover:bg-primary-600 text-white text-xs font-bold transition-all flex items-center space-x-1.5"
-                >
-                  <span>Start Bay 4 Inspection</span>
-                  <ArrowRight className="w-4 h-4" />
+                <button type="button" onClick={handleNext} className="app-btn app-btn-primary">
+                  Start Bay 4 inspection
+                  <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
                 </button>
               )}
             </div>

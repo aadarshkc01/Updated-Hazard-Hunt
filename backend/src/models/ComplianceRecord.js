@@ -33,6 +33,12 @@ const complianceRecordSchema = new mongoose.Schema(
       enum: ['panorama360', 'walkthrough'],
       default: 'panorama360',
     },
+    // Seed for the randomized walkthrough hazard layout. Retained so a
+    // supervisor dispute can be replayed against the exact staging plan.
+    walkthroughLayoutSeed: {
+      type: Number,
+      default: null,
+    },
     hazardsFound: [
       {
         id: String,

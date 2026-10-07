@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, lazy, Suspense } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../../context/ToastContext';
 import { api } from '../../services/api';
@@ -7,10 +7,16 @@ import { EmployeeHome } from './EmployeeHome';
 import { OnboardingModal } from './OnboardingModal';
 import { TraineeSessionHUD } from './TraineeSessionHUD';
 import { PanoramaViewer } from '../viewer/PanoramaViewer';
-import { WalkthroughViewer } from '../viewer/WalkthroughViewer';
 import { HazardQuiz } from './HazardQuiz';
 import { DiagnosticSummary } from './DiagnosticSummary';
-import { AlertCircle } from 'lucide-react';
+import { ConfirmModal } from '../common/ConfirmModal';
+import { OctagonX } from 'lucide-react';
+
+// The 3D walkthrough (Three.js scene + hazard props) is code-split so that
+// trainees who only ever use Standard 360° never download it.
+const WalkthroughViewer = lazy(() =>
+  import('../viewer/WalkthroughViewer').then((m) => ({ default: m.WalkthroughViewer }))
+);
 
 // Experience phases:
 //  'HOME'        → EmployeeHome dashboard (pre-session)
@@ -43,6 +49,7 @@ export const TraineeExperience = () => {
   // Submission & Diagnostic
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [diagnosticData, setDiagnosticData] = useState(null);
+  const [showAbortConfirm, setShowAbortConfirm] = useState(false);
 
   const timerIntervalRef = useRef(null);
 
@@ -170,6 +177,9 @@ export const TraineeExperience = () => {
         quizAnswers,
         isPracticeMode,
         trainingMode,
+        // Lets a supervisor replay the exact randomized staging plan on audit.
+        walkthroughLayoutSeed:
+          trainingMode === 'walkthrough' ? scenario?.walkthroughLayout?.seed ?? null : null,
       };
       const res = await api.submitAttempt(payload);
       if (res.success && res.diagnostic) {
@@ -195,6 +205,31 @@ export const TraineeExperience = () => {
     handleLaunchSession(true, trainingMode);
   };
 
+  /**
+   * Abort an in-progress hunt and go back to the dashboard.
+   *
+   * The attempt is DISCARDED, not submitted — a trainee who realises they are in
+   * the wrong scenario, or who needs to stop, must never be silently graded on a
+   * partial run. Everything the session accumulated is cleared, the timer is
+   * stopped, and the trainee returns to a clean home screen.
+   */
+  const handleAbortSession = () => {
+    if (timerIntervalRef.current) clearInterval(timerIntervalRef.current);
+    setShowAbortConfirm(false);
+    soundEngine.playWarning();
+    setPhase('HOME');
+    setFoundHotspots([]);
+    setFalseClicksCount(0);
+    setIsPracticeMode(false);
+    setDiagnosticData(null);
+    setSessionStartTime(null);
+    setTimeTaken(0);
+    setTrainingMode('panorama360');
+    const limit = scenario?.timeLimitSeconds || 90;
+    setTimeLeft(limit);
+    showToast('Session cancelled. Nothing was recorded.', 'info');
+  };
+
   const handleReturnHome = () => {
     soundEngine.playTick();
     if (timerIntervalRef.current) clearInterval(timerIntervalRef.current);
@@ -207,29 +242,46 @@ export const TraineeExperience = () => {
     setTimeLeft(limit);
   };
 
+  // Escape aborts the session from anywhere inside the inspection phase.
+  useEffect(() => {
+    if (phase !== 'INSPECTION') return undefined;
+    const onKeyDown = (event) => {
+      if (event.key === 'Escape') setShowAbortConfirm(true);
+    };
+    document.addEventListener('keydown', onKeyDown);
+    return () => document.removeEventListener('keydown', onKeyDown);
+  }, [phase]);
+
   // ── Loading state ──────────────────────────────────────────────────────────
   if (loading && phase === 'HOME') {
     return (
-      <div className="min-h-[70vh] flex flex-col items-center justify-center p-8 text-center">
-        <div className="w-12 h-12 border-4 border-primary-500 border-t-transparent rounded-full animate-spin mb-4" />
-        <h3 className="text-base font-bold text-mist-900 dark:text-white">
-          Loading 360° Warehouse Environment…
-        </h3>
-        <p className="text-xs text-mist-500 dark:text-dark-muted mt-1">Calibrating Bay 4 spherical panorama</p>
+      <div className="flex min-h-[60vh] flex-col items-center justify-center gap-3 p-8 text-center">
+        <span className="app-spinner h-8 w-8 text-primary-500" />
+        <p className="app-section-title">Loading warehouse scenario…</p>
+        <p className="app-body">Calibrating the Bay 4 inspection</p>
       </div>
     );
   }
 
   if (error && phase === 'HOME') {
     return (
-      <div className="max-w-md mx-auto my-16 p-6 bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-900/50 rounded-xl text-center">
-        <AlertCircle className="w-8 h-8 text-red-600 dark:text-red-400 mx-auto mb-2" />
-        <h3 className="text-sm font-bold text-red-800 dark:text-red-300">Failed to Load Scenario</h3>
-        <p className="text-xs text-red-600 dark:text-red-400 mt-1 mb-4">{error}</p>
-        <button onClick={() => window.location.reload()}
-          className="px-4 py-2 bg-red-600 text-white text-xs font-bold rounded-xl">
-          Reload
-        </button>
+      <div className="app-page py-10">
+        <div className="app-alert app-alert-stop mx-auto max-w-md">
+          <AlertCircle className="app-alert-icon" aria-hidden="true" />
+          <div>
+            <p className="font-bold">Could not load the scenario</p>
+            <p className="mt-1">{error}</p>
+          </div>
+        </div>
+        <div className="mt-4 text-center">
+          <button
+            type="button"
+            onClick={() => window.location.reload()}
+            className="app-btn app-btn-primary"
+          >
+            Reload
+          </button>
+        </div>
       </div>
     );
   }
@@ -245,6 +297,22 @@ export const TraineeExperience = () => {
         onComplete={handleCompleteOnboarding}
       />
 
+      {/* Confirm before throwing away a partially completed attempt. */}
+      <ConfirmModal
+        isOpen={showAbortConfirm}
+        title="Cancel this session?"
+        message={
+          isPracticeMode
+            ? 'This practice run will be discarded. Nothing is recorded either way.'
+            : 'This official attempt will be discarded and will NOT be graded or recorded. You can start again whenever you are ready.'
+        }
+        confirmText="Cancel session"
+        cancelText="Keep going"
+        isDestructive={!isPracticeMode}
+        onConfirm={handleAbortSession}
+        onCancel={() => setShowAbortConfirm(false)}
+      />
+
       {/* ── HOME phase: personal dashboard ── */}
       {phase === 'HOME' && (
         <EmployeeHome
@@ -254,43 +322,50 @@ export const TraineeExperience = () => {
         />
       )}
 
-      {/* ── INSPECTION phase: 360° viewer ── */}
+      {/* ── INSPECTION phase ── */}
       {phase === 'INSPECTION' && (
-        <div className="max-w-7xl mx-auto py-4 px-4 sm:px-6 lg:px-8 animate-fade-in">
-          {!isPracticeMode && (
-            <div className="mb-4 rounded-xl border border-primary-200 bg-primary-50/80 p-4 shadow-sm dark:border-primary-900/60 dark:bg-primary-950/30">
-              <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
-                <div>
-                  <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-primary-600 dark:text-primary-400">
-                    Official hazard hunt instructions
-                  </p>
-                  <h3 className="mt-1 text-lg font-bold text-mist-900 dark:text-white">
-                    Spot all 5 hazards before the timer ends
-                  </h3>
-                </div>
-                <span className="inline-flex items-center rounded-full bg-primary-600 px-2.5 py-1 text-[11px] font-bold uppercase tracking-[0.15em] text-white">
-                  Official session
-                </span>
-              </div>
-
-              <ul className="mt-3 grid gap-2 text-xs text-mist-700 dark:text-dark-muted md:grid-cols-3">
-                <li>• {trainingMode === 'walkthrough' ? 'Walk the warehouse and inspect every aisle.' : 'Rotate the 360° warehouse view to inspect every corner.'}</li>
-                <li>• Click only real hazards. False clicks reduce your score by 5%.</li>
-                <li>• Your result is recorded for the HSE compliance audit.</li>
+        <div className="app-page animate-fade-in py-4">
+          <div className="app-card mb-4 flex flex-wrap items-start justify-between gap-3 p-4">
+            <div className="min-w-0">
+              <p className="app-eyebrow-accent">
+                {isPracticeMode ? 'Practice session' : 'Official compliance audit'}
+              </p>
+              <h1 className="mt-1 text-lg font-bold text-mist-900 dark:text-dark-text">
+                {isPracticeMode
+                  ? 'No official result will be recorded'
+                  : `Spot all ${totalHazards} hazards before the timer ends`}
+              </h1>
+              <ul className="app-body mt-2 grid gap-1 sm:grid-cols-3">
+                <li>
+                  {trainingMode === 'walkthrough'
+                    ? 'Walk the aisles and inspect every bay.'
+                    : 'Rotate the panorama and inspect every corner.'}
+                </li>
+                <li>Report only genuine hazards — false reports cost 5%.</li>
+                <li>
+                  {isPracticeMode
+                    ? 'Rehearse freely; your standing is untouched.'
+                    : 'Recorded to the HSE compliance audit.'}
+                </li>
               </ul>
             </div>
-          )}
-
-          {isPracticeMode && (
-            <div className="mb-4 rounded-xl border border-amber-200 bg-amber-50 p-4 shadow-sm dark:border-amber-900/60 dark:bg-amber-950/20">
-              <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-amber-700 dark:text-amber-300">
-                Practice session
-              </p>
-              <h3 className="mt-1 text-lg font-bold text-mist-900 dark:text-white">
-                Practice mode: no official result is recorded
-              </h3>
+            <div className="flex shrink-0 flex-col items-end gap-2">
+              <span
+                className={`app-chip ${isPracticeMode ? 'app-chip-caution' : 'app-chip-brand'}`}
+              >
+                {isPracticeMode ? 'Practice' : 'Official'}
+              </span>
+              {/* Abort: an in-progress hunt can always be stopped. */}
+              <button
+                type="button"
+                onClick={() => setShowAbortConfirm(true)}
+                className="app-btn app-btn-secondary app-btn-sm"
+              >
+                <OctagonX className="h-3.5 w-3.5" aria-hidden="true" />
+                Cancel session
+              </button>
             </div>
-          )}
+          </div>
 
           <TraineeSessionHUD
             timeLeft={timeLeft}
@@ -299,17 +374,31 @@ export const TraineeExperience = () => {
             totalHazards={totalHazards}
             falseClicks={falseClicksCount}
             onFinishEarly={transitionToQuiz}
+            onCancel={() => setShowAbortConfirm(true)}
             isPracticeMode={isPracticeMode}
             trainingMode={trainingMode}
           />
           {trainingMode === 'walkthrough' ? (
-            <WalkthroughViewer
-              scenario={scenario}
-              foundHotspots={foundHotspots}
-              onHazardClick={handleHazardFound}
-              onFalseClick={handleFalseClick}
-              isEnded={false}
-            />
+            <Suspense
+              fallback={
+                <div className="flex h-[74vh] min-h-[440px] items-center justify-center rounded-panel border border-dark-border bg-dark-bg">
+                  <div className="text-center">
+                    <span className="app-spinner mx-auto mb-3 h-8 w-8 text-primary-500" />
+                    <p className="text-xs font-bold text-white">Building the Bay 4 warehouse…</p>
+                  </div>
+                </div>
+              }
+            >
+              <WalkthroughViewer
+                scenario={scenario}
+                foundHotspots={foundHotspots}
+                onHazardClick={handleHazardFound}
+                onFalseClick={handleFalseClick}
+                isEnded={false}
+                timeLeft={timeLeft}
+                totalTime={totalTime}
+              />
+            </Suspense>
           ) : (
             <PanoramaViewer
               scenario={scenario}
@@ -324,24 +413,21 @@ export const TraineeExperience = () => {
 
       {/* ── QUIZ phase ── */}
       {phase === 'QUIZ' && (
-        <div className="max-w-7xl mx-auto py-4 px-4 sm:px-6 lg:px-8 animate-fade-in">
-          <HazardQuiz
-            questions={scenario?.quizQuestions || []}
-            onComplete={handleQuizComplete}
-            isSubmitting={isSubmitting}
-          />
-        </div>
+        <HazardQuiz
+          questions={scenario?.quizQuestions || []}
+          onComplete={handleQuizComplete}
+          isSubmitting={isSubmitting}
+          onBack={handleReturnHome}
+        />
       )}
 
       {/* ── DIAGNOSTIC phase ── */}
       {phase === 'DIAGNOSTIC' && (
-        <div className="max-w-7xl mx-auto py-4 px-4 sm:px-6 lg:px-8 animate-fade-in">
-          <DiagnosticSummary
-            diagnostic={diagnosticData}
-            onRetryPractice={handleRetryPractice}
-            onReturnHome={handleReturnHome}
-          />
-        </div>
+        <DiagnosticSummary
+          diagnostic={diagnosticData}
+          onRetryPractice={handleRetryPractice}
+          onReturnHome={handleReturnHome}
+        />
       )}
     </>
   );

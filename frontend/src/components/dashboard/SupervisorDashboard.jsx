@@ -1,15 +1,35 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { api } from '../../services/api';
 import { useToast } from '../../context/ToastContext';
-import { useAuth } from '../../context/AuthContext';
-import { useTheme } from '../../context/ThemeContext';
 import { ConfirmModal } from '../common/ConfirmModal';
 import { UserAuditModal } from '../common/UserAuditModal';
 import { soundEngine } from '../../utils/audio';
-import { Users, CheckCircle2, Download, UserPlus, Search, RefreshCw, ShieldCheck, BarChart3, ChevronRight, X, Activity, Eye, LogOut, Moon, Sun, LayoutDashboard, ArrowUpRight, ArrowDownRight, Shield, Trash2 } from 'lucide-react';
+import { PageHeader, StatTile, BarList, ColumnChart, Metric, EmptyState, SectionCard } from '../ui';
+import { CheckCircle2, Download, UserPlus, Search, RefreshCw, ChevronRight, X, Activity, Eye, ArrowUpRight, ArrowDownRight, Shield, Trash2, Target } from 'lucide-react';
+
+// ── Semantic tone maps ────────────────────────────────────────────────────────
+// Three semantic tones carry state - pass / caution / stop - expressed by
+// visual weight, not by adding a hue. Nothing else does.
+const STATUS_TONE = {
+  PASS: 'app-chip-pass',
+  FAIL: 'app-chip-stop',
+  PENDING: 'app-chip-neutral',
+};
+
+const RISK_TONE = {
+  CRITICAL: 'app-chip-stop',
+  MEDIUM: 'app-chip-caution',
+  LOW: 'app-chip-pass',
+};
+
+// ── Score ring tone (pass rate band) ──────────────────────────────────────────
+const scoreTone = (pct) =>
+  pct >= 75 ? 'text-pass-600 dark:text-pass-200'
+    : pct >= 50 ? 'text-caution-600 dark:text-caution-200'
+      : 'text-stop-600 dark:text-stop-200';
 
 // ── Animated Score Ring (CSS) ────────────────────────────────────────────────
-const ScoreRing = ({ score, size = 80, strokeWidth = 7, color = '#FF6115' }) => {
+const ScoreRing = ({ score, size = 80, strokeWidth = 7, color = 'currentColor', className = '' }) => {
   const r = (size - strokeWidth * 2) / 2;
   const circumference = 2 * Math.PI * r;
   const progress = ((100 - score) / 100) * circumference;
@@ -19,55 +39,14 @@ const ScoreRing = ({ score, size = 80, strokeWidth = 7, color = '#FF6115' }) => 
         strokeWidth={strokeWidth} className="text-mist-200 dark:text-dark-surface" />
       <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke={color}
         strokeWidth={strokeWidth} strokeDasharray={circumference}
-        strokeDashoffset={progress} strokeLinecap="round"
+        strokeDashoffset={progress} strokeLinecap="round" className={className}
         style={{ transition: 'stroke-dashoffset 1s ease' }} />
     </svg>
   );
 };
 
-// ── Status Chip ──────────────────────────────────────────────────────────────
-const StatusChip = ({ status }) => {
-  const styles = {
-    PASS: 'bg-white dark:bg-dark-card text-mist-800 dark:text-dark-text border-mist-300 dark:border-dark-border',
-    FAIL: 'bg-white dark:bg-dark-card text-mist-800 dark:text-dark-text border-mist-300 dark:border-dark-border',
-    PENDING: 'bg-white dark:bg-dark-card text-mist-500 dark:text-dark-muted border-mist-300 dark:border-dark-border',
-  };
-  return (
-    <span className={`inline-flex items-center px-2 py-0.5 rounded text-[11px] font-bold uppercase tracking-wider border ${styles[status] || styles.PENDING}`}>
-      {status}
-    </span>
-  );
-};
-
-// ── Compact progress bar ─────────────────────────────────────────────────────
-const ProgressBar = ({ value, color = 'bg-primary-500', showLabel = true }) => (
-  <div className="flex items-center gap-2">
-    <div className="flex-1 h-2 bg-mist-100 dark:bg-dark-surface rounded-full overflow-hidden">
-      <div className={`h-full ${color} rounded-full transition-all duration-700`} style={{ width: `${Math.min(100, value)}%` }} />
-    </div>
-    {showLabel && <span className="text-[11px] font-bold text-mist-500 dark:text-dark-muted w-8 text-right">{value}%</span>}
-  </div>
-);
-
-// ── KPI stat card ────────────────────────────────────────────────────────────
-const StatCard = ({ label, value, sub, trend }) => (
-  <div className="app-card relative flex min-h-[126px] flex-col p-5 transition-all duration-200 hover:border-primary-300 dark:hover:border-primary-700">
-    {trend !== undefined && (
-      <div className={`absolute right-5 top-5 flex items-center gap-0.5 text-[11px] font-bold ${trend >= 0 ? 'text-primary-500' : 'text-mist-500 dark:text-dark-muted'}`}>
-        {trend >= 0 ? <ArrowUpRight className="w-3.5 h-3.5" /> : <ArrowDownRight className="w-3.5 h-3.5" />}
-        {Math.abs(trend)}%
-      </div>
-    )}
-    <p className="min-h-[16px] text-[11px] font-bold uppercase tracking-wider text-mist-500 dark:text-dark-muted">{label}</p>
-    <p className="mt-2 text-2xl font-black leading-none text-mist-900 dark:text-white">{value}</p>
-    <p className="mt-auto min-h-[16px] text-[11px] text-mist-400 dark:text-dark-muted">{sub || '\u00A0'}</p>
-  </div>
-);
-
 export const SupervisorDashboard = () => {
   const { showToast } = useToast();
-  const { logout } = useAuth();
-  const { isDark, toggleTheme } = useTheme();
 
   const [activeTab, setActiveTab] = useState('dashboard');
   const [data, setData] = useState(null);
@@ -90,8 +69,6 @@ export const SupervisorDashboard = () => {
   const [newDept, setNewDept] = useState('Inbound Logistics Bay 4');
   const [isCreating, setIsCreating] = useState(false);
 
-  // Logout confirm
-  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const [traineePendingDelete, setTraineePendingDelete] = useState(null);
 
   const fetchAllData = useCallback(async () => {
@@ -193,379 +170,494 @@ export const SupervisorDashboard = () => {
     return matchSearch && matchStatus;
   });
 
+  // Labelled tabs, no icons: three icons in a row beside three labels is
+  // decoration, and the section names are already unambiguous.
   const tabs = [
-    { id: 'dashboard', label: 'Team Dashboard', icon: LayoutDashboard },
-    { id: 'trainees', label: 'Trainee Records', icon: Users },
-    { id: 'analytics', label: 'Risk Analytics', icon: BarChart3 },
+    { id: 'dashboard', label: 'Team Dashboard' },
+    { id: 'trainees', label: 'Trainee Records' },
+    { id: 'analytics', label: 'Risk Analytics' },
   ];
 
+  const passRate = stats.passRatePercentage || 0;
+  const avgScore = stats.averageScorePercentage ?? 0;
+
+  // Derived analytics, computed server-side from the same record set as the
+  // category breakdown so the two views can never disagree.
+  const derived = analytics?.analytics ?? null;
+  const totalAttempts = analytics?.totalAudits ?? 0;
+  const trend = derived?.scoreTrend ?? null;
+  const trendChip =
+    trend?.direction === 'IMPROVING' ? 'app-chip-pass'
+      : trend?.direction === 'DECLINING' ? 'app-chip-stop'
+        : trend?.direction === 'STABLE' ? 'app-chip-caution'
+          : 'app-chip-neutral';
+  const trendLabel =
+    trend?.direction === 'IMPROVING' ? 'Improving'
+      : trend?.direction === 'DECLINING' ? 'Declining'
+        : trend?.direction === 'STABLE' ? 'Holding steady'
+          : 'Not enough data';
+
+  /** Seconds to m:ss, so timing figures are readable at a glance. */
+  const mmss = (seconds) => {
+    const s = Math.max(0, Math.round(Number(seconds) || 0));
+    return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
+  };
+
   return (
-    <div className="min-h-screen bg-mist-200 dark:bg-dark-bg">
+    <div className="app-page py-6">
+      {/* The brand navbar, theme toggle and sign-out live in AppShell, so this
+          page opens with the shared PageHeader rather than a hand-rolled
+          toolbar — that mismatch in indent and vertical rhythm is what made this
+          dashboard sit differently from the other two. */}
+      <PageHeader
+        eyebrow="HSE Supervisor Console"
+        title="Team Compliance Dashboard"
+        description="Monitor your team's warehouse hazard training sessions, track certification status, and identify risk patterns across the bays."
+        actions={
+          <>
+            {lastRefresh && (
+              <span className="app-eyebrow hidden sm:inline-flex sm:items-center sm:gap-1.5">
+                <RefreshCw
+                  className={`h-3.5 w-3.5 ${loading ? 'animate-spin text-primary-500' : ''}`}
+                  aria-hidden="true"
+                />
+                Synced {lastRefresh.toLocaleTimeString('en-GB', {
+                  hour: '2-digit',
+                  minute: '2-digit',
+                })}
+              </span>
+            )}
+            <button
+              onClick={handleRefresh}
+              className="app-icon-btn"
+              title="Sync dashboard"
+              aria-label="Sync dashboard"
+            >
+              <RefreshCw
+                className={`h-4 w-4 ${loading ? 'animate-spin text-primary-500' : ''}`}
+              />
+            </button>
+            <button
+              onClick={handleExportCSV}
+              className="app-btn app-btn-secondary hidden sm:inline-flex"
+            >
+              <Download className="h-3.5 w-3.5" /> Export CSV
+            </button>
+            <button
+              onClick={() => setIsCreateModalOpen(true)}
+              className="app-btn app-btn-primary"
+            >
+              <UserPlus className="h-3.5 w-3.5" /> Add Trainee
+            </button>
+          </>
+        }
+      />
 
-      {/* Supervisor Header */}
-      <div className="bg-white dark:bg-dark-card border-b border-mist-300 dark:border-dark-border sticky top-0 z-40 shadow-card">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-14">
-            <div className="flex items-center gap-3">
-              <div className="w-8 h-8 rounded-xl bg-primary-500 flex items-center justify-center">
-                <ShieldCheck className="w-4 h-4 text-white" />
-              </div>
-              <div>
-                <p className="text-xs font-black text-mist-900 dark:text-white tracking-tight">HSE SUPERVISOR</p>
-                <p className="text-[11px] text-mist-500 dark:text-dark-muted">Health, Safety & Environment Dashboard</p>
-              </div>
-            </div>
-            <div className="flex items-center gap-2">
-              {lastRefresh && (
-                <span className="hidden sm:block text-[11px] text-mist-500 dark:text-dark-muted">
-                  Synced {lastRefresh.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}
-                </span>
-              )}
-              <button onClick={handleRefresh}
-                className="p-2 rounded-xl hover:bg-mist-100 dark:hover:bg-dark-surface text-mist-600 dark:text-dark-muted transition-colors">
-                <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin text-primary-500' : ''}`} />
-              </button>
-              <button onClick={toggleTheme}
-                className="p-2 rounded-xl hover:bg-mist-100 dark:hover:bg-dark-surface text-mist-600 dark:text-dark-muted transition-colors">
-                {isDark ? <Sun className="w-4 h-4 text-amber-400" /> : <Moon className="w-4 h-4" />}
-              </button>
-              <button onClick={handleExportCSV}
-                className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-mist-100 dark:bg-dark-surface text-mist-800 dark:text-white text-xs font-semibold border border-mist-300 dark:border-dark-border hover:border-primary-500/40 transition-colors">
-                <Download className="w-3.5 h-3.5 text-primary-500" /> Export CSV
-              </button>
-              <button onClick={() => setIsCreateModalOpen(true)}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-primary-500 hover:bg-primary-600 text-white text-xs font-bold shadow-sm transition-all">
-                <UserPlus className="w-3.5 h-3.5" /> Add Trainee
-              </button>
-              <button onClick={() => setShowLogoutConfirm(true)}
-                className="p-2 rounded-xl hover:bg-mist-100 dark:hover:bg-dark-surface text-mist-500 dark:text-dark-muted hover:text-primary-600 transition-colors">
-                <LogOut className="w-4 h-4" />
-              </button>
-            </div>
-          </div>
-
-          {/* Tab nav */}
-          <div className="flex gap-1 -mb-px overflow-x-auto">
-            {tabs.map(({ id, label, icon: Icon }) => (
-              <button key={id} onClick={() => setActiveTab(id)}
-                className={`flex items-center gap-1.5 px-4 py-2.5 text-xs font-semibold whitespace-nowrap border-b-2 transition-all ${
-                  activeTab === id
-                    ? 'border-primary-500 text-primary-600 dark:text-primary-400'
-                    : 'border-transparent text-mist-500 dark:text-dark-muted hover:text-mist-800 dark:hover:text-white'
-                }`}>
-                <Icon className="w-3.5 h-3.5" /> {label}
-              </button>
-            ))}
-          </div>
+      <div className="mb-5">
+        <div className="app-seg self-start">
+          {tabs.map(({ id, label }) => (
+            <button key={id} onClick={() => setActiveTab(id)}
+              className={`app-seg-item whitespace-nowrap ${activeTab === id ? 'app-seg-item-active' : ''}`}>
+              {label}
+            </button>
+          ))}
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+      {/* ── DASHBOARD TAB ────────────────────────────────────────────────── */}
+      {activeTab === 'dashboard' && (
+        <div className="app-stack animate-fade-in">
 
-        {/* ── DASHBOARD TAB ────────────────────────────────────────────────── */}
-        {activeTab === 'dashboard' && (
-          <div className="space-y-6 animate-fade-in">
-
-            {/* Hero section */}
-            <div className="bg-primary-600 rounded-xl p-6 text-white shadow-sm relative overflow-hidden">
-              <div className="relative flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-                <div>
-                  <p className="text-primary-100 text-xs font-semibold uppercase tracking-widest mb-1">Real-Time Team Compliance Monitor</p>
-                  <h1 className="text-2xl font-black tracking-tight mb-2">HSE Supervisor Dashboard</h1>
-                  <p className="text-primary-100 text-sm max-w-lg">
-                    Monitor your team's 360° hazard training sessions, track compliance status, and identify risk patterns in real time.
-                  </p>
-                </div>
-                <div className="flex-shrink-0 flex items-center justify-center w-20 h-20 rounded-xl bg-white/15">
-                  <div className="relative">
-                    <ScoreRing score={stats.passRatePercentage || 0} size={72} strokeWidth={6} color="#ffffff" />
-                    <div className="absolute inset-0 flex items-center justify-center">
-                      <span className="text-sm font-black">{stats.passRatePercentage || 0}%</span>
-                    </div>
-                  </div>
+          {/* Score band. This used to carry a second copy of the page title,
+              which doubled the heading once the real header moved to the top of
+              the page. It now holds only the figure it exists to show. */}
+          <div className="app-band flex flex-wrap items-center justify-between gap-4 p-5">
+            <div className="flex items-center gap-4">
+              <div className="relative shrink-0">
+                <ScoreRing
+                  score={passRate}
+                  size={72}
+                  strokeWidth={6}
+                  className={scoreTone(passRate)}
+                />
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <span className="app-num text-sm font-bold">{passRate}%</span>
                 </div>
               </div>
-            </div>
-
-            {/* KPI row */}
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-              <StatCard label="Total Trainees" value={stats.totalEmployees ?? 0}
-                sub="Registered employees" />
-              <StatCard label="Passed" value={stats.passedCount ?? 0}
-                sub={`${stats.passRatePercentage ?? 0}% pass rate`}
-                trend={(stats.passRatePercentage || 0) >= 75 ? 5 : -8} />
-              <StatCard label="Failed / Pending" value={(stats.failedCount ?? 0) + (stats.pendingCount ?? 0)}
-                sub={`${stats.failedCount ?? 0} failed · ${stats.pendingCount ?? 0} pending`} />
-              <StatCard label="Avg. Score" value={`${stats.averageScorePercentage ?? 0}%`}
-                sub="Official sessions only" />
-            </div>
-
-            {/* Compliance progress bar display */}
-            <div className="bg-white dark:bg-dark-card rounded-xl shadow-card dark:shadow-card-dark border border-mist-300 dark:border-dark-border p-5">
-              <h3 className="text-sm font-bold text-mist-900 dark:text-white mb-4 flex items-center gap-2">
-                <span className="w-1.5 h-1.5 rounded-full bg-primary-500" /> Team Compliance Breakdown
-              </h3>
-              <div className="space-y-4">
-                {[
-                  { label: 'Passed', value: stats.passedCount ?? 0, total: stats.totalEmployees || 1, color: 'bg-primary-500', textColor: 'text-mist-700 dark:text-dark-muted' },
-                  { label: 'Failed', value: stats.failedCount ?? 0, total: stats.totalEmployees || 1, color: 'bg-mist-700 dark:bg-mist-500', textColor: 'text-mist-700 dark:text-dark-muted' },
-                  { label: 'Pending (Not Attempted)', value: stats.pendingCount ?? 0, total: stats.totalEmployees || 1, color: 'bg-mist-300 dark:bg-mist-600', textColor: 'text-mist-500 dark:text-dark-muted' },
-                ].map(({ label, value, total, color, textColor }) => {
-                  const pct = Math.round((value / total) * 100);
-                  return (
-                    <div key={label}>
-                      <div className="flex justify-between items-center mb-1.5">
-                        <span className="text-xs font-semibold text-mist-700 dark:text-dark-muted">{label}</span>
-                        <span className={`text-xs font-bold ${textColor}`}>{value} employees ({pct}%)</span>
-                      </div>
-                      <ProgressBar value={pct} color={color} showLabel={false} />
-                    </div>
-                  );
-                })}
+              <div className="min-w-0">
+                <p className="app-eyebrow-accent">Team pass rate</p>
+                <p className="app-body mt-1">
+                  {stats.totalEmployees ?? 0} registered · {stats.passedCount ?? 0} cleared ·{' '}
+                  {stats.failedCount ?? 0} failed
+                </p>
               </div>
             </div>
-
-            {/* Quick trainee preview */}
-            <div className="bg-white dark:bg-dark-card rounded-xl shadow-card dark:shadow-card-dark border border-mist-300 dark:border-dark-border overflow-hidden">
-              <div className="flex items-center justify-between px-5 py-3.5 border-b border-mist-200 dark:border-dark-border bg-mist-50/50 dark:bg-dark-surface/30">
-                <h3 className="text-sm font-bold text-mist-900 dark:text-white flex items-center gap-2">
-                  <span className="w-1.5 h-1.5 rounded-full bg-primary-500" /> Recent Trainee Activity
-                </h3>
-                <button onClick={() => setActiveTab('trainees')}
-                  className="text-xs text-primary-500 hover:text-primary-700 font-semibold flex items-center gap-0.5">
-                  View All <ChevronRight className="w-3.5 h-3.5" />
-                </button>
-              </div>
-              <div className="divide-y divide-mist-100 dark:divide-dark-border">
-                {team.slice(0, 5).map(e => (
-                  <div key={e.id} className="flex items-center justify-between px-5 py-3.5 hover:bg-mist-50/50 dark:hover:bg-dark-surface/20 transition-colors cursor-pointer group"
-                    onClick={() => handleInspectTrainee(e)}>
-                    <div className="flex items-center gap-3 min-w-0">
-                      <div className="w-8 h-8 rounded-xl bg-primary-500 text-white text-xs font-bold flex items-center justify-center flex-shrink-0">
-                        {e.name.charAt(0)}
-                      </div>
-                      <div className="min-w-0">
-                        <p className="text-xs font-semibold text-mist-900 dark:text-white truncate">{e.name}</p>
-                        <p className="text-[11px] text-mist-500 dark:text-dark-muted truncate">{e.department}</p>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-3 flex-shrink-0">
-                      <StatusChip status={e.status} />
-                      {e.latestScore !== null && (
-                        <span className="text-xs font-bold text-mist-700 dark:text-white hidden sm:block">{e.latestScore}%</span>
-                      )}
-                      <ChevronRight className="w-3.5 h-3.5 text-mist-400 group-hover:text-primary-500 transition-colors" />
-                    </div>
-                  </div>
-                ))}
-                {team.length === 0 && !loading && (
-                  <div className="py-12 text-center text-mist-400 dark:text-dark-muted">
-                    <Users className="w-10 h-10 mx-auto mb-2 opacity-30" />
-                    <p className="text-xs">No trainee accounts yet. Add employees using the button above.</p>
-                  </div>
-                )}
-              </div>
-            </div>
+            <span
+              className={`app-chip ${
+                passRate >= 75
+                  ? 'app-chip-pass'
+                  : passRate > 0
+                    ? 'app-chip-caution'
+                    : 'app-chip-neutral'
+              }`}
+            >
+              {passRate >= 75 ? 'On target' : passRate > 0 ? 'Below target' : 'No data'}
+            </span>
           </div>
-        )}
 
-        {/* ── TRAINEES TAB ─────────────────────────────────────────────────── */}
-        {activeTab === 'trainees' && (
-          <div className="space-y-5 animate-fade-in">
-            {/* Filters */}
-            <div className="flex flex-col sm:flex-row gap-3">
-              <div className="relative flex-1">
-                <Search className="w-4 h-4 text-mist-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
-                <input type="text" placeholder="Search trainees by name, username, department…"
-                  value={searchTerm} onChange={e => setSearchTerm(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2.5 text-xs rounded-xl border border-mist-300 dark:border-dark-border bg-white dark:bg-dark-card text-mist-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary-500/40 focus:border-primary-500 transition-all" />
-              </div>
-              <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)}
-                className="px-3.5 py-2.5 text-xs rounded-xl border border-mist-300 dark:border-dark-border bg-white dark:bg-dark-card text-mist-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary-500/40">
-                <option value="ALL">All Statuses</option>
-                <option value="PASS">Passed</option>
-                <option value="FAIL">Failed</option>
-                <option value="PENDING">Pending</option>
-              </select>
-              <button onClick={() => setIsCreateModalOpen(true)}
-                className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-primary-500 hover:bg-primary-600 text-white text-xs font-bold shadow-sm transition-all whitespace-nowrap">
-                <UserPlus className="w-3.5 h-3.5" /> New Employee
-              </button>
-              <button onClick={handleExportCSV}
-                className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-mist-100 dark:bg-dark-surface text-mist-800 dark:text-white text-xs font-semibold border border-mist-300 dark:border-dark-border hover:border-primary-500/40 transition-colors whitespace-nowrap">
-                <Download className="w-3.5 h-3.5 text-primary-500" /> Export CSV
-              </button>
+          {/* KPI row */}
+          <div className="app-stat-row">
+            <StatTile label="Total Trainees" value={stats.totalEmployees ?? 0}
+              sub="Registered employees" />
+            <StatTile label="Passed" value={stats.passedCount ?? 0} tone="pass"
+              meter={passRate}
+              sub={
+                <span className="inline-flex items-center gap-1">
+                  {passRate >= 75
+                    ? <ArrowUpRight className="h-3.5 w-3.5 text-pass-600 dark:text-pass-200" />
+                    : <ArrowDownRight className="h-3.5 w-3.5 text-stop-600 dark:text-stop-200" />}
+                  {`${stats.passRatePercentage ?? 0}% pass rate`}
+                </span>
+              } />
+            <StatTile label="Failed / Pending" value={(stats.failedCount ?? 0) + (stats.pendingCount ?? 0)}
+              tone="stop"
+              sub={`${stats.failedCount ?? 0} failed · ${stats.pendingCount ?? 0} pending`} />
+            <StatTile label="Avg. Score" value={`${avgScore}%`} tone="brand" meter={avgScore}
+              sub={derived ? `Median ${derived.medianScore}% · ${derived.officialAttempts} official` : 'Official sessions only'} />
+          </div>
+
+          {/* ── Derived analytics ──────────────────────────────────────────────
+              Figures that answer "what should I do next?" rather than
+              restating the same counts: detection accuracy, timing spread,
+              cohort direction, and the single biggest training gap. */}
+          {derived && totalAttempts > 0 && (
+            <div className="grid gap-4 lg:grid-cols-2">
+              <SectionCard
+                title="Detection Accuracy"
+                description="Of everything clicked, how much was a real hazard"
+                bodyClass="p-4"
+              >
+                <div className="grid grid-cols-3 gap-3">
+                  <Metric
+                    label="Precision"
+                    value={derived.detectionAccuracyPercentage}
+                    unit="%"
+                    baseline={`${derived.totalSpotted} real`}
+                  />
+                  <Metric
+                    label="False clicks"
+                    value={derived.totalFalseClicks}
+                    baseline="Across all sessions"
+                    invert
+                  />
+                  <Metric
+                    label="Missed"
+                    value={derived.totalMissed}
+                    baseline="Never reported"
+                    invert
+                  />
+                </div>
+                <div className="app-divider mt-4 pt-3">
+                  <Metric
+                    label="Median completion time"
+                    value={mmss(derived.medianTimeTakenSeconds)}
+                    baseline={`Slowest 10% ${mmss(derived.p90TimeTakenSeconds)} · fastest ${mmss(derived.fastestTimeSeconds)}`}
+                  />
+                </div>
+              </SectionCard>
+
+              <SectionCard
+                title="7-Day Activity"
+                description="Sessions completed per day"
+                bodyClass="p-4"
+                actions={<span className={`app-chip ${trendChip}`}>{trendLabel}</span>}
+              >
+                <div className="app-chart">
+                  <ColumnChart
+                    data={derived.weeklyActivity ?? []}
+                    valueKey="attempts"
+                    formatValue={(v) => `${v} sessions`}
+                  />
+                </div>
+                <div className="app-divider mt-4 pt-3">
+                  <Metric
+                    label="Score movement"
+                    value={derived.recentAvg}
+                    unit="%"
+                    delta={trend?.deltaPoints ?? null}
+                    baseline={
+                      trend?.direction === 'INSUFFICIENT_DATA'
+                        ? 'Needs at least 2 sessions'
+                        : `Earlier average ${trend?.earlierAvg}%`
+                    }
+                  />
+                </div>
+              </SectionCard>
             </div>
+          )}
 
-            {/* Trainee data table */}
-            <div className="bg-white dark:bg-dark-card rounded-xl shadow-card dark:shadow-card-dark border border-mist-300 dark:border-dark-border overflow-hidden">
-              <div className="overflow-x-auto">
-                <table className="w-full text-left">
-                  <thead>
-                    <tr className="text-[11px] uppercase tracking-widest text-mist-500 dark:text-dark-muted bg-mist-50 dark:bg-dark-surface/50 border-b border-mist-200 dark:border-dark-border">
-                      <th className="py-3 px-5 font-bold">Trainee</th>
-                      <th className="py-3 px-4 font-bold">Status</th>
-                      <th className="py-3 px-4 font-bold hidden sm:table-cell">Score</th>
-                      <th className="py-3 px-4 font-bold hidden md:table-cell">Hazards Found</th>
-                      <th className="py-3 px-4 font-bold hidden lg:table-cell">Sessions</th>
-                      <th className="py-3 px-4 font-bold hidden lg:table-cell">Last Attempt</th>
-                      <th className="py-3 px-4 font-bold">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-mist-100 dark:divide-dark-border text-xs">
-                    {filteredTeam.map(e => (
-                      <tr key={e.id} className="hover:bg-primary-50/30 dark:hover:bg-primary-950/10 transition-colors group">
-                        <td className="py-3.5 px-5">
-                          <div className="flex items-center gap-2.5">
-                            <div className="w-8 h-8 rounded-xl bg-primary-500 text-white text-xs font-bold flex items-center justify-center flex-shrink-0">
-                              {e.name.charAt(0)}
-                            </div>
-                            <div>
-                              <p className="font-semibold text-mist-900 dark:text-white">{e.name}</p>
-                              <p className="text-[11px] text-mist-500 dark:text-dark-muted">@{e.username}</p>
-                            </div>
+          {derived?.topGapCategory && (
+            <div className="app-alert app-alert-caution">
+              <Target className="app-alert-icon" aria-hidden="true" />
+              <span>
+                <strong>Priority training gap:</strong> {derived.topGapCategory.category} is missed{' '}
+                {derived.topGapCategory.missRatePercentage}% of the time (
+                {derived.topGapCategory.missed} occurrence
+                {derived.topGapCategory.missed === 1 ? '' : 's'}). Schedule a toolbox talk on this
+                category before the next assessment window.
+              </span>
+            </div>
+          )}
+
+          {/* Compliance progress bar display */}
+          <SectionCard title="Team Compliance Breakdown"
+            description="Share of the team by certification state">
+            <div className="app-stack gap-4">
+              {[
+                { label: 'Passed', value: stats.passedCount ?? 0, total: stats.totalEmployees || 1, fill: 'app-meter-fill-pass' },
+                { label: 'Failed', value: stats.failedCount ?? 0, total: stats.totalEmployees || 1, fill: 'app-meter-fill-stop' },
+                { label: 'Pending (Not Attempted)', value: stats.pendingCount ?? 0, total: stats.totalEmployees || 1, fill: 'bg-mist-300 dark:bg-dark-raised' },
+              ].map(({ label, value, total, fill }) => {
+                const pct = Math.round((value / total) * 100);
+                return (
+                  <div key={label}>
+                    <div className="mb-1.5 flex items-center justify-between gap-3">
+                      <span className="text-xs font-semibold text-mist-700 dark:text-dark-muted">{label}</span>
+                      <span className="app-num text-xs font-bold text-mist-900 dark:text-dark-text">
+                        {value} employees ({pct}%)
+                      </span>
+                    </div>
+                    <div className="app-meter">
+                      <div className={`h-full rounded-full ${fill}`} style={{ width: `${pct}%` }} />
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </SectionCard>
+
+          {/* Quick trainee preview */}
+          <SectionCard
+            title="Recent Trainee Activity"
+            bodyClass=""
+            actions={
+              <button onClick={() => setActiveTab('trainees')} className="app-btn app-btn-ghost app-btn-sm">
+                View All <ChevronRight className="h-3.5 w-3.5" />
+              </button>
+            }
+          >
+            <div className="divide-y divide-mist-100 dark:divide-dark-border">
+              {team.slice(0, 5).map(e => (
+                <div key={e.id}
+                  className="group flex cursor-pointer items-center justify-between gap-3 px-4 py-3.5 transition-colors hover:bg-mist-50 dark:hover:bg-dark-surface/40"
+                  onClick={() => handleInspectTrainee(e)}>
+                  <div className="flex min-w-0 items-center gap-3">
+                    <div className="app-icon-well h-8 w-8 text-xs font-bold">{e.name.charAt(0)}</div>
+                    <div className="min-w-0">
+                      <p className="truncate text-xs font-semibold text-mist-900 dark:text-dark-text">{e.name}</p>
+                      <p className="truncate text-[11px] text-mist-500 dark:text-dark-muted">{e.department}</p>
+                    </div>
+                  </div>
+                  <div className="flex shrink-0 items-center gap-3">
+                    <span className={`app-chip ${STATUS_TONE[e.status] || STATUS_TONE.PENDING}`}>{e.status}</span>
+                    {e.latestScore !== null && (
+                      <span className="app-num hidden text-xs font-bold text-mist-700 dark:text-dark-text sm:block">{e.latestScore}%</span>
+                    )}
+                    <ChevronRight className="h-3.5 w-3.5 text-mist-400 transition-colors group-hover:text-primary-500" />
+                  </div>
+                </div>
+              ))}
+              {team.length === 0 && !loading && (
+                <EmptyState
+                  title="No trainee accounts yet"
+                  description="Add employees using the button above to start tracking compliance."
+                />
+              )}
+            </div>
+          </SectionCard>
+        </div>
+      )}
+
+      {/* ── TRAINEES TAB ─────────────────────────────────────────────────── */}
+      {activeTab === 'trainees' && (
+        <div className="app-stack animate-fade-in">
+          {/* Filters */}
+          <div className="flex flex-col gap-3 sm:flex-row">
+            <div className="relative flex-1">
+              <Search className="absolute inset-y-0 left-3.5 my-auto h-4 w-4 text-mist-400" aria-hidden="true" />
+              <input type="text" placeholder="Search trainees by name, username, department…"
+                value={searchTerm} onChange={e => setSearchTerm(e.target.value)}
+                className="app-input pl-10" />
+            </div>
+            <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)}
+              className="app-input w-auto" aria-label="Filter by status">
+              <option value="ALL">All Statuses</option>
+              <option value="PASS">Passed</option>
+              <option value="FAIL">Failed</option>
+              <option value="PENDING">Pending</option>
+            </select>
+            <button onClick={() => setIsCreateModalOpen(true)} className="app-btn app-btn-primary whitespace-nowrap">
+              <UserPlus className="h-3.5 w-3.5" /> New Employee
+            </button>
+            <button onClick={handleExportCSV} className="app-btn app-btn-secondary whitespace-nowrap">
+              <Download className="h-3.5 w-3.5" /> Export CSV
+            </button>
+          </div>
+
+          {/* Trainee data table */}
+          <SectionCard bodyClass="p-0">
+            <div className="app-table-wrap">
+              <table className="app-table">
+                <thead>
+                  <tr>
+                    <th className="app-th">Trainee</th>
+                    <th className="app-th">Status</th>
+                    <th className="app-th hidden sm:table-cell">Score</th>
+                    <th className="app-th hidden md:table-cell">Hazards Found</th>
+                    <th className="app-th hidden lg:table-cell">Sessions</th>
+                    <th className="app-th hidden lg:table-cell">Last Attempt</th>
+                    <th className="app-th">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredTeam.map(e => (
+                    <tr key={e.id} className="group transition-colors hover:bg-mist-50 dark:hover:bg-dark-surface/30">
+                      <td className="app-td">
+                        <div className="flex items-center gap-2.5">
+                          <div className="app-icon-well h-8 w-8 text-xs font-bold">{e.name.charAt(0)}</div>
+                          <div>
+                            <p className="font-semibold text-mist-900 dark:text-dark-text">{e.name}</p>
+                            <p className="app-num text-[11px] text-mist-500 dark:text-dark-muted">@{e.username}</p>
                           </div>
-                        </td>
-                        <td className="py-3.5 px-4"><StatusChip status={e.status} /></td>
-                        <td className="py-3.5 px-4 hidden sm:table-cell">
-                          {e.latestScore !== null ? (
-                            <span className="font-bold text-mist-900 dark:text-white">{e.latestScore}%</span>
-                          ) : <span className="text-mist-400">—</span>}
-                        </td>
-                        <td className="py-3.5 px-4 hidden md:table-cell">
-                          {e.hasAttempted ? (
-                            <span className="text-mist-700 dark:text-dark-muted">
-                              {e.hazardsFoundCount}/{e.hazardsFoundCount + e.hazardsMissedCount}
-                            </span>
-                          ) : <span className="text-mist-400">—</span>}
-                        </td>
-                        <td className="py-3.5 px-4 hidden lg:table-cell font-mono text-mist-500 dark:text-dark-muted">
-                          {e.totalAttempts}
-                        </td>
-                        <td className="py-3.5 px-4 hidden lg:table-cell font-mono text-mist-400 dark:text-dark-muted text-[11px]">
-                          {e.lastAttemptDate ? new Date(e.lastAttemptDate).toLocaleDateString('en-GB') : '—'}
-                        </td>
-                        <td className="py-3.5 px-4 flex gap-2 items-center">
-                          <button onClick={() => handleInspectTrainee(e)}
-                            className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-mist-100 dark:bg-dark-surface hover:bg-primary-50 dark:hover:bg-primary-950/40 text-mist-600 dark:text-dark-muted hover:text-primary-700 dark:hover:text-primary-300 text-[11px] font-bold transition-colors group-hover:border-primary-200">
-                            <Eye className="w-3 h-3" /> View
+                        </div>
+                      </td>
+                      <td className="app-td">
+                        <span className={`app-chip ${STATUS_TONE[e.status] || STATUS_TONE.PENDING}`}>{e.status}</span>
+                      </td>
+                      <td className="app-td hidden sm:table-cell">
+                        {e.latestScore !== null ? (
+                          <span className="app-num font-bold text-mist-900 dark:text-dark-text">{e.latestScore}%</span>
+                        ) : <span className="text-mist-400">—</span>}
+                      </td>
+                      <td className="app-td hidden md:table-cell">
+                        {e.hasAttempted ? (
+                          <span className="app-num text-mist-700 dark:text-dark-muted">
+                            {e.hazardsFoundCount}/{e.hazardsFoundCount + e.hazardsMissedCount}
+                          </span>
+                        ) : <span className="text-mist-400">—</span>}
+                      </td>
+                      <td className="app-td app-num hidden lg:table-cell text-mist-500 dark:text-dark-muted">
+                        {e.totalAttempts}
+                      </td>
+                      <td className="app-td app-num hidden text-[11px] text-mist-400 lg:table-cell dark:text-dark-muted">
+                        {e.lastAttemptDate ? new Date(e.lastAttemptDate).toLocaleDateString('en-GB') : '—'}
+                      </td>
+                      <td className="app-td">
+                        <div className="flex items-center gap-2">
+                          <button onClick={() => handleInspectTrainee(e)} className="app-btn app-btn-secondary app-btn-sm">
+                            <Eye className="h-3 w-3" /> View
                           </button>
                           <button onClick={(event) => { event.stopPropagation(); handleDeleteUser(e.id, e.name); }}
-                            className="p-1.5 rounded-lg text-mist-400 hover:text-primary-600 hover:bg-mist-100 dark:hover:bg-dark-surface transition-colors"
-                            title="Delete Trainee">
-                            <Trash2 className="w-4 h-4" />
+                            className="app-icon-btn h-8 w-8 hover:border-stop-600 hover:text-stop-600 dark:hover:text-stop-200"
+                            title="Delete Trainee" aria-label={`Delete ${e.name}`}>
+                            <Trash2 className="h-4 w-4" />
                           </button>
-                        </td>
-                      </tr>
-                    ))}
-                    {filteredTeam.length === 0 && (
-                      <tr>
-                        <td colSpan={7} className="py-16 text-center text-mist-400 dark:text-dark-muted">
-                          <Search className="w-10 h-10 mx-auto mb-2 opacity-30" />
-                          <p className="text-sm">No trainees match your filters</p>
-                        </td>
-                      </tr>
-                    )}
-                  </tbody>
-                </table>
-              </div>
-              <div className="px-5 py-3 border-t border-mist-100 dark:border-dark-border bg-mist-50/30 dark:bg-dark-surface/20">
-                <p className="text-[11px] text-mist-500 dark:text-dark-muted">
-                  {filteredTeam.length} of {team.length} trainees · {stats.passedCount ?? 0} passed · {stats.failedCount ?? 0} failed · {stats.pendingCount ?? 0} pending
-                </p>
-              </div>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                  {filteredTeam.length === 0 && (
+                    <tr>
+                      <td colSpan={7} className="px-4 py-6">
+                        <EmptyState
+                          title="No trainees match your filters"
+                          description="Adjust the search term or status filter to see more records."
+                        />
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
             </div>
+            <div className="app-divider bg-mist-50 px-4 py-2.5 dark:bg-dark-surface/40">
+              <p className="app-num text-[11px] text-mist-500 dark:text-dark-muted">
+                {filteredTeam.length} of {team.length} trainees · {stats.passedCount ?? 0} passed · {stats.failedCount ?? 0} failed · {stats.pendingCount ?? 0} pending
+              </p>
+            </div>
+          </SectionCard>
+        </div>
+      )}
+
+      {/* ── ANALYTICS TAB ────────────────────────────────────────────────── */}
+      {activeTab === 'analytics' && (
+        <div className="app-stack animate-fade-in">
+          {/* Summary row */}
+          <div className="grid gap-4 sm:grid-cols-3">
+            <StatTile label="Total Audit Sessions" value={analytics?.totalAudits ?? 0}
+              sub="Official + practice combined" />
+            <StatTile label="Avg. Session Time" value={`${analytics?.avgTimeTakenSeconds ?? 0} sec`}
+              sub="Time to complete 360° inspection" />
+            <StatTile label="Avg. False Clicks" value={analytics?.avgFalseClicksCount ?? 0}
+              tone={Number(analytics?.avgFalseClicksCount ?? 0) > 0 ? 'caution' : 'neutral'}
+              sub="Penalty clicks per session (avg)" />
           </div>
-        )}
 
-        {/* ── ANALYTICS TAB ────────────────────────────────────────────────── */}
-        {activeTab === 'analytics' && (
-          <div className="space-y-5 animate-fade-in">
-            {/* Summary row */}
-            <div className="grid sm:grid-cols-3 gap-4">
-              <div className="app-card p-5">
-                <p className="text-[11px] uppercase font-bold tracking-wider text-mist-500 dark:text-dark-muted mb-1">Total Audit Sessions</p>
-                <p className="text-2xl font-black text-mist-900 dark:text-white">{analytics?.totalAudits ?? 0}</p>
-                <p className="text-[11px] text-mist-400 mt-1">Official + practice combined</p>
-              </div>
-              <div className="app-card p-5">
-                <p className="text-[11px] uppercase font-bold tracking-wider text-mist-500 dark:text-dark-muted mb-1">Avg. Session Time</p>
-                <p className="text-2xl font-black text-mist-900 dark:text-white">
-                  {analytics?.avgTimeTakenSeconds ?? 0}<span className="text-base font-medium ml-1">sec</span>
-                </p>
-                <p className="text-[11px] text-mist-400 mt-1">Time to complete 360° inspection</p>
-              </div>
-              <div className="app-card p-5">
-                <p className="text-[11px] uppercase font-bold tracking-wider text-mist-500 dark:text-dark-muted mb-1">Avg. False Clicks</p>
-                <p className="text-2xl font-black text-mist-900 dark:text-white">{analytics?.avgFalseClicksCount ?? 0}</p>
-                <p className="text-[11px] text-mist-400 mt-1">Penalty clicks per session (avg)</p>
-              </div>
-            </div>
-
-            {/* Category miss rate analysis */}
-            <div className="app-card p-5">
-              <div className="mb-5">
-                <p className="text-[11px] uppercase font-bold tracking-wider text-primary-500">Safety analytics</p>
-                <h3 className="text-sm font-bold text-mist-900 dark:text-white mt-1">Hazard category vulnerability</h3>
-              </div>
+          {/* Category miss rate analysis */}
+          <div className="app-stack gap-2.5">
+            <p className="app-eyebrow-accent flex items-center gap-1.5">
+              <Activity className="h-3.5 w-3.5" aria-hidden="true" /> Safety analytics
+            </p>
+            <SectionCard title="Hazard category vulnerability"
+              description="Ranked by miss rate — the hazard types the team overlooks most.">
               {analytics?.categoryBreakdown?.length > 0 ? (
-                <div className="space-y-5">
+                <div className="app-stack gap-4">
                   {analytics.categoryBreakdown.sort((a, b) => b.missRatePercentage - a.missRatePercentage).map(cat => (
                     <div key={cat.category}>
-                      <div className="flex items-center justify-between mb-2">
-                        <div className="flex items-center gap-2">
-                          <span className={`w-2 h-2 rounded-full flex-shrink-0 ${
-                            'bg-primary-500'
-                          }`} />
-                          <span className="text-xs font-semibold text-mist-800 dark:text-white">{cat.category}</span>
+                      <div className="mb-1.5 flex items-center justify-between gap-3">
+                        <div className="flex min-w-0 items-center gap-2">
+                          <span className="truncate text-xs font-semibold text-mist-800 dark:text-dark-text">{cat.category}</span>
                         </div>
-                        <div className="flex items-center gap-3 flex-shrink-0">
-                          <span className="text-[11px] text-mist-500 dark:text-dark-muted hidden sm:block">
+                        <div className="flex shrink-0 items-center gap-2">
+                          <span className="app-num text-[11px] text-mist-500 dark:text-dark-muted">
                             {cat.spotted} spotted · {cat.missed} missed
                           </span>
-                          <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full ${
-                            'bg-white dark:bg-dark-card text-mist-700 dark:text-dark-muted border border-mist-300 dark:border-dark-border'
-                          }`}>{cat.riskLevel} · {cat.missRatePercentage}%</span>
+                          <span className={`app-chip ${RISK_TONE[cat.riskLevel] || RISK_TONE.LOW}`}>
+                            {cat.riskLevel} · {cat.missRatePercentage}%
+                          </span>
                         </div>
                       </div>
-                      <div className="w-full h-2 bg-mist-100 dark:bg-dark-surface rounded-full overflow-hidden">
-                        <div className={`h-full rounded-full transition-all duration-700 ${
-                          'bg-primary-500'
-                        }`} style={{ width: `${cat.missRatePercentage}%` }} />
+                      <div className="app-meter">
+                        <div className={`h-full rounded-full ${cat.riskLevel === 'CRITICAL' ? 'app-meter-fill-stop' : 'app-meter-fill'}`}
+                          style={{ width: `${cat.missRatePercentage}%` }} />
                       </div>
                     </div>
                   ))}
                 </div>
               ) : (
-                <div className="text-center py-16 text-mist-400 dark:text-dark-muted">
-                  <p className="text-sm">Analytics data will populate once trainees complete sessions.</p>
-                </div>
+                <EmptyState
+                  title="No category data yet"
+                  description="Analytics will populate once trainees complete sessions."
+                />
               )}
-            </div>
-
-            {/* Score distribution */}
-            <div className="app-card p-5">
-              <h3 className="text-sm font-bold text-mist-900 dark:text-white mb-4">
-                Score distribution
-              </h3>
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                {[
-                  { label: 'Distinction', range: '90–100%', value: analytics?.scoreDistribution?.distDistinction ?? 0, color: 'bg-primary-500', bg: 'bg-white dark:bg-dark-card border-mist-300 dark:border-dark-border text-mist-900 dark:text-white' },
-                  { label: 'Pass', range: '75–89%', value: analytics?.scoreDistribution?.distPass ?? 0, color: 'bg-primary-500', bg: 'bg-white dark:bg-dark-card border-mist-300 dark:border-dark-border text-mist-900 dark:text-white' },
-                  { label: 'Near-Miss', range: '60–74%', value: analytics?.scoreDistribution?.distNearMiss ?? 0, color: 'bg-primary-500', bg: 'bg-white dark:bg-dark-card border-mist-300 dark:border-dark-border text-mist-900 dark:text-white' },
-                  { label: 'Fail', range: '<60%', value: analytics?.scoreDistribution?.distFail ?? 0, color: 'bg-primary-500', bg: 'bg-white dark:bg-dark-card border-mist-300 dark:border-dark-border text-mist-900 dark:text-white' },
-                ].map(({ label, range, value, color, bg }) => (
-                  <div key={label} className={`rounded-xl p-4 border ${bg} text-center`}>
-                    <p className="text-2xl font-black">{value}</p>
-                    <p className="text-[11px] font-bold mt-1">{label}</p>
-                    <p className="text-[11px] opacity-60 mt-0.5">{range}</p>
-                  </div>
-                ))}
-              </div>
-            </div>
+            </SectionCard>
           </div>
-        )}
-      </div>
+
+          {/* Score distribution */}
+          <SectionCard title="Score distribution"
+            description="Sessions per performance band">
+            <BarList
+              items={[
+                { label: 'Distinction (90–100%)', value: analytics?.scoreDistribution?.distDistinction ?? 0, tone: 'pass' },
+                { label: 'Pass (75–89%)', value: analytics?.scoreDistribution?.distPass ?? 0, tone: 'pass' },
+                { label: 'Near-Miss (60–74%)', value: analytics?.scoreDistribution?.distNearMiss ?? 0, tone: 'caution' },
+                { label: 'Fail (<60%)', value: analytics?.scoreDistribution?.distFail ?? 0, tone: 'stop' },
+              ]}
+              valueSuffix=""
+              emptyLabel="No scored sessions recorded yet"
+            />
+          </SectionCard>
+        </div>
+      )}
 
       <UserAuditModal
         user={selectedTrainee}
@@ -577,74 +669,62 @@ export const SupervisorDashboard = () => {
 
       {/* ── CREATE EMPLOYEE MODAL ─────────────────────────────────────────── */}
       {isCreateModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in">
-          <div className="bg-white dark:bg-dark-card rounded-xl shadow-sm max-w-md w-full border border-mist-300 dark:border-dark-border overflow-hidden animate-slide-up">
-            <div className="bg-primary-600 p-5 text-white">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2.5">
-                  <UserPlus className="w-5 h-5" />
-                  <h3 className="text-base font-bold">Create Employee Account</h3>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm animate-fade-in">
+          <div className="app-card w-full max-w-md overflow-hidden shadow-pop animate-slide-up">
+            <div className="app-band flex items-start justify-between gap-3 border-b px-5 py-4">
+              <div className="flex min-w-0 items-center gap-2.5">
+                <div className="app-icon-well"><UserPlus className="h-4 w-4" /></div>
+                <div className="min-w-0">
+                  <h3 className="app-title">Create Employee Account</h3>
+                  <p className="app-body mt-0.5">Supervisors may create Employee (Trainee) accounts only</p>
                 </div>
-                <button onClick={() => setIsCreateModalOpen(false)} className="text-primary-100 hover:text-white transition-colors">
-                  <X className="w-5 h-5" />
-                </button>
               </div>
-              <p className="text-primary-100 text-xs mt-1">Supervisors may create Employee (Trainee) accounts only</p>
+              <button onClick={() => setIsCreateModalOpen(false)} className="app-icon-btn shrink-0"
+                title="Close" aria-label="Close">
+                <X className="h-4 w-4" />
+              </button>
             </div>
-            <form onSubmit={handleCreateEmployee} className="p-6 space-y-4">
+            <form onSubmit={handleCreateEmployee} className="app-stack gap-4 p-5">
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-bold text-mist-700 dark:text-dark-muted mb-1.5">Full Name *</label>
+                  <label className="app-label">Full Name *</label>
                   <input type="text" required placeholder="e.g. James Walker" value={newName} onChange={e => setNewName(e.target.value)}
-                    className="w-full px-3.5 py-2.5 text-xs rounded-xl border border-mist-300 dark:border-dark-border bg-mist-50 dark:bg-dark-surface dark:text-white focus:outline-none focus:ring-2 focus:ring-primary-500/40 focus:border-primary-500 transition-all" />
+                    className="app-input" />
                 </div>
                 <div>
-                  <label className="block text-xs font-bold text-mist-700 dark:text-dark-muted mb-1.5">Username *</label>
+                  <label className="app-label">Username *</label>
                   <input type="text" required placeholder="e.g. trainee5" value={newUsername} onChange={e => setNewUsername(e.target.value)}
-                    className="w-full px-3.5 py-2.5 text-xs rounded-xl border border-mist-300 dark:border-dark-border bg-mist-50 dark:bg-dark-surface dark:text-white focus:outline-none focus:ring-2 focus:ring-primary-500/40 focus:border-primary-500 transition-all" />
+                    className="app-input" />
                 </div>
               </div>
               <div>
-                <label className="block text-xs font-bold text-mist-700 dark:text-dark-muted mb-1.5">Password *</label>
-                  <input type="password" required placeholder="Min. 6 characters" value={newPassword} onChange={e => setNewPassword(e.target.value)}
-                    className="w-full px-3.5 py-2.5 text-xs rounded-xl border border-mist-300 dark:border-dark-border bg-mist-50 dark:bg-dark-surface dark:text-white focus:outline-none focus:ring-2 focus:ring-primary-500/40 focus:border-primary-500 transition-all" />
+                <label className="app-label">Password *</label>
+                <input type="password" required placeholder="Min. 6 characters" value={newPassword} onChange={e => setNewPassword(e.target.value)}
+                  className="app-input" />
               </div>
               <div>
-                <label className="block text-xs font-bold text-mist-700 dark:text-dark-muted mb-1.5">Department</label>
-                  <input type="text" value={newDept} onChange={e => setNewDept(e.target.value)}
-                    className="w-full px-3.5 py-2.5 text-xs rounded-xl border border-mist-300 dark:border-dark-border bg-mist-50 dark:bg-dark-surface dark:text-white focus:outline-none focus:ring-2 focus:ring-primary-500/40" />
+                <label className="app-label">Department</label>
+                <input type="text" value={newDept} onChange={e => setNewDept(e.target.value)}
+                  className="app-input" />
               </div>
-              <div className="bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900 rounded-xl p-3">
-                <p className="text-[11px] text-amber-700 dark:text-amber-300 flex items-start gap-1.5">
-                  <Shield className="w-3.5 h-3.5 flex-shrink-0 mt-0.5" />
-                  <span>Supervisors are restricted to provisioning Employee (Trainee) accounts only. Contact your System Administrator to create Supervisor accounts.</span>
-                </p>
+              <div className="app-alert app-alert-caution">
+                <Shield className="app-alert-icon" aria-hidden="true" />
+                <span>Supervisors are restricted to provisioning Employee (Trainee) accounts only. Contact your System Administrator to create Supervisor accounts.</span>
               </div>
-              <div className="flex gap-2 pt-2">
-                <button type="button" onClick={() => setIsCreateModalOpen(false)}
-                  className="flex-1 py-2.5 rounded-xl text-xs font-semibold bg-mist-100 dark:bg-dark-surface text-mist-700 dark:text-dark-muted hover:bg-mist-200 transition-colors">
+              <div className="flex gap-2">
+                <button type="button" onClick={() => setIsCreateModalOpen(false)} className="app-btn app-btn-secondary flex-1">
                   Cancel
                 </button>
-                <button type="submit" disabled={isCreating}
-                  className="flex-1 py-2.5 rounded-xl bg-primary-500 hover:bg-primary-600 text-white text-xs font-bold shadow-sm transition-all disabled:opacity-50 flex items-center justify-center gap-2">
-                  {isCreating ? <><span className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" /> Creating…</> : <><CheckCircle2 className="w-3.5 h-3.5" /> Create Employee</>}
+                <button type="submit" disabled={isCreating} className="app-btn app-btn-primary flex-1">
+                  {isCreating
+                    ? <><span className="app-spinner" /> Creating…</>
+                    : <><CheckCircle2 className="h-3.5 w-3.5" /> Create Employee</>}
                 </button>
               </div>
             </form>
           </div>
         </div>
       )}
-
-      <ConfirmModal
-        isOpen={showLogoutConfirm}
-        title="Sign Out of Supervisor Dashboard?"
-        message="You'll need to re-authenticate to access the HSE Supervisor dashboard."
-        confirmText="Sign Out"
-        cancelText="Stay Signed In"
-        isDestructive
-        onConfirm={() => { logout(); setShowLogoutConfirm(false); }}
-        onCancel={() => setShowLogoutConfirm(false)}
-      />
 
       <ConfirmModal
         isOpen={Boolean(traineePendingDelete)}
