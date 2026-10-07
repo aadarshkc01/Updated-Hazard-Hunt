@@ -72,24 +72,40 @@
   }
 
   /* ── Floating navbar ─────────────────────────────────────────────────────────
+     Three states on one bar, driven by one class the Navbar toggles on scroll:
+
+       top       flush to the viewport edges, transparent, square
+       floating  inset with a margin, translucent + blurred, rounded, elevated
+                 shadow, and a hairline that only appears once detached
+
+     The inset plus rounding is what makes it read as floating rather than as a
+     strip stuck to the edge. The transition covers several properties at once
+     deliberately — transitioning only some would visibly desynchronise the
+     shadow from the inset. */
+
+  /* ── Floating navbar ──────────────────────────────────────────────────────────────────────────────────────────────────────────────
      Two elements, deliberately:
 
-       .app-navbar      the sticky, full-bleed BAR — always `inset-inline: 0`
-       .app-navbar-pill the visible SURFACE — carries radius, blur and shadow
+       .app-navbar      the sticky, full-bleed BAR - always inset-inline: 0
+       .app-navbar-pill the visible SURFACE - carries radius, blur and shadow
 
      Two states, driven by one class the Navbar toggles on scroll:
        top       flush to the viewport edges, transparent, square, no shadow
        floating  inset with a margin, translucent + blurred, rounded, elevated
                  shadow, and a hairline that only appears once detached
 
-     The bar must stay full-bleed. A `position: sticky` element resolves `left`
-     and `right` against the viewport only while it is *stuck*, so insetting the
-     bar itself did nothing at rest and then shifted it sideways the moment it
-     detached — which is what produced a gap on one side and not the other.
+     The bar must stay full-bleed. A position: sticky element resolves left and
+     right against the viewport only while it is *stuck*, so insetting the bar
+     itself did nothing at rest and then shifted it sideways the moment it
+     detached - which is what produced a gap on one side and not the other.
 
      Putting the visible pill on an inner element also keeps it locked to
-     `.app-page`, so the brand, the controls and the page content below all
-     share one alignment instead of drifting apart when the bar floats.
+     .app-page, so the brand, the controls and the page content below all share
+     one alignment instead of drifting apart when the bar floats.
+
+     Written as plain CSS rather than @apply on purpose: Tailwind silently drops
+     a responsive variant inside @apply, so the media queries below have to be
+     explicit.
 
      Translucency is restrained on purpose: at 92% the bar read as an opaque
      white band. 72% over a blurred backdrop keeps content faintly legible
@@ -100,6 +116,24 @@
     top: 0;
     z-index: 40;
     inset-inline: 0;
+
+    /* The gap between the navbar and the top of the browser is CONSTANT.
+       It used to exist only in the floating state, so the navbar visibly
+       dropped away from the viewport edge at the moment the user began to
+       scroll - the band was flush at rest and detached once stuck, which read
+       as the page lurching. Reserving it here at all times means the two
+       states differ only in the horizontal inset, and the float reads as one
+       object easing in rather than as a jump.
+
+       Sized to sit between "flush against the edge" and "floating adrift":
+       8 px on small screens, 10 px from 640 px up. */
+    padding-top: 0.5rem;
+  }
+
+  @media (min-width: 640px) {
+    .app-navbar {
+      padding-top: 0.625rem;
+    }
   }
 
   .app-navbar-pill {
@@ -124,7 +158,7 @@
 
   /* Scrolled: a floating, translucent, blurred pill. */
   .app-navbar-floating .app-navbar-pill {
-    padding-block: 0.75rem;
+    padding-block: 0.35rem;
     border: 1px solid theme('colors.mist.300');
     border-radius: 0.875rem;
     background-color: rgb(255 255 255 / 0.72);
@@ -141,7 +175,7 @@
   }
 
   /* Horizontal breathing room for the pill, via padding on the bar rather than
-     insets — symmetric by construction and unaffected by the scrollbar gutter. */
+     insets - symmetric by construction and unaffected by the scrollbar gutter. */
   .app-navbar-floating {
     padding-inline: 0.75rem;
   }
@@ -156,6 +190,161 @@
      A 3px brand rule down the leading edge. This is the one place the brand
      colour is allowed to be a large solid shape on a dashboard, and 3px is
      deliberate — enough to signal, too little to tint. */
+
+  /* -- Dashboard banner -------------------------------------------------
+     The coloured band that opens every dashboard. One component, all three
+     roles, so the trainee, supervisor and admin screens open identically.
+
+     ORANGE GROUND, WHITE TEXT - both explicitly specified.
+
+     The ground is primary-500 #FF6115, which is the same token as the
+     "Begin official compliance session" button (.app-btn-primary) and as the
+     "HUNT" in the HazardHunt wordmark. Those were offered as two options but
+     they are one value, so there is no lighter shade to choose between - the
+     band is simply that orange.
+
+     CONSEQUENCE OF THE WHITE, STATED PLAINLY. Measured on #FF6115:
+       white  3.01:1
+     The title is 15.5 pt bold, about 20.7 px, so it qualifies as large text and
+     3:1 is the correct threshold for it - white is compliant there. The 12 px
+     description is normal-size text, where WCAG asks 4.5:1, so it sits below
+     the guideline. That is the price of orange plus white and it is a stated
+     design decision, not an oversight; there is no third colour that is both
+     orange and light enough to carry white at 4.5:1.
+
+     WHAT CAN BE BROUGHT BACK OVER THE LINE. Wherever the white type sits on a
+     DARK overlay rather than on the bare band, it clears AA:
+       black/20  under the type   4.50:1  AA
+       black/25  under the type   5.03:1  AA
+     So every inner surface on this band is a DARK overlay. The earlier
+     near-black type needed them light, and the same treatment would have pulled
+     white text DOWN to 2.35:1 here - the overlay always runs in whichever
+     direction increases contrast for the type sitting on it.
+
+     THE PRIMARY BUTTON. primary-500 on a primary-500 band is 1.00:1 - literally
+     invisible, which is what it was before. It takes the near-black fill with
+     white text (17.33:1, and 5.75:1 for its shape against the band), which also
+     keeps it consistent with the white type around it.
+
+     THE WHITE LEADING BAR STAYS WHITE. A graphic edge, not text: WCAG 1.4.11
+     asks 3:1 of a non-text element and white on the band is exactly 3.01:1. A
+     dark bar would instead merge with the type and stop reading as an edge.
+
+     Still FLAT, not a gradient - a gradient across a full-width band reads as a
+     lighting effect and made this band look different at its left edge than at
+     its right. Still NO diagonal hatch: it was there to stop a flat area looking
+     empty, and all it did was stripe across the right-hand meta tile and fight
+     the text. */
+
+  .app-dashboard-banner {
+    @apply relative overflow-hidden rounded-panel border border-primary-700
+           bg-primary-500 dark:border-primary-800 dark:bg-primary-950;
+  }
+
+  /* 4px rather than the 3px used by .app-page-header: this band is larger and
+     needs the extra step to register at the same viewing size. */
+  .app-dashboard-banner::before {
+    content: '';
+    @apply absolute inset-y-0 left-0 w-1 bg-white dark:bg-primary-400;
+  }
+
+  /* -- Type inside the band ------------------------------------------------
+  /* Full white rather than white/90: any translucency LOWERS contrast against
+     this ground, so the tint that read as softer on a dark band is a
+     regression here. Hierarchy comes from size and weight instead. */
+  .app-dashboard-banner .app-display {
+    @apply text-white dark:text-dark-text;
+  }
+
+  .app-dashboard-banner .app-eyebrow {
+    @apply text-white dark:text-dark-muted;
+  }
+
+  .app-dashboard-banner .app-eyebrow-accent {
+    @apply text-white dark:text-primary-200;
+  }
+
+  .app-dashboard-banner .app-body {
+    @apply text-white dark:text-dark-muted;
+  }
+
+  .app-dashboard-banner .app-stat-sub {
+    @apply text-white dark:text-dark-muted;
+  }
+
+  .app-dashboard-banner .app-num {
+    @apply text-white dark:text-dark-text;
+  }
+
+  /* Call sites ask for a brand-emphasised figure or spinner with an explicit
+     text-primary-* class. On a primary-500 band those are invisible - the
+     value is identical to the ground - so they are overridden here rather than
+     fixed at a dozen call sites. */
+  .app-dashboard-banner .text-primary-400,
+  .app-dashboard-banner .text-primary-500,
+  .app-dashboard-banner .text-primary-600,
+  .app-dashboard-banner .text-primary-700 {
+    @apply text-white dark:text-primary-200;
+  }
+
+  /* -- Text selection ------------------------------------------------------
+  /* The UA default is a saturated blue, which on a full-bleed orange band reads
+     as a foreign colour pasted over the brand. Inverted here so a dragged
+     selection is the highest-contrast thing on screen, and flipped again in
+     dark mode where the band is already deep. */
+  .app-dashboard-banner ::selection {
+    background-color: rgb(14 18 22 / 0.92);
+    color: #ffffff;
+  }
+
+  .dark .app-dashboard-banner ::selection {
+    background-color: rgb(255 255 255 / 0.9);
+    color: #0e1216;
+  }
+
+  /* -- Inner surfaces ------------------------------------------------------
+  /* DARK overlays, because the type is white. Black/20 gives 4.50:1 and
+     black/25 gives 5.03:1, both clearing AA - so the plate, the strip and the
+     chips are the parts of the band that are fully compliant. */
+  .app-dashboard-banner .app-banner-stat {
+    @apply rounded-control border border-white/20 bg-black/20 px-4 py-3 text-left
+           sm:text-right dark:border-white/15 dark:bg-black/25;
+  }
+
+  .app-dashboard-banner .app-chip {
+    @apply border-white/20 bg-black/20 text-white
+           dark:border-white/20 dark:bg-black/25 dark:text-white/90;
+  }
+
+  /* -- Controls inside the band -------------------------------------------
+  /* Primary: near-black fill, white text. Secondary and icon: translucent
+     black, white text. Neither disappears into the orange, and the primary is
+     the only fully solid one. */
+  /* Primary: a LIGHT fill, never orange.
+     The band is primary-500, so an orange button on it is 1.00:1 and vanishes -
+     that was the original problem. The first fix was a near-black fill, which
+     works but reads as a heavy hole punched in an orange field and fights the
+     white type. White is the lightest option and the strongest: the label is
+     deep primary-800 on it at 7.88:1, and the button becomes the single
+     brightest control on the band. */
+  .app-dashboard-banner .app-btn-primary {
+    @apply border-white bg-white text-primary-800
+           hover:border-primary-50 hover:bg-primary-50
+           dark:border-white dark:bg-white dark:text-primary-900
+           dark:hover:bg-primary-50;
+  }
+
+  .app-dashboard-banner .app-btn-secondary,
+  .app-dashboard-banner .app-icon-btn {
+    @apply border-white/30 bg-black/25 text-white
+           hover:border-white/50 hover:bg-black/35
+           dark:border-white/30 dark:bg-white/10 dark:text-white
+           dark:hover:bg-white/20;
+  }
+
+  .app-dashboard-banner hr {
+    @apply border-white/20 dark:border-primary-800;
+  }
 
   .app-page-header {
     @apply relative pl-4;
@@ -381,18 +570,11 @@
 
      The previous version read as a red alert box because it used two colours
      that LOOK like error states on a screen: a heavy near-black bar down the
-     left edge, and a pink-orange `primary-200` border (`#FFC7AB` is a salmon).
-     Both are gone. Every
-     alert now sits on the same neutral ground and is distinguished by an
+     left edge, and a pink-orange `primary-200` border. Both are gone. Every
+     alert now sits on the same warm off-white ground and is distinguished by an
      accent rule and its border treatment only, so an alert never reads as "the
      system is broken" — which is exactly what a solid ink bar communicated.
-     State is never carried by colour alone: each alert takes an icon, and the
-     border STYLE differs per state (solid / stronger / dashed / heavy), so the
-     box is still distinguishable in greyscale and to a colour-blind reader.
-
-     Theme-agnostic by construction: the base values ARE the light theme and the
-     `.dark` overrides sit beside them, so a toggle re-resolves every property
-     rather than leaving one half-applied. No green and no red in any state. */
+     There is no green and no red in any state. */
 
   .app-alert {
     @apply flex items-start gap-2.5 rounded-control border px-3.5 py-3 text-xs
@@ -432,8 +614,8 @@
   /* Hard stop — the only alert drawn with a full 2px border, and it relies on
      the copy to state the severity rather than on colour to shout it. */
   .app-alert-stop {
-    @apply border-2 border-primary-300 bg-app-shell text-mist-800
-           dark:border-primary-800 dark:bg-dark-surface dark:text-dark-text;
+    @apply border-2 border-primary-400 bg-mist-50 text-mist-800
+           dark:border-primary-700 dark:bg-dark-surface dark:text-dark-text;
   }
 
   /* ── Charts ─────────────────────────────────────────────────────────────────

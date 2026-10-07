@@ -6,7 +6,11 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "verify:scene": "node scripts/verify-scene.mjs",
+    "verify:palette": "node scripts/verify-palette.mjs",
+    "verify:report": "node scripts/verify-report.mjs",
+    "verify": "npm run verify:scene && npm run verify:palette && npm run verify:report"
   },
   "dependencies": {
     "canvas-confetti": "^1.9.4",

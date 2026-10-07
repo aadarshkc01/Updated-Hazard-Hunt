@@ -9,7 +9,7 @@ const readStoredTheme = () => {
   try {
     return localStorage.getItem(STORAGE_KEY) === 'light' ? 'light' : 'dark';
   } catch {
-    // Private browsing / storage disabled — fall back to the OS preference.
+    // Private browsing / storage disabled - fall back to the OS preference.
     return typeof window !== 'undefined' &&
       typeof window.matchMedia === 'function' &&
       window.matchMedia('(prefers-color-scheme: light)').matches
@@ -22,9 +22,9 @@ const readStoredTheme = () => {
  * Applies the theme by toggling a class on <html>.
  *
  * The class is the single source of truth for every `dark:` variant in the
- * stylesheet, so it is written here and nowhere else. It is also written
- * BEFORE first paint (see the inline script in index.html), which is what stops
- * the page flashing light before React mounts.
+ * stylesheet, so it is written here and nowhere else. It is also written BEFORE
+ * first paint (see the inline script in index.html), which is what stops the
+ * page flashing light before React mounts.
  */
 const applyTheme = (theme) => {
   if (typeof document === 'undefined') return;
@@ -46,11 +46,11 @@ export const ThemeProvider = ({ children }) => {
     try {
       localStorage.setItem(STORAGE_KEY, theme);
     } catch {
-      /* storage unavailable — the class is still applied for this session */
+      /* storage unavailable - the class is still applied for this session */
     }
 
-    // The 360° viewer and the WebGL canvas both size themselves from the
-    // viewport, and a theme switch changes neither — but re-measuring is cheap
+    // The 360 viewer and the WebGL canvas both size themselves from the
+    // viewport, and a theme switch changes neither - but re-measuring is cheap
     // and keeps any canvas-backed layer in step with the new layout.
     window.dispatchEvent(new Event('resize'));
   }, [theme]);

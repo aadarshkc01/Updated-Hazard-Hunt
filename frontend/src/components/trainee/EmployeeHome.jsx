@@ -3,7 +3,7 @@ import { api } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../../context/ToastContext';
 import { Play, RotateCcw, Download, Lock, ShieldAlert } from 'lucide-react';
-import { TrendChart, Metric, PageHeader, SectionCard, StatTile } from '../ui';
+import { DashboardBanner, Metric, SectionCard, StatTile, TrendChart } from '../ui';
 
 const MODES = [
   {
@@ -93,52 +93,40 @@ export const EmployeeHome = ({ onLaunchSession, scenario, loading }) => {
   return (
     <div className="app-page py-6">
       <div className="app-stack">
-        {/* ── Status summary ──────────────────────────────────────────────
-            Uses the shared PageHeader treatment so the trainee dashboard
-            carries the same brand accent as the two supervisory dashboards,
-            plus a warm band behind the greeting. Previously this screen opened
-            with a plain heading on a white card and read as unfinished next to
-            the others. */}
-        <header className="app-band overflow-hidden">
-          <div className="flex flex-wrap items-start justify-between gap-x-6 gap-y-4 p-5">
-            <div className="min-w-0">
-              <div className="flex items-center gap-2.5">
-                <span className="app-eyebrow-accent">
-                  {greeting}, {user?.name?.split(' ')[0]}
-                </span>
-                <span className="h-px w-16 bg-primary-300 dark:bg-primary-800" aria-hidden="true" />
+        {/* Opening band. Shares one component with the two supervisory dashboards so all
+            three open the same way: same shape, same brand treatment, same scale.
+            Previously this screen was a plain heading on a white card and read as
+            unfinished beside the others.
+
+            The meta plate uses app-banner-stat rather than hand-rolled brand
+            tokens: those were tuned for a white page, and on the orange band both
+            the plate border and its primary-600 figure disappear. */}
+        <DashboardBanner
+          eyebrow={`${greeting}, ${user?.name?.split(' ')[0]}`}
+          title="Bay 4 Inspection"
+          description="Walk the depot, identify the safety infractions, then complete the regulatory quiz."
+          meta={
+            latest ? (
+              <div className="app-banner-stat">
+                <p className="app-eyebrow">Latest official result</p>
+                <p className="app-num mt-1 text-2xl font-bold leading-none">
+                  {latest.totalScore}%
+                </p>
+                <p className="app-stat-sub mt-1">
+                  {latest.passed ? 'Certified' : 'Not yet certified'}
+                </p>
               </div>
-              <h1 className="app-display mt-1.5">Bay 4 Inspection</h1>
-              <p className="app-body mt-1.5 max-w-xl">
-                Walk the depot, identify the safety infractions, then complete the regulatory quiz.
-              </p>
-            </div>
+            ) : (
+              <span className="app-chip app-chip-neutral">No attempts yet</span>
+            )
+          }
+        />
 
-            <div className="shrink-0">
-              {latest ? (
-                <div className="rounded-control border border-primary-200 bg-white/70 px-4 py-3 text-left sm:text-right dark:border-dark-border dark:bg-dark-card/70">
-                  <p className="app-eyebrow">Latest official result</p>
-                  <p
-                    className={`app-num mt-1 text-2xl font-bold leading-none ${
-                      latest.passed ? 'text-primary-600 dark:text-primary-400' : 'text-mist-800 dark:text-dark-text'
-                    }`}
-                  >
-                    {latest.totalScore}%
-                  </p>
-                  <p className="app-stat-sub mt-1">
-                    {latest.passed ? 'Certified' : 'Not yet certified'}
-                  </p>
-                </div>
-              ) : (
-                <span className="app-chip app-chip-neutral">No attempts yet</span>
-              )}
-            </div>
-          </div>
-
-          {/* KPI row. Hairline-separated rather than boxed: the tiles sit inside
-              one band already, so giving each its own border and shadow would
-              put a card inside a card and read as a seam. */}
-          <div className="grid grid-cols-2 divide-x divide-y divide-primary-200/70 border-t border-primary-200/70 bg-white/50 dark:divide-dark-border dark:border-dark-border dark:bg-dark-card/40 lg:grid-cols-4 lg:divide-y-0">
+        {/* KPI row. Hairline-separated rather than boxed: the tiles sit inside one
+            card already, so giving each its own border and shadow would put a
+            card inside a card and read as a seam. */}
+        <section className="app-card overflow-hidden">
+          <div className="grid grid-cols-2 divide-x divide-y divide-mist-200 border-t border-mist-200 dark:divide-dark-border dark:border-dark-border lg:grid-cols-4 lg:divide-y-0">
             <div className="p-4">
               <StatTile
                 label="Official attempts"
@@ -259,9 +247,9 @@ export const EmployeeHome = ({ onLaunchSession, scenario, loading }) => {
               </div>
             </div>
           )}
-        </header>
+        </section>
 
-        {/* ── Launch + briefing ── */}
+        {/* Launch + briefing */}
         <div className="grid gap-4 lg:grid-cols-3">
           <SectionCard
             className="lg:col-span-2"

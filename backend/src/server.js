@@ -19,9 +19,17 @@ const startServer = async (port = DEFAULT_PORT) => {
     await connectDB();
     await seedDatabase();
 
+    // Render and most PaaS providers inject PORT and route traffic to the
+    // container over all interfaces, so binding to every interface is correct
+    // here. On Windows 0.0.0.0 is not a valid hostname for a printed URL, so
+    // use localhost purely for display.
+    const displayHost = process.platform === 'win32' ? 'localhost' : '0.0.0.0';
+
     const server = app.listen(port, () => {
       console.log(`Hazard Hunt API server running on port ${port}`);
-      console.log(`Health check available at: http://localhost:${port}/api/health`);
+      console.log(`Environment : ${process.env.NODE_ENV || 'development'}`);
+      console.log(`Health check: http://${displayHost}:${port}/api/health`);
+      console.log(`CORS origins: ${allowedOrigins.join(', ')}`);
     });
 
     server.on('error', async (error) => {
@@ -41,9 +49,33 @@ const startServer = async (port = DEFAULT_PORT) => {
 };
 
 // Middleware
+//
+// CORS origin is an explicit allowlist. `origin: true` reflects whatever the
+// caller sent while also allowing credentials, which lets any site on the
+// internet issue authenticated requests against this API from a logged-in
+// browser. Origins are read from CLIENT_ORIGIN as a comma-separated list.
+const allowedOrigins = (process.env.CLIENT_ORIGIN || 'http://localhost:5173')
+  .split(',')
+  .map((origin) => origin.trim())
+  .filter(Boolean);
+
 app.use(
   cors({
-    origin: true, // Allow frontend dev server and clients
+    origin(origin, callback) {
+      // Same-origin and non-browser callers (curl, Render health checks) send
+      // no Origin header. Allow those; they cannot be cross-site request
+      // forgeries, because a browser always attaches the header.
+      if (!origin) return callback(null, true);
+
+      if (allowedOrigins.includes(origin)) return callback(null, true);
+
+      // Reject by omitting the CORS headers rather than by throwing. The
+      // browser then blocks the response on its own, which is the enforcement
+      // that actually matters, and the request does not surface as a spurious
+      // 500 in server logs or uptime monitoring.
+      console.warn(`Blocked CORS request from disallowed origin: ${origin}`);
+      return callback(null, false);
+    },
     credentials: true,
   })
 );

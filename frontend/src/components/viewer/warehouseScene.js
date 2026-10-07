@@ -75,6 +75,9 @@ import {
   SOUTH_AISLE,
   OFFICE,
   WELFARE,
+  CHEMICAL_STORE,
+  ELECTRICAL_ZONE,
+  DISPATCH,
   rackRuns,
 } from './warehousePlan.js';
 
@@ -98,7 +101,7 @@ import {
 const COL = {
   // Building fabric
   floor: 0x9ea4a9,
-  /** Safety yellow crossing paint on the slab, and the drum bund kerbs. */
+  /** Safety yellow crossing paint, and the drum spill-containment bunds. */
   walkway: 0xf0c419,
   /** Bund kerb yellow, a shade deeper so the standing steel separates
    *  from the flat paint it is next to. */
@@ -286,6 +289,20 @@ export const buildWarehouseScene = () => {
     lane: std({ color: COL.walkway, roughness: 0.82, ...DECAL }),
     // Solid, NOT a decal: the bunds are physical kerbs standing on the slab.
     bund: std({ color: COL.bund, roughness: 0.6 }),
+    // Chemical drums in the colours real 205 L drums actually come in. Four
+    // tones rather than one, because a store of identical blue cylinders reads
+    // as a repeated prop - and because the brief was explicit that the
+    // environment should not be hazard-orange everywhere.
+    // ONE new material for both new zones, not six. Switchgear and transformers
+    // are galvanised steel enclosures - already in the palette as `galvanised` -
+    // and a drum in galvanised grey reads fine in `steelMid`. Only the dark
+    // drum has no equivalent, and it is the tone that most makes the drum row
+    // look like mixed stock rather than one repeated prop.
+    //
+    // This matters for more than tidiness: every distinct material is at least
+    // one draw call, and the static batching budget is a perf invariant. Six
+    // "just one more grey" materials pushed the zone over it.
+    drumBlack: std({ color: 0x2b2f33, roughness: 0.55, metalness: 0.4 }),
     lineWhite: std({ color: COL.lineWhite, roughness: 0.8, ...DECAL }),
     hazardStripe: safetyOrange,
     // Column guards are charcoal with a yellow band - the modern standard.
@@ -511,8 +528,8 @@ export const buildWarehouseScene = () => {
    * band was the previous treatment and it read as a road marking, which is both
    * wrong for a warehouse and misleading about where vehicles may travel.
    *
-   * `along` is the axis the bars are stacked down; `across` is the direction the
-   * trainee walks, so the bars always sit perpendicular to travel.
+   * `depth` is the axis the bars are stacked down; `width` runs across them, so
+   * the bars always sit perpendicular to the direction of travel.
    */
   const zebra = ({ x, z, width, depth, bar, gap }) => {
     const pitch = bar + gap;
@@ -557,14 +574,7 @@ export const buildWarehouseScene = () => {
     { z: NORTH_AISLE, depth: 2.0 },
     { z: SOUTH_AISLE, depth: 2.0 },
   ].forEach(({ z, depth }) => {
-    zebra({
-      x: 0,
-      z,
-      width: ROOM.width - 2.4,
-      depth,
-      bar: 0.36,
-      gap: 0.34,
-    });
+    zebra({ x: 0, z, width: ROOM.width - 2.4, depth, bar: 0.36, gap: 0.34 });
   });
 
   // -- Walls + dado band ------------------------------------------------------
@@ -678,6 +688,8 @@ export const buildWarehouseScene = () => {
   buildConveyor(ctx);
   buildMezzanineStair(scene, G, M, absorb);
   buildChargingBays(ctx);
+    buildElectricalZone(scene, G, M, stage);
+    buildChemicalStore(scene, G, M, stage);
   buildSafetySignage(scene, G, M, stage);
   buildWasteAndClutter(scene, G, M, stage);
   buildRackLabels(scene, G, M, stage);
@@ -742,8 +754,9 @@ export const buildWarehouseScene = () => {
  */
 function buildDockDoors(scene, G, M, stage) {
   const z = -HALF_D + 0.05;
-  // Spaced for the 30 m plan; clear of the fire exit at x = 13.4.
-  [-12, -2, 8].forEach((x) => {
+  // Driven by the plan, so the door spacing follows the room width and
+  // stays clear of the fire exit rather than being typed in twice.
+  DOCK_DOORS.forEach((x) => {
     // Recessed opening
     stage(G.plane, M.dado, 3.6, 4.2, 1, x, 2.1, z - 0.02);
     // Shutter slats
@@ -788,7 +801,12 @@ function buildMezzanineStair(scene, G, M, absorb) {
   }
   // Top landing
   put(G.box, M.steelMid, 1.3, 0.08, 1.2, 0, 3.2, -steps * 0.28 - 0.6);
-  g.position.set(OFFICE.minX - 0.5, 0, 7.0);
+  // The flight rises toward -Z locally and the group is rotated a half turn,
+  // so its foot lands at z and its top landing at z + run. Anchor from the
+  // LANDING to the office's north face, or the top steps end up outside the
+  // shell in a smaller bay.
+  const stairRun = steps * 0.28 + 1.2;
+  g.position.set(OFFICE.minX - 0.5, 0, OFFICE.minZ - stairRun);
   g.rotation.y = Math.PI;
   return g;
 }
@@ -814,33 +832,173 @@ function buildChargingBays(ctx) {
       put(G.box, M.steelDark, 0.42, 0.03, 0.04, -1.6 + i * 1.6, 0.85 + v * 0.09, -1.02);
     }
   });
-  // Barrier rail protecting the bay
-  put(G.box, M.rubber, 5.4, 0.12, 0.12, 0, 0.5, 1.4);
-  [-2.5, 0, 2.5].forEach((x) => put(G.box, M.steelDark, 0.1, 0.5, 0.1, x, 0.25, 1.4));
-  // The bay is authored facing +X and then rotated a quarter turn onto the west
-  // wall, which puts the cabinets 1.2 m BEHIND the group origin. Offsetting the
-  // origin from the wall was therefore wrong by that same 1.2 m: it left the
-  // cabinets embedded in, and poking through, the cladding. Place the origin so
-  // the cabinet back face lands on the wall's inner face instead.
+  // Barrier rail protecting the bay. Sized to the perimeter aisle it stands in
+  // (2.6 m between the wall face and the first rack run) rather than to an
+  // arbitrary 5.4 m — at that length the rail hung 1.8 m outside the building.
+  put(G.box, M.rubber, 2.2, 0.12, 0.12, 0, 0.5, -0.2);
+  [-0.9, 0, 0.9].forEach((x) => put(G.box, M.steelDark, 0.1, 0.5, 0.1, x, 0.25, -0.2));
+  // The cabinets are modelled at local z = -1.2, i.e. 1.2 m "behind" the group
+  // origin. Offsetting the origin from the wall by a fixed 0.7 therefore left the
+  // cabinets embedded in, and poking through, the cladding. Derive it so the
+  // cabinet back face lands on the wall's inner face instead.
   const CABINET_DEPTH = 0.35;
   const CABINET_LOCAL_Z = -1.2;
   const WALL_CLEARANCE = 0.35;
-  g.position.set(
-    -HALF_W + WALL_CLEARANCE + CABINET_DEPTH / 2 - CABINET_LOCAL_Z,
-    0,
-    1.5
-  );
-  g.rotation.y = Math.PI / 2;
+  g.position.set(-HALF_W + WALL_CLEARANCE + CABINET_DEPTH / 2 - CABINET_LOCAL_Z, 0, 1.5);
   scene.add(g);
   markInteractivable('Battery charging bay � 415V, earth the truck', 'electrical', -HALF_W + 1.2, 1.2, 1.5, 1.6, 1.8, 4.2);
+}
+
+/**
+ * ELECTRICAL ZONE — switchroom.
+ *
+ * A substation cubicle rather than a wall of boxes: an incoming switchboard,
+ * a dry-type transformer with radiator fins, a distribution board run, isolator
+ * switches on conduit, and an overhead cable tray feeding the high-bay lights.
+ *
+ * The cable tray is the point of the whole zone. Overhead containment running
+ * the length of the bay is what a real warehouse looks like, and it gives the
+ * roof space something to do besides carrying fans.
+ *
+ * Colours are deliberately NOT hazard orange. Switchgear is grey, the tray is
+ * galvanised, and the only orange is the warning signage - which is what makes
+ * the signage read as a warning rather than as decoration.
+ */
+function buildElectricalZone(scene, G, M, stage) {
+  const cx = (ELECTRICAL_ZONE.minX + ELECTRICAL_ZONE.maxX) / 2;
+  const cz = (ELECTRICAL_ZONE.minZ + ELECTRICAL_ZONE.maxZ) / 2;
+  const d = ELECTRICAL_ZONE.maxZ - ELECTRICAL_ZONE.minZ;
+
+  // Painted keep-clear zone so the cubicle reads as a room you do not store in.
+  stage(G.plane, M.lane, ELECTRICAL_ZONE.maxX - ELECTRICAL_ZONE.minX - 0.6, d - 0.6, 1, cx, 0.013, cz, -Math.PI / 2);
+
+  // Incoming switchboard: enclosure, plinth, door furniture, dial and lamps.
+  const boardZ = ELECTRICAL_ZONE.minZ + 1.3;
+  stage(G.box, M.conduit, 0.5, 2.0, 1.5, ELECTRICAL_ZONE.maxX - 0.5, 1.0, boardZ);
+  stage(G.box, M.steelDark, 0.62, 0.12, 1.7, ELECTRICAL_ZONE.maxX - 0.5, 0.06, boardZ);
+  stage(G.box, M.steelMid, 0.06, 1.8, 1.3, ELECTRICAL_ZONE.maxX - 0.78, 1.05, boardZ);
+  stage(G.box, M.steelDark, 0.05, 0.16, 0.05, ELECTRICAL_ZONE.maxX - 0.82, 1.05, boardZ + 0.55);
+  // Meter face and a small mimic diagram plate.
+  stage(G.box, M.signBoard, 0.03, 0.24, 0.18, ELECTRICAL_ZONE.maxX - 0.82, 1.62, boardZ - 0.3);
+  stage(G.box, M.steelLight, 0.02, 0.18, 0.26, ELECTRICAL_ZONE.maxX - 0.82, 1.2, boardZ + 0.05);
+
+  // Dry-type transformer: tank, cooling fins, plinth, and a bunded base.
+  const trafoZ = ELECTRICAL_ZONE.minZ + 3.6;
+  stage(G.box, M.steelDark, 2.0, 0.14, 1.5, cx, 0.07, trafoZ);
+  stage(G.box, M.conduit, 1.5, 1.5, 1.1, cx, 0.89, trafoZ);
+  for (let i = -3; i <= 3; i += 1) {
+    stage(G.box, M.conduit, 0.06, 1.2, 1.2, cx + i * 0.19, 0.85, trafoZ);
+  }
+  // HV/LV terminations on the tank lid.
+  [-0.4, 0, 0.4].forEach((dx) => {
+    stage(G.cyl, M.steelDark, 0.06, 0.34, 0.06, cx + dx, 1.75, trafoZ);
+  });
+
+  // Distribution board run along the back wall, with isolators between each.
+  [-0.6, 0.8, 2.2].forEach((dz) => {
+    const z = ELECTRICAL_ZONE.maxZ - 1.2 + dz;
+    stage(G.box, M.conduit, 0.3, 0.7, 0.6, ELECTRICAL_ZONE.minX + 0.35, 1.55, z);
+    stage(G.box, M.steelMid, 0.04, 0.6, 0.5, ELECTRICAL_ZONE.minX + 0.52, 1.55, z);
+    stage(G.box, M.steelDark, 0.05, 0.22, 0.05, ELECTRICAL_ZONE.minX + 0.55, 1.55, z + 0.2);
+    // Conduit dropping from each board into a floor duct.
+    stage(G.cyl, M.conduit, 0.035, 1.1, 0.035, ELECTRICAL_ZONE.minX + 0.35, 0.85, z);
+  });
+
+  // Overhead cable tray: galvanised, running the length of the bay. Ladder
+  // rungs rather than a solid channel so it reads as containment.
+  const trayY = ROOM.height - 1.5;
+  stage(G.box, M.grate, 0.42, 0.05, ROOM.depth - 3, cx, trayY, 0);
+  [-0.2, 0.2].forEach((dx) => {
+    stage(G.box, M.purlin, 0.05, 0.14, ROOM.depth - 3, cx + dx, trayY + 0.06, 0);
+  });
+  // Cable bundle sitting in the tray.
+  stage(G.box, M.cable, 0.2, 0.12, ROOM.depth - 3.2, cx, trayY + 0.1, 0);
+  // Tray drop into the switchroom.
+  stage(G.box, M.grate, 0.42, 0.05, 2.4, cx, trayY, ELECTRICAL_ZONE.minZ + 1.2);
+  stage(G.box, M.purlin, 0.05, 1.5, 0.05, cx - 0.2, trayY - 0.75, ELECTRICAL_ZONE.minZ + 2.3);
+
+  // Warning plate on the cubicle. Orange, because this is the one thing in the
+  // zone that genuinely warrants the brand colour.
+  stage(G.box, M.signBoard, 0.5, 0.34, 0.03, cx, 2.15, ELECTRICAL_ZONE.minZ + 0.2);
+  stage(G.box, M.hazardStripe, 0.5, 0.08, 0.04, cx, 2.15, ELECTRICAL_ZONE.minZ + 0.18);
+}
+
+/**
+ * CHEMICAL STORE.
+ *
+ * A segregated store, not a corner with drums in it: a bunded bay holding
+ * mixed drums, a run of lockable hazmat cabinets for the small quantities, a
+ * spill station, and an eyewash.
+ *
+ * The drums are deliberately four different real colours - blue steel,
+ * graphite, galvanised and pale. A store of identical cylinders is the same
+ * repeated-prop problem the rack grid had, and it also hid the one drum the
+ * trainee is meant to spot.
+ */
+function buildChemicalStore(scene, G, M, stage) {
+  const cx = (CHEMICAL_STORE.minX + CHEMICAL_STORE.maxX) / 2;
+  const d = CHEMICAL_STORE.maxZ - CHEMICAL_STORE.minZ;
+  const cz = (CHEMICAL_STORE.minZ + CHEMICAL_STORE.maxZ) / 2;
+
+  // Bay marking on the slab: a hatched BORDER, not a fill.
+  //
+  // A solid yellow floor across the whole store looked like a hazard zone the
+  // size of a room, which is both wrong and visually exhausting. Real depots
+  // paint a keep-clear line around a bunded bay, so that is what this is.
+  const bayW = CHEMICAL_STORE.maxX - CHEMICAL_STORE.minX - 0.5;
+  const bayD = d - 0.5;
+  stage(G.plane, M.lineWhite, 0.14, bayD, 1, cx - bayW / 2, 0.013, cz, -Math.PI / 2);
+  stage(G.plane, M.lineWhite, 0.14, bayD, 1, cx + bayW / 2, 0.013, cz, -Math.PI / 2);
+  stage(G.plane, M.lineWhite, bayW, 0.14, 1, cx, 0.013, cz - bayD / 2, -Math.PI / 2);
+  stage(G.plane, M.lineWhite, bayW, 0.14, 1, cx, 0.013, cz + bayD / 2, -Math.PI / 2);
+  for (let i = -3; i <= 3; i += 1) {
+    stage(G.plane, M.lane, 0.16, 0.9, 1, cx - bayW / 2, 0.013, cz + i * 0.9, -Math.PI / 2);
+    stage(G.plane, M.lane, 0.16, 0.9, 1, cx + bayW / 2, 0.013, cz + i * 0.9, -Math.PI / 2);
+  }
+
+  // Three hazmat cabinets against the west wall. Yellow bodies with a red-free
+  // dark frame; the class placards are orange, which is the brand colour used
+  // here because it IS a hazard marker.
+  [-1.9, 0, 1.9].forEach((dz, i) => {
+    const z = CHEMICAL_STORE.minZ + 2.2 + dz;
+    const w = 1.1 + (i % 2) * 0.25;
+    stage(G.box, M.bund, w, 1.85, 0.9, CHEMICAL_STORE.minX + 0.55, 0.93, z);
+    stage(G.box, M.steelDark, w + 0.06, 0.1, 0.96, CHEMICAL_STORE.minX + 0.55, 1.88, z);
+    // Two doors with a central lock bar and a handle.
+    [-0.22, 0.22].forEach((dx) => {
+      stage(G.box, M.steelDark, w / 2 - 0.08, 1.5, 0.05, CHEMICAL_STORE.minX + 0.55 + dx, 1.0, z + 0.47);
+    });
+    stage(G.box, M.steelDark, 0.06, 1.5, 0.06, CHEMICAL_STORE.minX + 0.55, 1.0, z + 0.5);
+    stage(G.box, M.steelLight, 0.05, 0.16, 0.16, CHEMICAL_STORE.minX + 0.55 + 0.14, 1.05, z + 0.52);
+    // Class placard.
+    stage(G.box, M.hazardStripe, 0.24, 0.24, 0.02, CHEMICAL_STORE.minX + 0.55, 1.55, z + 0.5);
+  });
+
+  // Spill station: a yellow bin, a rack of absorbent granule sacks, and a
+  // drip tray on the floor under the cabinet run.
+  const spillX = CHEMICAL_STORE.minX + 0.7;
+  stage(G.box, M.bund, 0.7, 0.9, 0.6, spillX, 0.45, CHEMICAL_STORE.maxZ - 1.4);
+  stage(G.box, M.steelDark, 0.76, 0.08, 0.66, spillX, 0.93, CHEMICAL_STORE.maxZ - 1.4);
+  for (let i = 0; i < 3; i += 1) {
+    stage(G.box, M.bulkBag, 0.42, 0.22, 0.3, CHEMICAL_STORE.maxX - 0.7, 0.13 + i * 0.24, CHEMICAL_STORE.minZ + 1.6);
+  }
+
+  // Eyewash on a stand at the store entrance, where you can reach it from the
+  // aisle rather than from inside the bund.
+  const eyeX = CHEMICAL_STORE.maxX - 0.5;
+  const eyeZ = CHEMICAL_STORE.minZ + 0.6;
+  stage(G.cyl, M.steelLight, 0.05, 1.1, 0.05, eyeX, 0.55, eyeZ);
+  stage(G.box, M.eyewash, 0.3, 0.16, 0.2, eyeX, 1.12, eyeZ);
+  stage(G.box, M.steelLight, 0.28, 0.05, 0.18, eyeX, 1.22, eyeZ);
+  stage(G.box, M.signBoard, 0.3, 0.3, 0.02, eyeX, 1.55, eyeZ + 0.14);
 }
 
 /** Safety signage and floor markings that define the traffic regime. */
 function buildSafetySignage(scene, G, M, stage, markInteractivable) {
   // Hung bay-identification boards under the trusses
-  [-11, 0, 11].forEach((x) => {
-    stage(G.box, M.signBoard, 1.1, 0.7, 0.05, x, 5.4, -7);
-    stage(G.box, M.steelDark, 0.04, 1.4, 0.04, x, 6.4, -7);
+  [-8.5, 0, 8.5].forEach((x) => {
+    stage(G.box, M.signBoard, 1.1, 0.7, 0.05, x, 4.6, -6.2);
+    stage(G.box, M.steelDark, 0.04, 1.4, 0.04, x, 5.6, -6.2);
   });
   // Bay numbers painted on the wall dado
   stage(G.box, M.signBoard, 1.6, 0.5, 0.04, -8.0, 2.6, -HALF_D + 0.08);
@@ -878,21 +1036,27 @@ function buildWasteAndClutter(scene, G, M, stage) {
     stage(G.cyl, M.rubber, 0.09, 0.06, 0.09, x - 0.26, 0.09, z - 0.2, Math.PI / 2);
     stage(G.cyl, M.rubber, 0.09, 0.06, 0.09, x + 0.26, 0.09, z + 0.2, Math.PI / 2);
   });
-  // Stacked empty pallets
-  [[-8.2, 8.6], [13.6, -9.2]].forEach(([x, z]) => {
-    for (let i = 0; i < 5; i += 1) {
-      stage(G.box, M.pallet, 1.2, 0.13, 1.0, x + (i % 2) * 0.04, 0.07 + i * 0.14, z, 0, (i % 3) * 0.02);
+  // Stacked empty pallets: one on each end apron, both derived from the plan.
+  // NOTE: destructured as [x, z] below - the second stack sits against the EAST
+  // wall at the goods-in end.
+  [[DISPATCH.minX + 0.4, DISPATCH.maxZ - 0.4], [HALF_W - 1.6, NORTH_AISLE - 0.6]].forEach(
+    ([x, z]) => {
+      for (let i = 0; i < 5; i += 1) {
+        stage(G.box, M.pallet, 1.2, 0.13, 1.0, x + (i % 2) * 0.04, 0.07 + i * 0.14, z, 0, (i % 3) * 0.02);
+      }
     }
-  });
+  );
   // A toppled empty crate
-  stage(G.box, M.crate, 0.8, 0.55, 0.7, 6.5, 0.28, -9.8, 0, 0.6);
+  stage(G.box, M.crate, 0.8, 0.55, 0.7, 6.5, 0.28, NORTH_AISLE - 0.8, 0, 0.6);
 }
 
 /** Aisle identification plates on the racking uprights. */
 function buildRackLabels(scene, G, M, stage) {
   rackRuns().forEach((run) => {
-    [-6, 6].forEach((dz) => {
-      stage(G.box, M.signBoard, 0.5, 0.34, 0.04, run.minX - 0.02, 4.9, run.cz + dz);
+    // Scaled off the run's own half-length: a fixed 6 m offset put the upper
+    // label 0.7 m outside a 5 m segment.
+    [-0.34, 0.34].forEach((f) => {
+      stage(G.box, M.signBoard, 0.5, 0.34, 0.04, run.minX - 0.02, 4.9, run.cz + f * run.length);
     });
     // Foot guards at the open ends of every segment
     stage(G.box, M.columnGuard, 0.42, 0.3, 0.42, run.cx, 0.15, run.minZ - 0.5);
@@ -946,7 +1110,10 @@ function buildOffice(G, M, halfD) {
   add(G.box, M.ceiling, w, 0.1, d, ox, h, oz);
 
   // Two desks with chairs - reads instantly as a supervisor's office.
-  [6.4, 10.2].forEach((z) => {
+  // Desk positions are derived from the office footprint. They were absolute
+  // (6.4 / 10.2), which put a desk and chair 4 m outside the smaller office.
+  [0.3, 0.7].forEach((f) => {
+    const z = OFFICE.minZ + f * d;
     add(G.box, M.benchTop, 1.4, 0.07, 0.8, ox + 0.3, 0.76, z);
     [ox - 0.1, ox + 0.7].forEach((lx) => {
       add(G.box, M.bench, 0.06, 0.74, 0.06, lx, 0.38, z - 0.3);
@@ -1007,7 +1174,7 @@ function buildForklift(G, M) {
   g.add(beacon);
 
   // Parked in the main aisle — visible on approach but clear of the spawn view.
-  g.position.set(-4, 0, 4.5);
+  g.position.set(DISPATCH.minX + 1.4, 0, DISPATCH.maxZ - 1.6);
   g.rotation.y = -0.9;
   return g;
 }

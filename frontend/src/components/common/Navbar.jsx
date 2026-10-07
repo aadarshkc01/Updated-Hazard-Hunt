@@ -70,17 +70,17 @@ export const Navbar = ({ isPracticeMode = false, children }) => {
         className={`app-navbar ${isFloating ? 'app-navbar-floating' : 'app-navbar-top'}`}
       >
         <div className="app-navbar-pill">
-          <div className="app-page flex h-14 items-center justify-between gap-4 sm:h-16">
+          <div className="app-page flex h-12 items-center justify-between gap-4 sm:h-[3.25rem]">
           {/* Brand */}
-          <div className="flex min-w-0 items-center gap-3">
-            <div className="app-icon-well h-10 w-10 rounded-control">
-              <ShieldAlert className="h-5 w-5" aria-hidden="true" />
+          <div className="flex min-w-0 items-center gap-2.5">
+            <div className="app-icon-well h-8 w-8 rounded-control">
+              <ShieldAlert className="h-4 w-4" aria-hidden="true" />
             </div>
             <div className="min-w-0">
-              <p className="truncate text-base font-extrabold leading-none tracking-tight text-mist-900 dark:text-dark-text">
+              <p className="truncate text-sm font-extrabold leading-none tracking-tight text-mist-900 dark:text-dark-text sm:text-[15px]">
                 HAZARD<span className="text-primary-500">HUNT</span>
               </p>
-              <p className="mt-1 hidden text-[11px] leading-none text-mist-500 dark:text-dark-muted sm:block">
+              <p className="mt-0.5 hidden text-[10px] leading-none text-mist-500 dark:text-dark-muted sm:block">
                 Warehouse Safety Perception Trainer
               </p>
             </div>
@@ -143,13 +143,18 @@ export const Navbar = ({ isPracticeMode = false, children }) => {
         </div>
       </header>
 
+      {/* Deliberately NOT marked isDestructive. That flag means "this destroys
+            something irrecoverable", and it is reserved for the two account-deletion
+            dialogs and for discarding a quiz. Signing out terminates a session and
+            nothing else - you sign straight back in - so the confirm button renders
+            the same primary orange as every other non-destructive action, and the
+            eyebrow above it stops labelling a reversible step as Danger. */}
       <ConfirmModal
         isOpen={showLogoutConfirm}
         title="Sign out of Hazard Hunt?"
         message={`Any in-progress training attempt for ${user?.name} will be terminated.`}
         confirmText="Sign out"
         cancelText="Stay signed in"
-        isDestructive
         onConfirm={() => {
           setShowLogoutConfirm(false);
           soundEngine.playWarning();
@@ -162,62 +167,17 @@ export const Navbar = ({ isPracticeMode = false, children }) => {
 };
 
 /**
- * Team credits, shown in the footer.
+ * Standard page frame: identical navbar for every role.
  *
- * Kept as data rather than markup so the same list can be asserted against and
- * so the names are edited in exactly one place.
+ * There is deliberately no footer. It previously carried the project-team
+ * credits, but it repeated on every screen of a tool people use dozens of times
+ * a day, pushed the actual dashboard content below the fold on a laptop, and
+ * competed with the page for attention. The team is credited once, in the
+ * README and on the login screen, where a reader is actually looking for it.
  */
-export const TEAM = [
-  { name: 'Aadarsh K.C.', role: 'Front-End', tag: 'FR' },
-  { name: 'Prabin Upadhayay', role: 'Back-End', tag: 'BE' },
-  { name: 'Himanshu Bhusal', role: 'Documentation', tag: 'DOC' },
-  { name: 'Shishir Pandey', role: 'Presentation', tag: 'PRES' },
-];
-
-export const AppFooter = () => (
-  <footer className="border-t border-mist-200 bg-white dark:border-dark-border dark:bg-dark-card">
-    <div className="app-page py-5">
-      <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
-        <div className="min-w-0">
-          <p className="app-eyebrow">Project Team</p>
-          <p className="app-title mt-1.5">Hazard Hunt</p>
-          <p className="app-body mt-1 max-w-sm">
-            © 2026 Macro Thinkers — CET257 Enterprise Project, University of Sunderland.
-          </p>
-          <p className="app-num app-body mt-2">Automotive Logistics &amp; Warehousing Safety Engine</p>
-        </div>
-
-        {/* Team grid. Left-aligned so it reads as a list of credits rather than
-            a set of decorative tiles competing with the page content. */}
-        <ul className="grid shrink-0 grid-cols-2 gap-x-6 gap-y-2.5 sm:grid-cols-4 lg:gap-x-8">
-          {TEAM.map((member) => (
-            <li key={member.name} className="min-w-0">
-              <p className="flex items-center gap-1.5">
-                <span
-                  className="app-num shrink-0 rounded-sm bg-primary-100 px-1 py-0.5 text-[9px] font-bold
-                             text-primary-700 dark:bg-primary-950 dark:text-primary-300"
-                  aria-hidden="true"
-                >
-                  {member.tag}
-                </span>
-                <span className="truncate text-xs font-bold text-mist-800 dark:text-dark-text">
-                  {member.name}
-                </span>
-              </p>
-              <p className="app-body mt-0.5 pl-1">{member.role}</p>
-            </li>
-          ))}
-        </ul>
-      </div>
-    </div>
-  </footer>
-);
-
-/** Standard page frame: identical navbar + footer for every role. */
-export const AppShell = ({ children, nav, footer = true }) => (
+export const AppShell = ({ children, nav }) => (
   <div className="flex min-h-screen flex-col bg-app-shell dark:bg-dark-bg">
     <Navbar>{nav}</Navbar>
     <main className="flex-1">{children}</main>
-    {footer && <AppFooter />}
   </div>
 );

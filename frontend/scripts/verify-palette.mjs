@@ -1,32 +1,39 @@
-/**
+﻿/**
  * Scene palette guard.
  *
  * Run with: node verify-palette.mjs
  *
  * The product palette is hazard orange on warm neutral, with no green and no
- * red. Inside a 3D warehouse that rule needs one carve-out, and this file
- * encodes it rather than relying on good intentions:
+ * red. Inside a 3D warehouse that rule needs a few carve-outs, and this file
+ * encodes them rather than relying on good intentions:
  *
- *   ALLOWED — fire-protection red. Sprinkler main, heads, extinguishers and
+ *   ALLOWED â€” fire-protection red. Sprinkler main, heads, extinguishers and
  *             hose reels. Red is the internationally recognised colour for fire
- *             protection pipework, and a trainee is being trained to identify
- *             it, so painting it orange would teach the wrong thing.
+ *             protection pipework, and part of what a trainee is trained to
+ *             identify, so painting it orange would teach the wrong thing.
  *
- *   ALLOWED — green signage and indicator lamps. A "running man" exit sign is
- *             green under ISO 7010 and BS 5499, and a healthy-charge lamp is
- *             green. Recolouring either would make the environment factually
- *             wrong, which is worse for a safety tool than an off-brand accent.
+ *   ALLOWED â€” green signage and indicator lamps. A "running man" exit sign is
+ *             green under ISO 7010 and BS 5499, an eyewash station is ISO
+ *             safety green, and a healthy-charge lamp is green. Recolouring
+ *             any of them would make the environment factually wrong, which is
+ *             worse for a safety tool than an off-brand accent.
  *
- * Everything else must be orange, amber, kraft, blue, grey or neutral. This
- * check exists because two hues slipped through by looking like something else:
- * a drum at 0x2f6f4e had been read as "the blue one" for so long that nobody
- * noticed it is (47,111,78) — green — and a rust-red drum sat on the floor
- * next to it.
+ * Everything else must be orange, amber, kraft, blue, grey or neutral.
+ *
+ * This check exists because two hues slipped through by looking like something
+ * else. A drum at 0x2f6f4e had been read as "the blue one" for so long that
+ * nobody noticed it is (47,111,78) â€” green â€” and a rust-red drum sat beside it
+ * on the floor. Both are fixed; this stops them coming back.
  */
 import { readdirSync, readFileSync } from 'node:fs';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
-const DIR = './src/components/viewer';
+// Resolve from this file, not from process.cwd(). The previous version used a
+// cwd-relative path, so it only worked when invoked from inside frontend/ and
+// failed with ENOENT from anywhere else, including the repository root.
+const HERE = dirname(fileURLToPath(import.meta.url));
+const DIR = join(HERE, '..', 'src', 'components', 'viewer');
 const files = readdirSync(DIR).filter((f) => f.endsWith('.js') || f.endsWith('.jsx'));
 
 /** Colours permitted to be green, with the reason. */
@@ -42,18 +49,16 @@ const ALLOWED_RED = new Map([
 ]);
 
 /**
- * Hue in degrees, 0 = red, 60 = yellow, 120 = green, 240 = blue.
+ * Hue in degrees: 0 = red, 60 = yellow, 120 = green, 240 = blue.
  *
- * Hue is the right discriminator here, and channel-gap tests are not. Two
- * failures motivated this:
+ * Hue is the right discriminator here; channel-gap tests are not. Two earlier
+ * versions failed in opposite directions:
  *
- *  - A green gap test MISSED the original green drum. #2f6f4e is (47,111,78):
- *    green leads blue by only 33, so any threshold demanding a wide lead over
- *    both other channels waved it through. By hue it is 149°, unambiguously
- *    green.
- *  - A red gap test flagged every orange in the project, because the brand
- *    palette IS orange. By hue the families separate cleanly, with only the
- *    fire-protection red landing under 12°.
+ *  - A green gap test MISSED the original green drum. #2f6f4e is (47,111,78),
+ *    where green leads blue by only 33, so any threshold demanding a wide lead
+ *    over both other channels waved it through. By hue it is 149Â°.
+ *  - A red gap test flagged every orange in the project, because orange is the
+ *    brand colour. By hue the families separate cleanly.
  */
 const hueOf = (r, g, b) => {
   const max = Math.max(r, g, b);
@@ -68,15 +73,14 @@ const hueOf = (r, g, b) => {
   return h < 0 ? h + 360 : h;
 };
 
-/** Saturation as a fraction, so near-greys never register as a hue. */
 const satOf = (r, g, b) => {
   const max = Math.max(r, g, b);
   return max === 0 ? 0 : (max - Math.min(r, g, b)) / max;
 };
 
 // Green: 100-200 deg covers leaf through emerald. ANSI Class 2 hi-vis lime
-// (#c6e82a) sits at 71 deg and is correctly NOT flagged — hi-vis is
-// yellow-green by standard and must stay that colour to be legible as PPE.
+// (#c6e82a) sits at 71 deg and is correctly NOT flagged â€” hi-vis is
+// yellow-green by standard and must stay that colour to read as PPE.
 const isGreen = (r, g, b) => {
   const h = hueOf(r, g, b);
   return h >= 100 && h <= 200 && satOf(r, g, b) > 0.22;
@@ -85,14 +89,13 @@ const isGreen = (r, g, b) => {
 // Red: under 12 deg. Amber lamp (#ffa41c, 60 deg) and the brand oranges
 // (#d9700a at 30, #e0592a at 16) all sit well clear of it.
 //
-// The 12-20 deg band is vermilion — orange that has been pushed towards red —
-// and it is deliberately treated as ORANGE, not red. That is a judgement call
-// with a hard edge to it: the traffic cone at 15.5 deg and a rust-oxide drum at
-// 17.8 deg are 2 degrees apart and cannot be separated by hue, yet one is
-// obviously on-palette and the other reads as red to the eye. So the band is
-// allowed. The rust drum was removed from the scene for a different reason,
-// recorded at the colour itself: a run of large saturated cylinders on the
-// floor reads as an alarm state, whatever its hue is called.
+// The 12-20 deg band is vermilion â€” orange pushed towards red â€” and is
+// deliberately treated as ORANGE. That is a judgement call with a hard edge: the
+// traffic cone at 15.5 deg and a rust-oxide drum at 17.8 deg are 2 degrees apart
+// and cannot be separated by hue, yet one is obviously on-palette and the other
+// reads as red. So the band is allowed. The rust drum was removed for a
+// different reason, recorded at the colour itself: a run of large saturated
+// cylinders on the floor reads as an alarm state, whatever its hue is called.
 const isRed = (r, g, b) => {
   const h = hueOf(r, g, b);
   return h >= 0 && h < 12 && satOf(r, g, b) > 0.35;
@@ -129,7 +132,7 @@ for (const file of files) {
 console.log(`scanned ${seen.size} distinct named colours across ${files.length} files`);
 console.log(
   `carve-outs: ${ALLOWED_GREEN.size} green, ${ALLOWED_RED.size} red ` +
-    '(fire-protection red and exit-sign green — see the header)'
+    '(fire-protection red, exit-sign green â€” see the header)'
 );
 
 if (found.length) {

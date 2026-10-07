@@ -5,7 +5,7 @@ import { soundEngine } from '../../utils/audio';
 import { Server, Database, Layers, UserPlus, Users, Search, CheckCircle2, RefreshCw, Lock, X, Activity, Shield, AlertTriangle, ChevronRight, Cpu, Wifi, HardDrive, Download, Target } from 'lucide-react';
 import { ConfirmModal } from '../common/ConfirmModal';
 import { UserAuditModal } from '../common/UserAuditModal';
-import { PageHeader, StatTile, BarList, ColumnChart, Metric, EmptyState, SectionCard } from '../ui';
+import { DashboardBanner, StatTile, BarList, ColumnChart, Metric, EmptyState, SectionCard } from '../ui';
 
 export const AdminDashboard = ({ onLaunchTrainer }) => {
   const { showToast } = useToast();
@@ -223,8 +223,9 @@ export const AdminDashboard = ({ onLaunchTrainer }) => {
   return (
     <div>
       <div className="app-page py-6">
-        {/* ── Page header ──────────────────────────────────────────────────── */}
-        <PageHeader
+        {/* Shares DashboardBanner with the trainee and supervisor screens, so all
+            three dashboards open with the same band and action strip. */}
+        <DashboardBanner
           eyebrow="System Administrator Console"
           title="Hazard Hunt — Enterprise Control"
           description="Full system oversight: manage users, monitor 360° training compliance, and inspect safety vulnerability analytics across all warehouse bays."

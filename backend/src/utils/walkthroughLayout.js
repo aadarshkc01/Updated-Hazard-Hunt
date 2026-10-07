@@ -16,27 +16,36 @@
 // Warehouse floor plan (metres). MUST match
 // frontend/src/components/viewer/warehousePlan.js - the anchors below are only
 // valid for this exact layout.
-//   X: -15 .. 15 (west .. east)
-//   Z: -10.5 .. 10.5 (north wall with dock doors .. south dispatch)
-// Racking occupies four blocks in X, each SPLIT into two segments (z -8.5..-1.3
-// and 1.3..8.5) so the floor is a grid of aisles rather than dead-end corridors.
-// The plan is symmetric about x = 0; the widths sum exactly to the room width.
+//   X: -13 .. 13 (west wall .. east wall)
+//   Z: -9 .. 9 (north wall with dock doors .. south dispatch apron)
+//
+// The floor is ZONED rather than a rack grid: the west strip is a chemical store,
+// the east strip an electrical switchroom, with only two racking runs between
+// them and the painted route down the middle. So there are two rack blocks, not
+// four. Symmetry is deliberately broken - the trainee can tell roughly where
+// they are from which wall they are nearer.
 const RACK_BLOCKS = [
-  { minX: -12.4, maxX: -9.2 },
-  { minX: -5.4, maxX: -2.2 },
-  { minX: 2.2, maxX: 5.4 },
-  { minX: 9.2, maxX: 12.4 },
+  { minX: -6.6, maxX: -3.6 },
+  { minX: 3.6, maxX: 6.6 },
 ];
 const RACK_SEGMENTS = [
-  { minZ: -8.5, maxZ: -1.3 },
-  { minZ: 1.3, maxZ: 8.5 },
+  { minZ: -6.2, maxZ: -1.2 },
+  { minZ: 1.2, maxZ: 6.2 },
 ];
-const ROOM_LIMIT_X = 15;
-const ROOM_LIMIT_Z = 10.5;
+const ROOM_LIMIT_X = 13;
+const ROOM_LIMIT_Z = 9;
+
+// Zone footprints, duplicating warehousePlan.js. Only the two rooms are solid;
+// the store and the switchroom are floor you walk through, not volumes you
+// walk into.
+const CHEMICAL_STORE = { minX: -12.6, maxX: -8.8, minZ: -8.6, maxZ: -1.4 };
+const ELECTRICAL_ZONE = { minX: 8.8, maxX: 12.6, minZ: -8.6, maxZ: -1.4 };
+const OFFICE = { minX: 8.9, maxX: 12.5, minZ: 1.4, maxZ: 6.2 };
+const WELFARE = { minX: -12.5, maxX: -8.9, minZ: 1.4, maxZ: 6.2 };
 
 /** Fixed fire exit on the north wall - the blocked-exit hazard is always staged
  * directly in front of it so the depiction stays coherent. */
-export const FIRE_EXIT = { x: 13.4, z: -10.5, width: 2.8, height: 2.8 };
+export const FIRE_EXIT = { x: 11.4, z: -9, width: 2.6, height: 2.6 };
 
 /**
  * Candidate hazard anchor points.
@@ -46,40 +55,41 @@ export const FIRE_EXIT = { x: 13.4, z: -10.5, width: 2.8, height: 2.8 };
  * sits ON the route (x -1.7 .. 1.7) - a staged hazard must never block the way
  * the trainee has to walk to reach the others.
  *
- * The two cross-aisle anchors sit in the PERIMETER aisles rather than in the
- * middle of the floor. The gap between the walkway edge and the nearest rack
- * (plus a player's body radius) is only about 1.65 m either side, so anything
- * placed between them would be standing on the route itself.
+ * They are distributed across the five zones rather than clustered, so a run
+ * places hazards in genuinely different parts of the depot and the trainee has
+ * to traverse the whole floor rather than working one aisle.
  *
  * `suits` lists hazard categories this anchor is a visually sensible home for.
  * The generator prefers a matching anchor, but falls back to any free anchor so
  * a layout is always produced regardless of category mix.
  */
 export const HAZARD_ANCHORS = [
-  // Perimeter aisles
-  { id: 'perimeter-west-north', position: [-13.5, 0.05, -5.5], rotationY: 0.5, suits: ['chemical', 'material'] },
-  { id: 'perimeter-west-south', position: [-13.5, 0.05, 4.5], rotationY: -0.7, suits: ['traffic', 'chemical'] },
-  { id: 'perimeter-east', position: [13.5, 0.05, -2.5], rotationY: -Math.PI / 2, suits: ['traffic', 'chemical'] },
-  // West aisle, north / mid / south
-  { id: 'west-aisle-north', position: [-7.3, 0.05, -6.0], rotationY: 0.5, suits: ['chemical', 'material'] },
-  { id: 'west-aisle-mid', position: [-7.3, 0.05, 0.0], rotationY: -0.6, suits: ['electrical', 'chemical'] },
-  { id: 'west-aisle-south', position: [-7.3, 0.05, 5.5], rotationY: 1.2, suits: ['material', 'electrical'] },
-  // East aisle (offset clear of the conveyor run)
-  { id: 'east-aisle-north', position: [7.3, 0.05, -6.0], rotationY: 0.35, suits: ['material', 'chemical'] },
-  { id: 'east-aisle-mid', position: [6.4, 0.05, 0.0], rotationY: -0.25, suits: ['electrical', 'traffic'] },
-  { id: 'east-aisle-south', position: [6.4, 0.05, 6.0], rotationY: 2.1, suits: ['material', 'electrical'] },
-  // Mid cross-aisle, out in the perimeter aisles (see note above)
-  { id: 'cross-mid-west', position: [-13.5, 0.05, 0.0], rotationY: 0.15, suits: ['traffic', 'material'] },
-  { id: 'cross-mid-east', position: [13.5, 0.05, 0.0], rotationY: -0.25, suits: ['electrical', 'material'] },
+  // West perimeter aisle
+  { id: 'perimeter-west-north', position: [-12.0, 0.05, -7.2], rotationY: 0.5, suits: ['chemical', 'material'] },
+  { id: 'perimeter-west-south', position: [-12.0, 0.05, 7.2], rotationY: -0.7, suits: ['traffic', 'chemical'] },
+  // East perimeter aisle, south of the office
+  { id: 'perimeter-east-mid', position: [12.0, 0.05, 0.0], rotationY: -Math.PI / 2, suits: ['traffic', 'chemical'] },
+  { id: 'perimeter-east-south', position: [12.0, 0.05, 7.2], rotationY: -0.6, suits: ['traffic', 'material'] },
+  // Chemical store approach: coherent home for spill and COSHH hazards
+  { id: 'chemical-approach', position: [-10.2, 0.05, -4.5], rotationY: 0.3, suits: ['chemical'] },
+  // West aisle between the store and rack A
+  { id: 'west-aisle-north', position: [-7.7, 0.05, -4.5], rotationY: 0.5, suits: ['material', 'chemical'] },
+  { id: 'west-aisle-mid', position: [-7.7, 0.05, 0.0], rotationY: -0.6, suits: ['electrical', 'traffic'] },
+  { id: 'west-aisle-south', position: [-7.7, 0.05, 4.5], rotationY: 1.2, suits: ['material', 'electrical'] },
+  // Electrical switchroom approach: coherent home for 415V and cable hazards
+  { id: 'electrical-approach', position: [10.2, 0.05, -4.5], rotationY: -0.3, suits: ['electrical'] },
+  // East aisle between rack B and the switchroom
+  { id: 'east-aisle-north', position: [7.7, 0.05, -4.5], rotationY: 0.35, suits: ['material', 'electrical'] },
+  { id: 'east-aisle-mid', position: [7.7, 0.05, 0.0], rotationY: -0.25, suits: ['electrical', 'traffic'] },
+  { id: 'east-aisle-south', position: [7.7, 0.05, 4.5], rotationY: 2.1, suits: ['material', 'electrical'] },
+  // Mid cross-aisle, inside the route corridor but clear of the paint
+  { id: 'cross-mid-west', position: [-2.6, 0.05, 0.0], rotationY: 0.15, suits: ['traffic', 'material'] },
+  { id: 'cross-mid-east', position: [2.6, 0.05, 0.0], rotationY: -0.25, suits: ['electrical', 'material'] },
   // North goods-in cross-aisle, clear of the dock levellers
-  { id: 'north-cross-west', position: [-3.5, 0.05, -9.2], rotationY: Math.PI, suits: ['chemical', 'electrical'] },
-  { id: 'north-cross-east', position: [3.5, 0.05, -9.2], rotationY: Math.PI, suits: ['material', 'traffic'] },
-  { id: 'north-dock-west', position: [-7.3, 0.05, -9.2], rotationY: Math.PI, suits: ['material', 'traffic'] },
+  { id: 'north-dock-west', position: [-4.0, 0.05, -7.2], rotationY: Math.PI, suits: ['material', 'traffic'] },
+  { id: 'north-dock-east', position: [4.0, 0.05, -7.2], rotationY: Math.PI, suits: ['chemical', 'electrical'] },
   // Always directly in front of the fire exit
-  { id: 'fire-exit-approach', position: [13.4, 0.05, -9.2], rotationY: Math.PI, suits: ['fire'] },
-  // South dispatch area
-  { id: 'staging-south-west', position: [-7.3, 0.05, 9.2], rotationY: 0.25, suits: ['material', 'electrical'] },
-  { id: 'staging-south-east', position: [7.3, 0.05, 9.2], rotationY: -0.4, suits: ['traffic', 'material'] },
+  { id: 'fire-exit-approach', position: [11.4, 0.05, -7.2], rotationY: Math.PI, suits: ['fire'] },
 ];
 
 // Visual variants per hazard category. The generator picks one per run so that
@@ -128,19 +138,21 @@ const shuffle = (list, rng) => {
  *  Used as a safety net so a layout can never stage a prop inside a solid. */
 export const insideSolid = (x, z, pad = 0.6) => {
   const inRack = RACK_BLOCKS.some(
-    (b) => RACK_SEGMENTS.some(
-      (s) =>
-        x > b.minX - pad &&
-        x < b.maxX + pad &&
-        z > s.minZ - pad &&
-        z < s.maxZ + pad
-    )
+    (b) =>
+      RACK_SEGMENTS.some(
+        (s) =>
+          x > b.minX - pad &&
+          x < b.maxX + pad &&
+          z > s.minZ - pad &&
+          z < s.maxZ + pad
+      )
   );
   if (inRack) return true;
-  // Office (SE) and welfare cabin (SW). These bounds duplicate
-  // warehousePlan.js - they must be updated together with it.
-  if (x > 12.6 - pad && x < 14.7 + pad && z > 4.4 - pad && z < 10.4 + pad) return true;
-  if (x > -14.7 - pad && x < -10.2 + pad && z > 8.0 - pad && z < 10.4 + pad) return true;
+  // The two rooms are solid. The store and the switchroom are not: a trainee
+  // has to be able to walk up to the drums and the switchgear to inspect them.
+  const inBox = (b) =>
+    x > b.minX - pad && x < b.maxX + pad && z > b.minZ - pad && z < b.maxZ + pad;
+  if (inBox(OFFICE) || inBox(WELFARE)) return true;
   return false;
 };
 

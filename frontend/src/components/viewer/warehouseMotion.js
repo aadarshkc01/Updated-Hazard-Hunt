@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
-import { HALF_D } from './warehousePlan.js';
+import { HALF_D, NORTH_AISLE, SOUTH_AISLE, AISLE_X } from './warehousePlan.js';
 
 /**
  * Bakes a group into ONE mesh per material.
@@ -175,7 +175,9 @@ const makePalletTruck = (G, M) => {
  * riding on top. Cheap (a couple of dozen live meshes) and reads instantly.
  */
 export const buildConveyor = ({ G, M, scene, stage, animated, markInteractivable }) => {
-  const ORIGIN = [8.0, 0, 1.0];
+  // The run sat at x = 8.0, which is now inside the east aisle of the smaller
+  // bay; moved onto the rack-B aisle line so it still feeds the storage side.
+  const ORIGIN = [AISLE_X[3], 0, 1.0];
   const g = new THREE.Group();
   const add = (geo, mat, sx, sy, sz, px, py, pz) => {
     const m = new THREE.Mesh(geo, mat);
@@ -228,7 +230,7 @@ export const buildConveyor = ({ G, M, scene, stage, animated, markInteractivable
     // Rollers TRANSLATE along the belt and wrap. They do not spin.
     //
     // The previous version also advanced each roller's `rotation.x`, which read
-    // as a machine gun: these are cylinders lying across the belt, so their
+    // as a machine gun: these are cylinders lying across the belt, so their own
     // rotation is barely perceptible at walking pace anyway. Translating the
     // roller line together with the cartons riding on it is enough to sell a
     // running belt without turning the background into a distraction.
@@ -296,7 +298,7 @@ export const buildExtractionFans = ({ G, M, scene, animated }) => {
 export const buildVehicles = ({ G, M, scene, animated, markInteractivable }) => {
   // ── Forklift: loops the north goods-in area ──
   const forklift = bakeByMaterial(makeForklift(G, M));
-  forklift.position.set(-8.0, 0, -9.3);
+  forklift.position.set(-7.7, 0, NORTH_AISLE - 0.6);
   scene.add(forklift);
 
   // Vehicle routes stay in the aisles and NEVER enter the painted walkway.
@@ -327,14 +329,14 @@ export const buildVehicles = ({ G, M, scene, animated, markInteractivable }) => 
 
   // ── Pallet truck: short loop in the south packing area ──
   const truck = bakeByMaterial(makePalletTruck(G, M));
-  truck.position.set(2.9, 0, 9.2);
+  truck.position.set(2.9, 0, SOUTH_AISLE - 0.4);
   scene.add(truck);
   const driveTruck = makePatrol(
     [
       [2.9, 9.2],
-      [10.5, 9.2],
-      [10.5, 10.0],
-      [2.9, 10.0],
+      [9.4, 9.2],
+      [9.4, 9.9],
+      [2.9, 9.9],
     ],
     0.85
   );
@@ -380,10 +382,13 @@ export const buildWalkingCrew = ({ G, M, scene, animated }) => {
   // perimeter, and one crossing of the mid cross-aisle (transient foot traffic,
   // which is exactly why the route is marked).
   const routes = [
-    { pts: [[-8.0, -7.0], [-8.0, 5.5]], speed: 1.15, phase: 0 },
-    { pts: [[8.0, 5.5], [8.0, -7.0]], speed: 1.05, phase: 1.7 },
-    { pts: [[-13.9, 3.0], [-13.9, -5.5]], speed: 1.25, phase: 3.1 },
-    { pts: [[-6.5, 0.2], [6.5, 0.2]], speed: 1.3, phase: 0.6 },
+    // Routes follow the plan's own aisle lines (AISLE_X) and cross-aisle depth.
+    // They were absolute: the perimeter route at x = -13.9 walked a figure
+    // through the wall in the current room.
+    { pts: [[AISLE_X[1], NORTH_AISLE + 0.5], [AISLE_X[1], SOUTH_AISLE - 0.5]], speed: 1.15, phase: 0 },
+    { pts: [[AISLE_X[3], SOUTH_AISLE - 0.5], [AISLE_X[3], NORTH_AISLE + 0.5]], speed: 1.05, phase: 1.7 },
+    { pts: [[AISLE_X[0], SOUTH_AISLE - 1.5], [AISLE_X[0], NORTH_AISLE + 1.5]], speed: 1.25, phase: 3.1 },
+    { pts: [[-2.4, 0.2], [2.4, 0.2]], speed: 1.3, phase: 0.6 },
   ];
 
   routes.forEach((r) => {

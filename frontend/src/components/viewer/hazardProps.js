@@ -22,14 +22,15 @@ const PALETTE = {
   cartonAlt: makeMaterial({ color: 0xb0854f, roughness: 0.95 }),
   crate: makeMaterial({ color: 0xa07a4a, roughness: 0.92 }),
   /**
- * Hazard-prop drums.
- *
- * These were a green (0x2f6f4e) and a rust-red (0xb4552d) — the same pair of
- * wrong hues as the scene's own drums, duplicated because the hazard props keep
- * their own material set so a staged prop can be identified and disposed of as
- * a unit. Both now match the scene: blue and graphite. The drums a trainee is
- * being asked to spot should not introduce colours the rest of the bay avoids.
- */
+   * Hazard-prop drums.
+   *
+   * These were a green (0x2f6f4e) and a rust-red (0xb4552d) — the same pair of
+   * wrong hues as the scene's own drums, duplicated because the hazard props
+   * keep their own material set so a staged prop can be identified and disposed
+   * of as a unit. Both now match the scene: blue and graphite. The drums a
+   * trainee is being asked to spot should not introduce colours the rest of the
+   * bay avoids.
+   */
   drum: makeMaterial({ color: 0x1f4e79, roughness: 0.45, metalness: 0.5 }),
   drumAlt: makeMaterial({ color: 0x39434e, roughness: 0.55, metalness: 0.35 }),
   cable: makeMaterial({ color: 0x15181c, roughness: 0.9 }),

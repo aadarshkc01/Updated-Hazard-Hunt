@@ -10,7 +10,7 @@
  */
 
 /**
- * Compact 30 × 21 m depot.
+ * Compact 26 x 18 m depot.
  *
  * Deliberately smaller than a real distribution shed. Two reasons, and they pull
  * in opposite directions, so it is worth stating plainly:
@@ -26,65 +26,97 @@
  * It is a *compressed but internally consistent* bay: aisle widths, rack heights
  * and door dimensions are all human scale, so nothing reads as miniature. It is
  * not a scale model.
+ *
+ * Area is 468 m², down from the 1632 m² this started at — 71% smaller.
  */
-export const ROOM = { width: 30, depth: 21, height: 7.6 };
+export const ROOM = { width: 26, depth: 18, height: 7 };
 export const HALF_W = ROOM.width / 2;
 export const HALF_D = ROOM.depth / 2;
 const WALL = 0.3;
 const PLAYER_RADIUS = 0.55;
 
 /**
- * Four racking runs creating three aisles plus two perimeter aisles.
+ * ZONED floor, not a rack grid.
  *
- * Each run is SPLIT by the mid cross-aisle, so the floor is a 4 × 3 grid of
- * aisles rather than four dead-end corridors — the trainee can always loop
- * onward instead of backtracking out of a long run against the clock.
+ * The previous plan was four identical racking runs split by a cross-aisle. It
+ * satisfied "a grid of aisles" and failed at everything else: every sightline
+ * looked the same, so the trainee could not tell where they were or build a
+ * mental map, and the space read as one repeated prop rather than a workplace.
  *
- * The plan is symmetric about x = 0 and the widths sum exactly to ROOM.width:
+ * This is a small depot with FIVE named areas, which is what a bay this size
+ * actually is. Each has its own equipment, its own colour and its own reason to
+ * exist, so moving between them is legible:
  *
- *         perimeter | run 1 | aisle | run 2 | ROUTE | run 3 | aisle | run 4 | perimeter
- *      -15 ──────── -12.4 ───── -9.2 ───── -5.4 ───── -2.2 ── 0 ─ 2.2 ───── 5.4
- *           2.6        3.2      3.8       3.4     4.4    3.4      3.8       3.2       2.6
+ *      -13.0        -8.8   -6.6    -3.6            3.6     6.6    8.8         13.0
+ *        |  CHEMICAL   | aisle |  RACK A  |  MAIN ROUTE  | RACK B | aisle | ELECTRICAL |
+ *  z = -9.0 +----------+-------+--------+---------------+--------+-------+----------+
+ *        |  GOODS-IN DOCK APRON (3 levellers, north wall)                    |
+ *  z = -6.2 |  store   |        |  seg N  |               | seg N  |        |  switchroom |
+ *        |           |        +-------+---- mid cross-aisle ----+-------+        |
+ *  z =  0.0 |  drums,  |        |        |   painted zebra  |        |        |  panels,   |
+ *        |  bunds,   |        |  seg S  |      route       |  seg S |        |  trafo,    |
+ *        |  cabinets |        |        |               |        |        |  trays     |
+ *  z = +6.2 |  welfare |        |        |               |        |        |  office   |
+ *  z = +8.6 +--------------------- DISPATCH / PACKING ----------------------+
  *
- * Symmetry matters more than it looks: it is what lets the interior aisle
- * centres (AISLE_X) be a single mirrored pair, and it means a trainee walking
- * the plan clockwise meets the same sequence of spaces as walking it
- * anticlockwise.
+ * Why the racking is now only TWO runs rather than four: with the rest of the
+ * floor given to distinct zones, two runs still read as storage without
+ * swallowing the room. Four runs left nothing for the rest of the depot to be
+ * anything except more racking.
+ *
+ * Symmetry is deliberately broken. A mirrored plan is tidy on paper and
+ * monotonous in practice — the same thing happens at the same distance on both
+ * sides, so there is no landmark to navigate by. Here the west side is storage
+ * and the east side is services, which means the trainee always knows roughly
+ * where they are from which wall they are nearer.
  */
 export const RACK_BLOCKS = [
-  { minX: -12.4, maxX: -9.2 },
-  { minX: -5.4, maxX: -2.2 },
-  { minX: 2.2, maxX: 5.4 },
-  { minX: 9.2, maxX: 12.4 },
+  { minX: -6.6, maxX: -3.6 },
+  { minX: 3.6, maxX: 6.6 },
 ];
 
 export const RACK_SEGMENTS = [
-  { minZ: -8.5, maxZ: -1.3 },
-  { minZ: 1.3, maxZ: 8.5 },
+  { minZ: -6.2, maxZ: -1.2 },
+  { minZ: 1.2, maxZ: 6.2 },
 ];
 
 /** Clear, unobstructed painted pedestrian route down the centre. */
-export const WALKWAY = { x: 0, width: 3.4, minZ: -9.4, maxZ: 9.4 };
+export const WALKWAY = { x: 0, width: 3.4, minZ: -7.0, maxZ: 7.0 };
 
-/** Mid cross-aisle band — links all four aisles. */
-export const CROSS_AISLE = { minZ: -1.3, maxZ: 1.3, centerZ: 0 };
+/** Mid cross-aisle band — links the two rack runs to both end aisles. */
+export const CROSS_AISLE = { minZ: -1.2, maxZ: 1.2, centerZ: 0 };
 
 /** North (goods-in) and south (dispatch) cross-aisles. */
-export const NORTH_AISLE = -9.6;
-export const SOUTH_AISLE = 9.6;
+export const NORTH_AISLE = -7.0;
+export const SOUTH_AISLE = 7.0;
 
-/** Fire exit on the north wall. */
-export const FIRE_EXIT = { x: 13.4, z: -HALF_D, width: 2.8, height: 2.8 };
+// ── Zones ─────────────────────────────────────────────────────────────────────
+// Exported because the builders, the labels and the collision model all need to
+// agree on where each area starts and stops. These are FLOOR RESERVATIONS, not
+// solids: only OFFICE and WELFARE are blocked to the player (see getObstacles),
+// because a bunded drum store is something you walk through, not into.
+
+/** Flammable/chemical store: bunded drums, hazmat cabinets, spill pallets. */
+export const CHEMICAL_STORE = { minX: -12.6, maxX: -8.8, minZ: -8.6, maxZ: -1.4 };
+
+/** Electrical switchroom: switchgear, transformer, cable tray, isolators. */
+export const ELECTRICAL_ZONE = { minX: 8.8, maxX: 12.6, minZ: -8.6, maxZ: -1.4 };
+
+/** Dispatch apron along the south wall: packing benches, wrap station, staging. */
+export const DISPATCH = { minX: -8.6, maxX: 8.6, minZ: 6.4, maxZ: 8.6 };
+
+/** Fire exit on the north wall, clear of the dock levellers. */
+export const FIRE_EXIT = { x: 11.4, z: -HALF_D, width: 2.6, height: 2.6 };
 
 /** Dock doors along the north wall, clear of the fire exit. */
-export const DOCK_DOORS = [-8, -0.5, 6.5];
+export const DOCK_DOORS = [-6, 0, 6];
 
-/** Player spawn: south end of the walkway, looking north. */
-export const SPAWN = { x: 0, y: 1.7, z: 9.0, yaw: Math.PI };
+/** Player spawn: south end of the walkway, looking north up the bay. */
+export const SPAWN = { x: 0, y: 1.7, z: 6.0, yaw: Math.PI };
 
-/** Solid volumes: racking segments plus the two rooms. */
-export const OFFICE = { minX: 12.6, maxX: 14.7, minZ: 4.4, maxZ: 10.4 };
-export const WELFARE = { minX: -14.7, maxX: -10.2, minZ: 8.0, maxZ: 10.4 };
+/** Solid volumes: racking segments plus the two rooms you cannot walk into. */
+export const OFFICE = { minX: 8.9, maxX: 12.5, minZ: 1.4, maxZ: 6.2 };
+export const WELFARE = { minX: -12.5, maxX: -8.9, minZ: 1.4, maxZ: 6.2 };
 
 export const getObstacles = () => [
   ...RACK_BLOCKS.flatMap((b) =>
@@ -116,12 +148,19 @@ export const collidesAt = (x, z, obstacles = getObstacles()) => {
 // ── Derived helpers ───────────────────────────────────────────────────────────
 
 /**
- * Centre line of each aisle, west to east.
+ * Centre line of each circulation route, west to east.
  *
- * Symmetric pairs (-13.5 / 13.5, -7.3 / 7.3) because RACK_BLOCKS is symmetric.
- * Anything that walks or drives a route derives its lanes from here.
+ * These are the lines the forklift, the pallet truck and the walking crew are
+ * constrained to, so they are derived from the zone edges rather than typed in:
+ * if a zone moves, the routes follow it.
  */
-export const AISLE_X = [-13.5, -7.3, 0, 7.3, 13.5];
+export const AISLE_X = [
+  -(HALF_W - WALL - 1.0), // west perimeter aisle
+  (CHEMICAL_STORE.maxX + RACK_BLOCKS[0].minX) / 2, // between store and rack A
+  WALKWAY.x, // the main route
+  (RACK_BLOCKS[1].maxX + ELECTRICAL_ZONE.minX) / 2, // between rack B and switchroom
+  HALF_W - WALL - 1.0, // east perimeter aisle
+];
 
 /** Every rack footprint, for guards, labels and end barriers. */
 export const rackRuns = () =>

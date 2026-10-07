@@ -18,7 +18,7 @@
  */
 
 import * as THREE from 'three';
-import { ROOM, HALF_W, HALF_D, RACK_BLOCKS, RACK_SEGMENTS, rackRuns, DOCK_DOORS, FIRE_EXIT, CROSS_AISLE, NORTH_AISLE, SOUTH_AISLE, WALKWAY, OFFICE, WELFARE } from './warehousePlan.js';
+import { ROOM, HALF_W, HALF_D, RACK_BLOCKS, RACK_SEGMENTS, rackRuns, DOCK_DOORS, FIRE_EXIT, CROSS_AISLE, NORTH_AISLE, SOUTH_AISLE, WALKWAY, OFFICE, WELFARE, AISLE_X } from './warehousePlan.js';
 
 // ── Building fabric ───────────────────────────────────────────────────────────
 
@@ -51,13 +51,27 @@ export const buildRoofStructure = ({ G, M, stage }) => {
   stage(G.box, M.purlin, 0.3, 0.5, ROOM.depth, 0, h + 1.55, 0);
 
   // Longitudinal purlins between the trusses
-  for (let x = -15; x <= 15; x += 2.5) {
+  // Derived from the half-width. Hardcoded +/-15 was the previous room and
+  // overhung the eaves by 2 m once the bay shrank.
+  const purlinStep = 2.5;
+  const purlinCount = Math.floor((HALF_W - 1) / purlinStep);
+  for (let i = -purlinCount; i <= purlinCount; i += 1) {
+    const x = i * purlinStep;
     stage(G.box, M.purlin, 0.14, 0.2, ROOM.depth - 1, x, h + 0.45 - Math.abs(x) * 0.008, 0);
   }
 
   // Roof deck panels (shallow, so they read as cladding not floor)
-  for (let x = -15; x <= 15; x += 3.75) {
-    stage(G.box, M.roofDeck, 3.65, 0.08, ROOM.depth - 0.5, x, h + 0.95 - Math.abs(x) * 0.02, 0);
+  // Same story as the purlins: derived from the half-width, because a hardcoded
+  // +/-15 laid deck panels 2 m past the eaves.
+  // The panels TILE the roof: count from the room, then size each panel to
+  // divide the width exactly. A fixed pitch cannot do both - at 3.75 m the
+  // outermost panel always lands past the eaves on a width that is not a
+  // multiple of the pitch.
+  const deckCount = Math.max(3, Math.ceil(ROOM.width / 3.75));
+  const deckWidth = ROOM.width / deckCount;
+  for (let i = 0; i < deckCount; i += 1) {
+    const x = -HALF_W + deckWidth / 2 + i * deckWidth;
+    stage(G.box, M.roofDeck, deckWidth - 0.08, 0.08, ROOM.depth - 0.5, x, h + 0.95 - Math.abs(x) * 0.02, 0);
   }
 
   // Eaves gutter + downpipes
@@ -156,17 +170,27 @@ export const buildFloorServices = ({ G, M, stage }) => {
     stage(G.box, M.grate, len, 0.03, 0.3, x, 0.05, z, 0, ry);
   });
 
-  // Expansion joints on a 6m grid
-  for (let x = -14; x <= 14; x += 4.6) {
-    stage(G.plane, M.joint, 0.05, ROOM.depth - 1, 1, x, 0.008, 0, -Math.PI / 2);
+  // Expansion joints. The x loop ran to +/-14 unconditionally, which is 1 m
+  // past the wall in the current room; derive the count so the joints stop
+  // short of the perimeter drainage channel on any room size.
+  const jointStep = 4.6;
+  const jointCount = Math.floor((HALF_W - 1.4) / jointStep);
+  for (let i = -jointCount; i <= jointCount; i += 1) {
+    stage(G.plane, M.joint, 0.05, ROOM.depth - 1, 1, i * jointStep, 0.008, 0, -Math.PI / 2);
   }
-  for (let z = -8; z <= 8; z += 4.4) {
-    stage(G.plane, M.joint, ROOM.width - 1, 0.05, 1, 0, 0.008, z, -Math.PI / 2);
+  const jointZStep = 4.4;
+  const jointZCount = Math.floor((HALF_D - 1.4) / jointZStep);
+  for (let i = -jointZCount; i <= jointZCount; i += 1) {
+    stage(G.plane, M.joint, ROOM.width - 1, 0.05, 1, 0, 0.008, i * jointZStep, -Math.PI / 2);
   }
 
-  // Column footings and impact guards at every structural column
-  for (let i = -5; i <= 5; i += 1) {
-    const z = i * 2.1;
+  // Column footings and impact guards at every structural column.
+  // The bay count comes from the room depth: fixed at 11 bays it put a column
+  // at z = +/-10.5 in a 9 m half-depth.
+  const COL_SPACING = 2.1;
+  const colCount = Math.floor((HALF_D - 0.9) / COL_SPACING);
+  for (let i = -colCount; i <= colCount; i += 1) {
+    const z = i * COL_SPACING;
     [-HALF_W + 0.5, HALF_W - 0.5].forEach((x) => {
       stage(G.box, M.concrete, 0.9, 0.16, 0.9, x, 0.08, z);
       stage(G.box, M.columnGuard, 0.72, 1.0, 0.72, x, 0.66, z);
@@ -231,13 +255,16 @@ export const buildElectricalInstallations = ({ G, M, stage, absorb }) => {
 export const buildFireProtection = ({ G, M, stage }) => {
 
   // Sprinkler main running along the centre, with branch pipes over each aisle
-  stage(G.cyl, M.sprinkler, 0.075, 30, 0.075, 0, 7.3, 0, Math.PI / 2);
-  [-10, -4.5, 4.5, 10].forEach((x) => {
-    stage(G.cyl, M.sprinkler, 0.06, 21, 0.06, x, 7.0, 0, Math.PI / 2);
+  // Pipe lengths were fixed at 30 m / 21 m, which overran the walls as soon as
+  // the room shrank. Derive them, and hang the branches off the actual aisle
+  // centres so a head is always above a walkway rather than over a rack.
+  stage(G.cyl, M.sprinkler, 0.075, ROOM.width - 2, 0.075, 0, ROOM.height - 0.7, 0, Math.PI / 2);
+  AISLE_X.forEach((x) => {
+    stage(G.cyl, M.sprinkler, 0.06, ROOM.depth - 2, 0.06, x, ROOM.height - 1.0, 0, Math.PI / 2);
     // Upright drops to each head
-    for (let z = -10; z <= 10; z += 3.2) {
-      stage(G.cyl, M.sprinkler, 0.035, 0.22, 0.035, x, 6.84, z);
-      stage(G.cone, M.sprinkler, 0.07, 0.1, 0.07, x, 6.68, z);
+    for (let z = -HALF_D + 2; z <= HALF_D - 2; z += 3.2) {
+      stage(G.cyl, M.sprinkler, 0.035, 0.22, 0.035, x, ROOM.height - 1.16, z);
+      stage(G.cone, M.sprinkler, 0.07, 0.1, 0.07, x, ROOM.height - 1.32, z);
     }
   });
 
@@ -254,7 +281,7 @@ export const buildFireProtection = ({ G, M, stage }) => {
   });
   for (let i = -2; i <= 2; i += 1) {
     [-HALF_W + 0.3, HALF_W - 0.3].forEach((x) => {
-      stage(G.box, M.emergencyLight, 0.1, 0.12, 0.36, x, 4.8, i * 4.6);
+      stage(G.box, M.emergencyLight, 0.1, 0.12, 0.36, x, 4.8, i * 4.0);
     });
   }
 
@@ -264,9 +291,10 @@ export const buildFireProtection = ({ G, M, stage }) => {
   stage(G.box, M.signBoard, 0.04, 0.3, 0.3, HALF_W - 0.68, 1.9, 3.2);
 
   // First aid point
-  stage(G.box, M.firstAid, 0.14, 0.42, 0.34, -HALF_W + 0.3, 1.5, 9.5);
-  stage(G.box, M.firstAid, 0.16, 0.1, 0.22, -HALF_W + 0.32, 1.5, 9.5);
-  stage(G.box, M.firstAid, 0.16, 0.22, 0.1, -HALF_W + 0.32, 1.5, 9.5);
+  const aidZ = HALF_D - 0.6;
+  stage(G.box, M.firstAid, 0.14, 0.42, 0.34, -HALF_W + 0.3, 1.5, aidZ);
+  stage(G.box, M.firstAid, 0.16, 0.1, 0.22, -HALF_W + 0.32, 1.5, aidZ);
+  stage(G.box, M.firstAid, 0.16, 0.22, 0.1, -HALF_W + 0.32, 1.5, aidZ);
 };
 
 /** High-bay lighting: shrouded fixtures, aisle strips and pendant cables. */
@@ -306,8 +334,9 @@ export const buildVentilation = ({ G, M, stage }) => {
     stage(G.box, M.grate, 1.4, 1.4, 0.06, x, 5.6, -HALF_D + 0.7);
   });
   // Roof-mounted air handling unit
-  stage(G.box, M.fixtureBody, 4.0, 1.2, 2.2, -9, 8.5, 4);
-  stage(G.box, M.grate, 3.7, 0.06, 1.9, -9, 9.14, 4);
+  // Sits ON the roof, not above it: the eaves dropped to 7.0 m.
+  stage(G.box, M.fixtureBody, 4.0, 1.2, 2.2, -8, ROOM.height + 0.7, 3.5);
+  stage(G.box, M.grate, 3.7, 0.06, 1.9, -8, ROOM.height + 1.34, 3.5);
   stage(G.box, M.steelDark, 0.4, 0.5, 0.4, -6.8, 8.4, 4);
   stage(G.box, M.steelDark, 0.4, 0.5, 0.4, -11.2, 8.4, 4);
 };

@@ -4,7 +4,7 @@ import { useToast } from '../../context/ToastContext';
 import { ConfirmModal } from '../common/ConfirmModal';
 import { UserAuditModal } from '../common/UserAuditModal';
 import { soundEngine } from '../../utils/audio';
-import { PageHeader, StatTile, BarList, ColumnChart, Metric, EmptyState, SectionCard } from '../ui';
+import { DashboardBanner, StatTile, BarList, ColumnChart, Metric, EmptyState, SectionCard } from '../ui';
 import { CheckCircle2, Download, UserPlus, Search, RefreshCw, ChevronRight, X, Activity, Eye, ArrowUpRight, ArrowDownRight, Shield, Trash2, Target } from 'lucide-react';
 
 // ── Semantic tone maps ────────────────────────────────────────────────────────
@@ -205,11 +205,10 @@ export const SupervisorDashboard = () => {
 
   return (
     <div className="app-page py-6">
-      {/* The brand navbar, theme toggle and sign-out live in AppShell, so this
-          page opens with the shared PageHeader rather than a hand-rolled
-          toolbar — that mismatch in indent and vertical rhythm is what made this
-          dashboard sit differently from the other two. */}
-      <PageHeader
+      {/* Shares DashboardBanner with the trainee and admin screens, so all three
+          dashboards open with the same band, the same accent rule and the same
+          action strip rather than three slightly different headers. */}
+      <DashboardBanner
         eyebrow="HSE Supervisor Console"
         title="Team Compliance Dashboard"
         description="Monitor your team's warehouse hazard training sessions, track certification status, and identify risk patterns across the bays."

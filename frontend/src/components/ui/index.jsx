@@ -22,6 +22,53 @@ import React from 'react';
  * baseline. `items-start` with a consistent gap keeps every screen's header
  * aligned the same way regardless of how many actions it has.
  */
+/**
+ * The coloured band that opens every dashboard.
+ *
+ * All three roles open with the same shape of content - a greeting or console
+ * label, a title, one line of framing prose, and a right-hand slot of actions or
+ * a headline figure. That made it worth ONE component: when the trainee screen
+ * had a plain white heading and the two supervisory screens had the brand rule,
+ * the trainee dashboard simply looked unfinished next to the others.
+ *
+ * The band is the largest place the brand colour is allowed to appear, so it is
+ * deliberately restrained - a warm orange wash with a single saturated rule, not
+ * a solid orange block. A full-strength fill behind body copy is hard to read and
+ * makes every screen look like a marketing page.
+ *
+ * `meta` renders on the right inside the band; `actions` sit outside it, below.
+ */
+export const DashboardBanner = ({ eyebrow, title, description, meta, actions }) => (
+  <header className="app-dashboard-banner">
+    <div className="flex flex-wrap items-start justify-between gap-x-8 gap-y-4 p-5">
+      <div className="min-w-0">
+        {eyebrow && (
+          <div className="flex items-center gap-2.5">
+            <span className="app-eyebrow-accent">{eyebrow}</span>
+            {/* Deep, not primary-400: on the saturated band ground a lighter
+                rule disappears into it. */}
+            {/* Full white, not a brand tint: at that lightness the rule sits the same
+                value as the band ground and disappears. 3:1 is the threshold for
+                a non-text element and white on the band is exactly 3.01:1. */}
+            <span className="h-px w-16 bg-white/70 dark:bg-primary-700" aria-hidden="true" />
+          </div>
+        )}
+        <h1 className="app-display mt-1.5">{title}</h1>
+        {description && <p className="app-body mt-1.5 max-w-2xl">{description}</p>}
+      </div>
+      {meta && <div className="shrink-0">{meta}</div>}
+    </div>
+    {actions && (
+      // Dark translucent, not white: a bright strip would out-shout the band it
+      // belongs to. Darkening the ground also raises the contrast of whatever
+      // sits on it.
+      <div className="flex flex-wrap items-center gap-2 border-t border-white/20 bg-black/20 px-5 py-3 dark:border-primary-800 dark:bg-black/20">
+        {actions}
+      </div>
+    )}
+  </header>
+);
+
 export const PageHeader = ({ eyebrow, title, description, actions }) => (
   <header className="app-page-header mb-5 flex flex-wrap items-start justify-between gap-x-6 gap-y-3">
     <div className="min-w-0 flex-1">

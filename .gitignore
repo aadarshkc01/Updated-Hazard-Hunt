@@ -1,16 +1,28 @@
 # Dependencies
 node_modules/
+.pnp
+.pnp.js
 
 # Build output and coverage
 dist/
 build/
 coverage/
 .vite/
+*.local
 
 # Environment files and secrets
+#
+# The real .env files must never be committed: backend/.env holds MONGODB_URI
+# and JWT_SECRET, which would leak your database credentials and the key that
+# signs every login token.
 .env
 .env.*
 !.env.example
+
+# Hosting-provider local state
+.vercel
+.render
+.wrangler
 
 # Logs and runtime files
 *.log
@@ -46,4 +58,22 @@ Thumbs.db
 # Temporary files
 .tmp/
 tmp/
+
+# AI / agent tooling and generated video output.
+#
+# brag-output/ holds a rendered MP4 plus the HyperFrames composition and staged
+# media (including ~16 MB of bundled MP3s under .opencode/skills/brag/assets).
+# .opencode/ is local assistant configuration, not application source. Both are
+# reproducible with `npx skills add` + `npx hyperframes render`, so there is no
+# reason to put megabytes of binaries in the repository history.
+.opencode/
+brag-output/
+
+# One-off root debug harness. Kept out of the repo deliberately: it hardcodes a
+# localhost URL and only ever worked against a locally running server.
+debug-dashboard-check.mjs
+
+# Output of frontend/verify-report.mjs. It is a generated proof artefact, not
+# source; the harness recreates it on demand with `node verify-report.mjs`.
+score-report-proof.pdf
 "

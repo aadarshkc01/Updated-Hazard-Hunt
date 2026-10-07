@@ -9,13 +9,13 @@
 
 | Name | Responsibility |
 | :--- | :--- |
-| **Prabin Upadhayay** | Back-End — API, scoring, layout randomisation, data model |
-| **Aadarsh K.C.** | Front-End — React interface, dashboards, Three.js walkthrough |
-| **Himanshu Bhusal** | Documentation — user manual, technical write-up, test evidence |
-| **Shishir Pandey** | Presentation — defence material and demonstration |
+| **Prabin Upadhayay** | Back-End - API, scoring, layout randomisation, data model |
+| **Aadarsh K.C.** | Front-End - React interface, dashboards, Three.js walkthrough |
+| **Himanshu Bhusal** | Documentation - user manual, technical write-up, test evidence |
+| **Shishir Pandey** | Presentation - defence material and demonstration |
 
-These names are also rendered in the application footer, from a single `TEAM` array in
-`frontend/src/components/common/Navbar.jsx`, so there is one place to edit.
+These names are credited here in the README only. The application footer was removed, so there is no
+second copy of this table inside the running UI to keep in sync.
 
 ---
 
@@ -48,9 +48,17 @@ cd backend
 npm install   # If not already installed
 cp .env.example .env   # Windows: copy .env.example .env
 # Set a private JWT_SECRET in .env before sharing or deploying the app.
-npm start     # Runs on http://localhost:5000
+npm start     # Runs on http://localhost:5001
 ```
-> **Note on Database Portability:** If no `MONGODB_URI` environment variable is defined in `backend/.env`, the backend automatically launches an embedded in-memory MongoDB store and seeds all default users, scenarios, and audit records.
+> **Note on Database Portability:** If no `MONGODB_URI` environment variable is defined in
+> `backend/.env`, the backend launches an embedded in-memory MongoDB store and seeds all default
+> users, scenarios and audit records. That fallback is for local convenience **only** — the in-memory
+> store is destroyed on every restart. When `NODE_ENV=production` the server refuses to boot
+> without `MONGODB_URI` rather than silently running on a database that wipes itself.
+>
+> **Port:** the default is `5001`, because `frontend/vite.config.js` proxies `/api` to
+> `http://localhost:5001`. Set `PORT` in `backend/.env` to override it locally; Render overrides it
+> entirely, which is the intended behaviour on a PaaS host.
 
 ### Step 2: Start the Frontend Client (React + Vite)
 Open a second terminal:
@@ -74,6 +82,151 @@ Build the frontend from the repository root with:
 ```bash
 npm run build:frontend
 ```
+
+### Environment Variables
+
+Both applications read configuration from `.env` files. The real ones are git-ignored; the
+`.env.example` templates are committed.
+
+| Variable | Where | Purpose |
+| :--- | :--- | :--- |
+| `MONGODB_URI` | backend | MongoDB connection string. **Required in production.** |
+| `JWT_SECRET` | backend | Signs login tokens. Must be private and unique per environment. |
+| `JWT_EXPIRES_IN` | backend | Token lifetime. Defaults to `8h`. |
+| `CLIENT_ORIGIN` | backend | Comma-separated CORS allowlist of browser origins. |
+| `PORT` | backend | Listen port. Overridden by Render. |
+| `NODE_ENV` | backend | Set to `production` to enable the strict database behaviour. |
+| `VITE_API_URL` | frontend | Full base URL of the deployed API, **including `/api`**. Baked in at build time. |
+
+> `VITE_*` variables are inlined into the JavaScript bundle when Vite builds. Changing one on a
+> deployed site requires a rebuild, so set it in Vercel *before* the first deployment rather than
+> in the dashboard afterwards.
+
+---
+
+## 2a. Deployment
+
+The backend runs on **Render**, the frontend on **Vercel**. Deploy the API first — Vercel needs its
+URL to build the frontend bundle.
+
+```
+Vercel  ──builds──>  static bundle  ──calls──>  Render  ──queries──>  MongoDB Atlas
+```
+
+### Step 1 — Database (MongoDB Atlas, free M0)
+
+1. Create a free account at `mongodb.com/atlas` and start an **M0** cluster (512 MB, shared).
+2. Under **Database Access**, create a user with a generated password.
+3. Under **Network Access**, add `0.0.0.0/0` to the IP access list. Render does not publish a fixed
+   outbound address on the free tier, and this cluster holds seeded demo data only.
+4. Copy the **SRV connection string** and insert the username and password. It looks like:
+   ```
+   mongodb+srv://<user>:<password>@<cluster>.mongodb.net/hazardhunt
+   ```
+   Keep this string secret — it is a credential.
+
+### Step 2 — API on Render
+
+1. Push the repository to GitHub (see [Publishing to GitHub](#publishing-to-github)).
+2. In Render choose **New → Web Service**, then connect the repository.
+3. Fill in the settings:
+
+   | Setting | Value |
+   | :--- | :--- |
+   | Root Directory | `backend` |
+   | Runtime | Node |
+   | Build Command | `npm install --omit=dev` |
+   | Start Command | `npm start` |
+   | Instance Type | Free |
+
+   `--omit=dev` matters: `mongodb-memory-server` is a development-only dependency, and its install
+   script downloads a full MongoDB binary (~100 MB). Production refuses to use it anyway — see the
+   strict database behaviour above — so there is no reason to pay for it on every build.
+
+4. Under **Environment**, add:
+
+   | Key | Value |
+   | :--- | :--- |
+   | `MONGODB_URI` | your Atlas SRV string |
+   | `JWT_SECRET` | a long random string |
+   | `JWT_EXPIRES_IN` | `8h` |
+   | `CLIENT_ORIGIN` | your Vercel URL, e.g. `https://hazard-hunt.vercel.app` |
+   | `NODE_ENV` | `production` |
+
+   Generate a secret with:
+   ```bash
+   node -e "console.log(require('crypto').randomBytes(48).toString('hex'))"
+   ```
+
+   `CLIENT_ORIGIN` is an allowlist — the browser is told which origins may call this API, and
+   anything absent from it is refused. Add your Vercel URL here *before* deploying the frontend, or
+   every request from it will be blocked.
+
+5. Deploy, then confirm the service is healthy by opening:
+   `https://<your-service>.onrender.com/api/health`
+   It should return `{"status":"online", ...}`.
+
+> **Free-tier behaviour:** the service sleeps after roughly 15 minutes of inactivity and takes
+> around 30–60 seconds to wake on the next request. The first request after a sleep will feel slow;
+> this is expected, not a fault. The database lives in Atlas, so nothing is lost while it sleeps.
+
+### Step 3 — Frontend on Vercel
+
+1. In Vercel choose **Add New → Project**, then import the same repository.
+2. Configure the project:
+
+   | Setting | Value |
+   | :--- | :--- |
+   | Framework Preset | Vite |
+   | Root Directory | `frontend` |
+   | Install Command | `npm install` |
+   | Build Command | `npm run build` |
+   | Output Directory | `dist` |
+
+   `frontend/vercel.json` already declares these, so Vercel reads them automatically.
+
+3. Under **Settings → Environment Variables**, add:
+
+   | Key | Value | Environment |
+   | :--- | :--- | :--- |
+   | `VITE_API_URL` | `https://<your-service>.onrender.com/api` | Production **and** Preview |
+
+   The `/api` suffix is required. The frontend calls paths such as `/api/auth/login`, so this value
+   is the origin plus `/api`.
+
+4. Deploy. Open the Vercel URL and sign in with a seeded account.
+
+### Step 4 — Allow the two hosts to talk
+
+This is the step people miss, and the symptom is a blank page with a CORS error in the console.
+
+1. Copy the Vercel production URL, e.g. `https://hazard-hunt.vercel.app`.
+2. In Render, open **Environment** and set:
+   ```
+   CLIENT_ORIGIN=https://hazard-hunt.vercel.app
+   ```
+3. Save — Render restarts the service automatically.
+
+If you use Vercel **Preview** deployments, each one gets a unique URL. Either add the specific
+preview origin to `CLIENT_ORIGIN` as a comma-separated entry, or deploy preview builds from a
+branch that is not expected to call a production API.
+
+### Publishing to GitHub
+
+```bash
+git add .
+git status              # confirm no .env file is staged
+git commit -m "Deployment readiness: env templates, CORS allowlist, Render/Vercel config"
+git push -u origin main
+```
+
+Before committing, confirm the staged file list contains **no** `.env`:
+```bash
+git diff --cached --name-only | findstr /i ".env"
+```
+The only match that should appear is `.env.example`. If a real `.env` ever gets committed, rotating
+`JWT_SECRET` and the database password is the fix — removing the file from the working tree does not
+remove it from history.
 
 ---
 
@@ -140,46 +293,56 @@ one floor plan change can never silently strand a prop outside the shell:
 | `viewer/warehouseProps.js` | Movable equipment, storage units, amenities and static crew |
 | `viewer/warehouseMotion.js` | Everything that moves — belt, vehicles, walking staff, fans — plus the per-material merge helper |
 
-#### Floor plan — a grid, not four dead ends
+#### Floor plan - five named zones, not four identical racks
 
-The bay is a compact **30 × 21 m** — small enough to cover on foot inside the two-minute clock,
-which is the whole point of a timed perception test. Two changes got it there:
+The bay is a compact **26 x 18 m** (468 m²). Small enough to cover on foot inside the
+two-minute clock, which is the whole point of a timed perception test. Area is down **71%**
+from the 1632 m² this started at.
 
-- **Scale.** The original 48 × 34 m floor was a trek. Area is down **61%**.
-- **Circulation.** The original plan had four unbroken 24 m racking runs, so a trainee had at
-  most two escape points per aisle and had to backtrack against the clock. Every run is now
-  **split into two segments by a mid cross-aisle**, turning the floor into a **4 × 3 grid** with
-  three cross-corridors. You can always loop onward.
-
-The plan is **symmetric about x = 0** and the nine bands sum exactly to the room width, so a
-trainee walking it clockwise meets the same sequence of spaces as walking it anticlockwise:
+The previous plan was four identical racking runs split by a cross-aisle. It satisfied "a grid
+of aisles" and failed at everything else: every sightline looked the same, so the trainee could
+not tell where they were or build a mental map, and the space read as one repeated prop rather
+than a workplace. This is a small depot with FIVE named areas, each with its own equipment,
+its own colour and its own reason to exist:
 
 ```
-        z-10.5 +-- dock doors ---------------+
-               |  north cross-aisle          |
-        z-8.5 +----------------------------+
-               |  segment A | segment A     |
-         z-0  +---- mid cross-aisle ------+   <- links every aisle
-               |  segment B | segment B     |
-        z+8.5 +----------------------------+
-               |  south cross-aisle          |
-        z+10.5 +----------------------------+
-
-  x:  -15   -12.4  -9.2   -5.4  -2.2   0   2.2   5.4   9.2  12.4   15
-      2.6    |  3.2  | 3.8 |  3.4 |   4.4 ROUTE | 3.4 | 3.8 |  3.2 |  2.6
-      perim     run1   aisle  run2            run3   aisle  run4      perim
+      -13.0       -8.8  -6.6   -3.6          3.6    6.6   8.8          13.0
+        |  CHEMICAL  | aisle | RACK A  |  MAIN ROUTE  | RACK B | aisle | ELECTRICAL |
+ z = -9.0 +----------+-------+--------+---------------+--------+-------+----------+
+        |            GOODS-IN DOCK APRON (3 levellers, north wall)            |
+ z = -6.2 |  drums,   |        |  seg N  |               | seg N  |        |  switchroom|
+        |  bunds,   |        +---- mid cross-aisle ----+       |        |  panels,   |
+ z =  0.0 |  cabinets |        |  seg S  |  painted zebra | seg S  |        |  trafo,    |
+        |           |        |        |      route     |        |        |  cable tray|
+ z = +6.2 |  welfare  |        |        |               |        |        |  office   |
+ z = +8.6 +--------------------- DISPATCH / PACKING -----------------------+
 ```
 
-The pedestrian route down the centre is painted as a **zebra crossing** — yellow bars running
-*across* the direction of travel with bare concrete between them, white edge lines, and a painted
-pedestrian pictogram partway along — and is asserted by the harness to be **completely
-unobstructed**: no fixed prop, no staged hazard and no vehicle route may occupy it.
+Why only **two** racking runs rather than four: with the rest of the floor given to distinct
+zones, two runs still read as storage without swallowing the room. Four left nothing for the
+rest of the depot to be anything except more racking.
+
+Symmetry is **deliberately broken**. A mirrored plan is tidy on paper and monotonous in
+practice - the same thing happens at the same distance on both sides, so there is no landmark to
+navigate by. Here the west side is storage and the east side is services, so the trainee always
+knows roughly where they are from which wall they are nearer.
+
+| Zone | Contents |
+| :--- | :--- |
+| **Chemical store** | Bunded drum bay in four real drum tones, lockable hazmat cabinets, spill station, eyewash |
+| **Racking** (two runs) | Each split by the mid cross-aisle |
+| **Electrical switchroom** | Incoming switchboard, dry-type transformer with radiator fins, distribution run, isolators, overhead cable tray |
+| **Dispatch / packing** | Strapping trolley, weighbridge, stretch-wrap, tool bench |
+| **Main route** | Zebra crossing, painted pedestrian pictogram, yellow buffer hatching to the racking |
+
+The pedestrian route is painted as a **zebra crossing** - yellow bars running *across* the
+direction of travel with bare concrete between them, white edge lines, and a painted pedestrian
+pictogram - and is asserted by the harness to be **completely unobstructed**: no fixed prop, no
+staged hazard and no vehicle route may occupy it.
 
 This replaced a continuous painted band, which read as a **road lane**. That was wrong twice
 over: warehouses have no road markings, and a solid stripe implies vehicles may travel there.
-Transverse bars say "people cross here", which is what the route actually is. Yellow is also the
-real-world colour for a marked pedestrian route and separates cleanly from the orange used for
-hazard props and vehicles, so a trainee reads "route" and "risk" as different things at a glance.
+Transverse bars say "people cross here", which is what the route actually is.
 
 #### Colours that stay put
 
@@ -262,29 +425,45 @@ trainee cannot walk through walls, racks or solid structures. Walk speed is **4.
 so a full circuit of the bay is comfortably coverable inside the clock without feeling twitchy.
 
 **Divergence from the reference.** Same class of building, but a different building: a
-30 × 21 m grid plan rather than four long runs, a zebra-crossing route rather than a painted band,
-near-black painted portal frames and columns, yellow spill-containment bunds under every drum, a
-different prop and signage mix, and a different dock-door count and spacing.
+26 x 18 m zoned bay rather than four long racking runs, a zebra-crossing route rather than a
+painted band, near-black painted portal frames and columns, yellow spill-containment bunds under
+every drum, a segregated chemical store and an electrical switchroom the reference does not
+have, and a different dock-door count and spacing.
 
-#### What was animated, and what deliberately is not
+#### What is animated, and what deliberately is not
 
-Movement is only kept where it reads as machinery or people at a glance. Three animations were
-removed because they read as artefacts rather than as simulation:
+Movement is kept only where it reads as machinery or people at a glance. Three animations
+were removed because they read as artefacts rather than as simulation:
 
 - **Status lamps no longer blink.** The amber and green charging-bay indicators used to pulse on
   a sine wave. A real indicator lamp sits steady unless it is annunciating a fault, and a lamp
-  that blinks for decoration looks like an alarm the trainee is supposed to react to — which is a
-  distraction on a screen whose entire subject is reacting to hazards.
+  that blinks for decoration looks like an alarm the trainee is supposed to react to.
 - **Walking staff do not bob or rock.** A figure whose whole body rises and falls by 3 cm while
-  also pitching 1° reads as being on a spring. At the distance a trainee actually sees background
-  crew from, the bob reads as a glitch and made them compete with the hazards. Steady translation
-  reads correctly as "someone is crossing the floor".
+  also pitching 1 degree reads as being on a spring. At the distance a trainee actually sees
+  background crew from, the bob reads as a glitch, and it made the crew compete for attention
+  with the hazards. Steady translation reads correctly as "someone is crossing the floor".
 - **Conveyor rollers translate, they do not spin.** The rollers are cylinders lying across the
-  belt, so their own rotation is barely perceptible at walking pace; spinning them at 6 rad/s read
-  as a machine gun. Moving the roller line together with the cartons riding on it is enough.
+  belt, so their own rotation is barely perceptible at walking pace; spinning them at 6 rad/s
+  read as a machine gun. Moving the roller line with the cartons riding on it is enough.
 
-Fan blades, the belt, the forklift and the hand pallet truck all still move — they are large,
+Fan blades, the belt, the forklift and the hand pallet truck all still move - they are large,
 mechanical, and moving is what identifies them.
+
+#### Colour comes from the real world, not from the brand
+
+The brief was that the environment should not be hazard-orange everywhere, so each zone takes
+its colours from what the equipment actually is: galvanised grey switchgear, blue / graphite /
+galvanised / pale chemical drums, kraft cartons, timber pallets, galvanised cable tray, black
+cable, concrete slab. Orange is left doing one job - marking hazards, which is what it is for.
+
+The palette guard (`frontend/scripts/verify-palette.mjs`) enforces this. Fire-protection red (sprinkler
+main, heads, extinguishers, hose reels) and green signage (exit running-man, eyewash,
+healthy-charge lamps) are **required** by safety convention and are listed as allowed carve-outs
+with a reason. Everything else must be orange, amber, kraft, blue, grey or neutral.
+
+The test is **hue-based**, because two channel-gap versions of it were wrong in both directions:
+one waved the original green drum (`#2f6f4e`, hue 149 degrees) through as "nearly grey", and
+another flagged every orange in the project, since orange is the brand colour.
 
 ### 7.3a Stopping or Backing Out of a Session
 
@@ -397,14 +576,22 @@ fires far faster than the paint rate, and a state flip per event re-renders ever
 
 | State | Treatment |
 | :--- | :--- |
-| At top | Edge to edge, transparent, square corners, no shadow |
-| Scrolled | Inset 12–20px, `rgba(255,255,255,0.92)`, `blur(12px) saturate(1.5)`, 12px radius, two-layer shadow, visible hairline |
+| At top | Edge to edge horizontally, transparent, square corners, no shadow |
+| Scrolled | Inset 12–20px horizontally, `rgba(255,255,255,0.72)`, `blur(14px) saturate(1.6)`, 14px radius, two-layer shadow, visible hairline |
+
+**The gap to the top of the browser is the same in both states.** This was not. The margin existed
+only in the floating state, so the navbar sat flush against the viewport at rest and then visibly
+dropped away from the top the moment the user began to scroll — which read as the page lurching. The
+bar now reserves its top padding unconditionally — `0.5rem` below 640 px, `0.625rem` above — so the
+only difference between the two states is the horizontal inset and the corner radius. Measured, both
+states put the top of the pill **9.38 px** below the top of the bar.
 
 Translucency is restrained on purpose. At `bg-white/80` over the warm canvas there was almost no
-value separation, so the bar dissolved into the page and the shadow was doing all the work; 92%
-opacity plus a visible hairline makes it read as a distinct object sitting above the content.
+value separation, so the bar dissolved into the page and the shadow was doing all the work; 72%
+opacity plus a visible hairline keeps content faintly legible through the bar while it still reads
+as a distinct object sitting above the content.
 
-These states are written as **plain CSS, not `@apply`**, because Tailwind silently drops a
+responsive variant inside `@apply` � `sm:inset-x-4` was applying at every viewport width. The media
 responsive variant inside `@apply` — `sm:inset-x-4` was applying at every viewport width. The media
 query has to be explicit, and the reason is commented in place.
 
@@ -516,13 +703,26 @@ The walkthrough targets a smooth frame rate on mid-range phones:
 - If WebGL cannot initialise, the component degrades gracefully and directs the trainee
   to Standard 360° mode rather than failing the session.
 
-Three headless harnesses guard these claims (no test runner required):
+Four headless harnesses guard these claims (no test runner required):
 
 ```bash
-cd frontend && node verify-scene.mjs                      # 33 scene/collision/perf/disposal checks
-cd frontend && node verify-palette.mjs                    # scene palette guard (no stray green/red)
-cd backend  && node src/utils/testWalkthroughLayout.js     # 8 layout/randomisation checks
+# From the repository root:
+npm run check          # layout/randomisation checks (backend)
+
+# From frontend/ - each resolves its own paths, so the working directory
+# does not matter:
+npm run verify:scene     # scene/collision/perf/disposal checks
+npm run verify:palette   # scene palette guard
+npm run verify:report    # PDF score report generator
+
+# All three at once:
+npm run verify
 ```
+
+`npm run verify` also runs in CI on every push and pull request, alongside the production build, so
+a regression in the scene, the palette rule or the report fails the pipeline rather than being
+noticed later. The harnesses live in `frontend/scripts/` and write their output proof to
+`frontend/scripts/score-report-proof.pdf`.
 
 Beyond draw calls, the scene harness asserts the properties that are easy to break and hard to
 see: that **nothing is authored outside the room shell**, that the painted walkway is
@@ -531,27 +731,31 @@ solid**, that all **17 server hazard anchors** are still on walkable floor, and 
 point is inside bounds, clear of geometry and at human eye height. So adding a machine, cabin,
 wall or route can never silently block the walkway or a hazard staging position.
 
-The shell check runs with a **0.4 m tolerance** — the wall thickness plus a small margin. It was
-1.6 m, which was wide enough to hide the problem it exists to catch: resizing the room left ~95
-pieces of scenery stranded outside the walls, and a tolerance that loose called the result clean.
-Tightening it surfaced three genuine placement bugs — the battery-charging bay offset from its
-own wall by the depth it was modelled at, the welfare cabin's locker bank running out through the
-building, and its bench landing behind the lockers instead of in front.
+The shell check runs with a **0.4 m tolerance** - the wall thickness plus a small margin. It was
+1.6 m, and that tolerance was wide enough to hide the problem the check exists to catch: the
+resizes left **305 pieces of scenery stranded outside the walls** and the harness still reported
+clean. Everything is now derived from `warehousePlan.js` rather than typed in - pipe run lengths,
+column bay counts, roof deck panels, purlin positions, expansion joints, purlin and deck pitch -
+so a future resize cannot push pipework through the cladding again. Roof deck panels in
+particular now *tile* the width: at a fixed pitch the outermost panel always lands past the
+eaves on any width that is not a multiple of the pitch.
 
-The palette guard encodes the one carve-out explicitly. Fire-protection red (sprinkler main,
-heads, extinguishers, hose reels) and green signage (exit running-man, eyewash, healthy-charge
-lamps) are **required** by safety convention — recolouring them would teach a trainee the wrong
-thing — so they are listed as allowed with a reason rather than left to memory. Everything else
-must be orange, amber, kraft, blue, grey or neutral. The test is **hue-based**, because two
-channel-gap versions of it were wrong in both directions: one waved the original green drum
-(`#2f6f4e`, hue 149°) through as "nearly grey", and another flagged every orange in the project,
-since orange is the brand colour.
+Two of the outliers were genuine content bugs rather than just misplaced geometry: the
+**battery charging bay** sat 1.2 m inside the wall with its barrier rail hanging 1.8 m outside
+the building, and the **welfare cabin's locker bank** ran out through the building while its
+bench sat behind the lockers instead of in front of them.
 
 The layout harness asserts more than determinism: that **all five hazard families are staged on
-every single run** (600 runs), that **all ten prop variants** appear with two per family, and that
-the anchors rotate without one free anchor dominating. `fire-exit-approach` is excluded from the
-concentration check because it is *reserved* — a blocked exit must always be staged in front of
-the exit or the depiction stops making sense.
+every single run** (600 runs), that **all ten prop variants** appear with two per family, and
+that anchors rotate without one free anchor dominating. `fire-exit-approach` is excluded from the
+concentration check because it is *reserved* - a blocked exit must always be staged in front of
+the exit or the depiction stops making sense. That check earned its keep: giving the chemical
+store and the switchroom anchors `suits: ['fire']` made a blocked exit land at the switchroom in
+364 of 600 runs, which is exactly the incoherence the assertion exists to prevent.
+
+The report harness renders a synthetic record through the PDF builder and asserts the output is
+a real multi-page PDF with a document reference, and that practice runs are excluded from the
+history table.
 
 - Each compliance record stores a `trainingMode` field (`panorama360` / `walkthrough`)
   and the layout seed; both appear in the CSV audit export.
@@ -562,7 +766,127 @@ the exit or the depiction stops making sense.
 
 The diagnostic results screen shows overall score, pass/fail against the 75% threshold, detection rate, false-click penalty, time taken, quiz performance, a **corrections sheet** (error count first, then the numbered required procedure for every missed risk), and a training recommendation. Supervisor/Admin retain CSV export, team KPIs, per-trainee audit detail, and hazard-category risk analytics.
 
-### 8.1 Interface Design System
+### 8.1 Score Report (PDF)
+
+Both the trainee results screen (**Score report**) and the supervisor per-user audit modal
+(**Download PDF**) produce the same document, built by `frontend/src/utils/scoreReport.js` and
+checked by `npm run verify:report`.
+
+It is **one page of A4**, and the page opens with a **full-bleed masthead band** - no margin and no
+padding around the band itself, though its content is inset at the 18 mm page margin like any
+other document. The earlier version flowed across pages and overlapped its own text, so the layout
+is now fixed with an explicit vertical budget.
+
+**Why A4.** Not a preference: A4 is the sheet an official compliance record is printed and filed
+on, and the page has to be one a print room will not rescale. Letter is 8% shorter, which would
+force the hazard list to truncate sooner for no gain.
+
+#### Masthead
+
+The band runs **full bleed**, `x = 0` to the paper edge. It was briefly an inset rounded card, and
+that was wrong on two counts: a radius on an element flush to the trim clips and never reads, and
+the identity block inside it needed its own box - so a rounded card with a sharp-edged rectangle
+nested inside it, two shapes with different corner radii, which read as a mistake rather than as
+design. The plate is gone. The name and the document reference now sit **directly on the band**,
+with a single hairline separating the wordmark row from the identity row. One shape, not three.
+
+**The band is the dashboard banner orange.** `primary-200` #FFC7AB, byte for byte, so the printed
+record and the screen it came from are the same brand. It was previously filled with `primary-500`
+#FF6115, which at full bleed reads as red rather than as hazard orange and was the one place on the
+page that did not match the dashboards. The harness now asserts the exact fill, asserts that
+#FF6115 appears nowhere, and asserts that no shape is nested inside the band.
+
+**Spacing is eased, not scaled.** The ask was "slightly spacious, not too much", so the moves are
+fractions of a millimetre on the rhythm: row leading 4.4 -> 4.7 mm, metric pitch 6.4 -> 7.1 mm, and
+2.2 mm of air *above* each section heading as well as 8 mm below. That last one is the change that
+reads most as spacious, because space between SECTIONS makes a page look organised whereas space
+between lines only makes it longer.
+
+#### Type scale: big, medium, small
+
+Three tiers, assigned by the job the text does rather than by how it happens to look, and strictly
+ordered big > medium > small. That ordering is the point: when size means something, a reader can
+find the section they need without reading it.
+
+| Tier | Size | Used for |
+| :--- | ---: | :--- |
+| **Display** (documented exception) | 30 pt | The composite score, and nothing else |
+| **Big** | 15.5 pt | Document title in the masthead |
+| **Big** | 11.5 pt | Section headings, and the pass / fail verdict |
+| **Medium** | 10.5 pt | The candidate name |
+| **Small** | 9 pt | Contents: values, hazard titles, quiz summary, outcome |
+| **Small** | 7.5 pt | Field labels, category and severity, document reference |
+| **Small** | 6.5 pt | Footer, provenance, layout seed |
+
+The score is allowed above the scale because it is a figure rather than a heading, and it is the
+single number the page exists to convey. The harness asserts both the ordering **and** that the
+display size is used exactly once, so the exception cannot quietly spread.
+
+| Region | Contents |
+| :--- | :--- |
+| **Masthead** (top 46 mm, full bleed) | Band in the dashboard banner orange, running from `x = 0` to the paper edge with no margin or padding around it. Content inset at the 18 mm margin: wordmark, product line, `ASSESSMENT SCORE REPORT`, issue date, a hairline, then the candidate, account, department, scenario and document reference |
+| Result card | Composite score, threshold, verdict, distance below threshold, with a solid rule for a pass and a dashed rule for a fail |
+| Assessment detail | Session date, training mode, hazards identified, hazards missed, false activations, time taken against the limit - two columns, values right-aligned |
+| Hazards identified | Numbered, with category and severity, capped at four |
+| Hazards missed | Numbered, each with the **required procedure**. Capped at four, with a "+N further hazard(s) missed" line |
+| Safety knowledge quiz | One summary line and the score - not every question with its explanation |
+| Outcome | Certification statement and retraining priority, drawn from the categories missed |
+| Footer | Confidentiality line, `Page 1 of 1`, provenance note, layout seed, document reference |
+
+#### Why one page, and why it is built this way
+
+The multi-page version reported everything: every hazard full explanation, every quiz question
+with its explanation, the whole session history. A compliance summary is a page, not a transcript.
+It also overlapped itself, because label and value were drawn at the same `y` while the LABEL was
+free to wrap - so a two-line label pushed its value into the row beneath.
+
+So the layout now degrades by **truncating rather than paginating**, and three things follow:
+
+- **Every row measures itself.** The row advances by the taller of its wrapped label and its
+  wrapped value, so nothing can land on anything else. Column values are right-aligned to their own
+  column edge rather than placed at a fixed `x`, because nothing measured how wide the value was and
+  `1m 24s / 1m 30s` ran into the next column label.
+- **Text is clipped to a character budget** and capped lists get an "+N more" line, so a bad session
+  cannot run off the page. A worst-case record - nothing found, four hazards missed, 17 false clicks,
+  a 34-character name and a 50-character department - is asserted to still fit.
+- **Wrapped text is drawn one line at a time at a leading the layout controls.** jsPDF accepts an
+  array from `splitTextToSize` and lays it out with its own line-height factor, ignoring the spacing
+  the caller intended. Here that would make the cursor arithmetic and the rendered output disagree,
+  which is how text ends up on top of text. Every line is a separate draw, so every baseline is known.
+
+#### What the harness actually checks
+
+`npm run verify:report` builds four record shapes - typical, worst case, clean pass, sparse - and
+for each asserts one page, a real PDF, text inside the trim margins and side margins, and **that no
+two text runs overlap**.
+
+The overlap check is worth explaining, because getting it wrong is instructive. It instruments the
+`jsPDF` instance while the report draws, and calls `getTextWidth` at each draw so the box uses the
+font and size actually in force. Three earlier approaches were each wrong in an instructive way:
+
+- Estimating width as `chars x fontSize x k` produced seven false positives on a clean document, and
+  could not distinguish a left-aligned run from a right-aligned one, so it read every right-aligned
+  run as starting at its right edge.
+- Patching `jsPDF.prototype.text` recorded **nothing**: jsPDF attaches `text` and `getTextWidth` as
+  own properties on each instance. Every geometry check then passed vacuously over an empty list. The
+  builder now accepts an optional `options.pdf` so the harness owns the instance it measures.
+- The first character guard rejected every non-ASCII character, which failed the middle dot used to
+  separate category from severity. The guard is now an explicit allowlist of the characters WinAnsi
+  actually carries.
+
+That last guard then caught a real bug in the report itself: `clip()` truncated with a horizontal
+ellipsis, and **U+2026 is not in WinAnsi**, so jsPDF silently dropped it and every truncated field
+rendered as a word with a hole in it. The truncation marker is now three ASCII full stops. This is the
+same class of fault as the em dash that vanished from a section heading earlier.
+
+Pass/fail is carried by the label and the rule **weight**, never a green or red fill - a report that
+prints a solid green box also prints it as muddy grey on a mono printer, which is most of them. The
+layout seed from the compliance record is printed in the footer, so a disputed result can be
+regenerated and checked against what the trainee actually saw.
+
+Practice sessions are excluded entirely, since they are not compliance records, and a request with
+no official records is refused rather than rendered as a blank page.
+### 8.2 Interface Design System
 
 The UI is built from a single component layer rather than ad-hoc Tailwind strings, because long one-off class lists are what make an interface look machine-generated — they drift apart one screen at a time.
 
@@ -578,6 +902,88 @@ The UI is built from a single component layer rather than ad-hoc Tailwind string
 
 Orange is deliberately rationed: if everything is orange, the one thing that matters is invisible. Pass and fail stay distinguishable because this is compliance tooling, but they are expressed through three defined semantic tokens rather than the dozen arbitrary shades (`emerald-300/400/500/600/50/900/950`, `red-500/600/900/…`) the codebase previously scattered.
 
+**Dashboard banner** (`app-dashboard-banner`) - one component shared by all three roles, so the
+trainee, supervisor and admin screens open identically.
+
+**Orange ground, white text.** Both explicitly specified.
+
+The ground is `primary-500` **#FF6115** - the same token as the "Begin official compliance session"
+button (`.app-btn-primary`) and as the "HUNT" in the HazardHunt wordmark. Those two were offered as
+candidate shades, but they are the *same value*, so there is no lighter option to choose between:
+the band is simply that orange.
+
+#### The cost of the white, stated plainly
+
+Measured on #FF6115, white is **3.01:1**.
+
+| Text | Size | Threshold | Verdict |
+| :--- | :--- | ---: | :--- |
+| `Bay 4 Inspection` | 15.5 pt bold (~20.7 px) | 3:1 - large text | compliant |
+| Description line | 12 px | 4.5:1 - normal text | **below the guideline** |
+
+The title qualifies as large text, where 3:1 is the correct threshold, so white is compliant there.
+The 12 px description is normal-size text and sits under the guideline. That is the price of orange
+plus white: there is no third colour that is simultaneously orange and light enough to carry white at
+4.5:1. It is a recorded design decision, not an oversight.
+
+#### What does clear AA
+
+Wherever white type sits on a **dark overlay** rather than on the bare band, it passes:
+
+| Surface | Overlay | White text |
+| :--- | :--- | ---: |
+| Meta plate (`app-banner-stat`) | `black/20` | **4.50:1 AA** |
+| Action strip | `black/20` | 4.50:1 AA |
+| Chips (`app-chip-neutral`) | `black/20` | 4.50:1 AA |
+| Secondary + icon buttons | `black/25` | 5.03:1 AA |
+| Primary button | near-black fill | 17.33:1 AAA |
+
+So every inner surface on the band is a **dark** overlay. That direction is forced by the type colour:
+an earlier revision used near-black type, which needed *light* overlays, and the same light treatment
+would have pulled white text down to 2.35:1 here. The rule is that the overlay always runs whichever
+way increases contrast for the type sitting on it.
+
+Two more things this colour choice forced:
+
+- **The primary button takes a light fill, never orange.** `primary-500` on a `primary-500` band is
+  1.00:1 - literally invisible, which was the original complaint. A near-black fill was tried and
+  worked, but read as a heavy hole punched in an orange field and fought the white type. The button
+  is now **white with `primary-800` text**: the lightest option, the strongest contrast at 7.88:1, and
+  the single brightest control on the band. Secondary and icon buttons stay `black/25` with white
+  text (5.03:1), so the primary is the only solid one.
+- **Brand text tokens are overridden inside the band.** Several call sites ask for an emphasised
+  figure or a spinner with `text-primary-500` or `text-primary-600`. On a `primary-500` band those
+  are the *identical value* to the ground and vanish, so `.app-dashboard-banner` overrides them to
+  white rather than fixing a dozen call sites.
+
+The **white leading bar stays white**. It is a graphic edge rather than text, and WCAG 1.4.11 asks
+3:1 of a non-text element - white on the band is exactly 3.01:1. A dark bar would instead merge with
+the white type and stop reading as an edge.
+
+**Text selection** is overridden inside the band: the UA default is a saturated blue, which on a
+full-bleed orange band reads like a foreign colour pasted over the brand. It is inverted so a dragged
+selection is always the highest-contrast thing on screen, and flipped again in dark mode.
+
+Dark mode keeps its own ground - `primary-950` #5C1D00 with light type at 11.25:1 - because a pale
+tint cannot sit behind light text.
+
+Still flat, not a gradient: a gradient across a full-width band reads as a lighting effect and made
+it look different at its left edge than at its right. Still no diagonal hatch: it was there to stop
+a flat area looking empty, and all it did was stripe across the right-hand meta tile and fight the
+text.
+
+The **printed score report** masthead is `primary-200` #FFC7AB, not this value, and that is
+deliberate: a full-strength orange block reads as a poster on paper where it works on a screen. The
+comment in `scoreReport.js` says so, because the two differing is easy to "fix" by accident.
+**`isDestructive` on `ConfirmModal`** means "this destroys something irrecoverable" - and nothing else.
+It sets the confirm button to `app-btn-danger` and tints the eyebrow red. It is used on exactly three
+dialogs: the two account-deletion confirmations and "Leave the quiz?".
+
+Signing out is deliberately **not** one of them. It used to be marked destructive, which made the sign-out
+confirm render brick red and put a red "Danger" eyebrow above a step that only ends a session - you sign
+straight back in. It now renders the same primary orange as every other non-destructive action, matching the
+"Begin official compliance session" button. Using the flag to force a colour, rather than to describe what
+the action does, is what made the two drift apart in the first place.
 **Component layer** (`frontend/src/index.css`) — every screen resolves to these:
 
 `app-page` `app-stack` · `app-card` `app-card-quiet` `app-band` `app-card-head` `app-divider` ·

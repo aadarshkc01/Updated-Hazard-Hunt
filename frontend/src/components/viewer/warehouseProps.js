@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { ROOM, HALF_W, HALF_D, WALKWAY, OFFICE, WELFARE, RACK_BLOCKS, AISLE_X } from './warehousePlan.js';
+import { ROOM, HALF_W, HALF_D, WALKWAY, OFFICE, WELFARE, RACK_BLOCKS, AISLE_X, CHEMICAL_STORE, ELECTRICAL_ZONE, DISPATCH, NORTH_AISLE, SOUTH_AISLE } from './warehousePlan.js';
 
 /**
  * Warehouse Props, Equipment & People
@@ -70,13 +70,15 @@ export const buildCages = ({ G, M, stage }) => {
       }
     }
   };
-  cage(-13.9, -6.5, 0.1);
-  cage(-13.9, -6.5, 0.1, 1);
-  cage(-13.0, -6.4, -0.15);
-  cage(13.9, -9.0, Math.PI / 2);
-  cage(13.9, -1.5, 0.35);
-  cage(-9.5, 9.3, -0.2);
-  cage(6.5, -9.3, 0.05);
+  // Placed per zone: stillages belong to the store, empty cages to the aprons.
+  const storeMidX = (CHEMICAL_STORE.minX + CHEMICAL_STORE.maxX) / 2;
+  cage(storeMidX - 0.9, -6.4, 0.1);
+  cage(storeMidX - 0.9, -6.4, 0.1, 1);
+  cage(storeMidX + 0.4, -6.3, -0.15);
+  cage(HALF_W - 1.2, -7.6, Math.PI / 2);
+  cage(HALF_W - 1.2, -1.0, 0.35);
+  cage(-6.0, DISPATCH.maxZ - 0.9, -0.2);
+  cage(5.5, NORTH_AISLE - 0.6, 0.05);
 };
 
 /** Timber pallet collars / crates with slatted sides. */
@@ -109,10 +111,11 @@ export const buildPalletCollars = ({ G, M, stage }) => {
     // Load inside
     stage(G.box, M.carton, 1.0, h - 0.2, 0.7, x, h / 2 + 0.14, z, 0, ry);
   };
-  collar(-13.9, 7.4, 0.2);
-  collar(-13.0, 7.6, -0.1);
-  collar(13.9, -4.4, Math.PI / 2, 1.2);
-  collar(-13.9, -8.6, 0.35);
+  const storeMidX2 = (CHEMICAL_STORE.minX + CHEMICAL_STORE.maxX) / 2;
+  collar(storeMidX2 - 0.6, CHEMICAL_STORE.maxZ + 0.6, 0.2);
+  collar(storeMidX2 + 0.6, CHEMICAL_STORE.maxZ + 0.8, -0.1);
+  collar(HALF_W - 1.1, 0.4, Math.PI / 2, 1.2);
+  collar(-HALF_W + 1.1, NORTH_AISLE - 0.5, 0.35);
 };
 
 /** Bulk bags on pallet collars — a distinctive silhouette. */
@@ -135,9 +138,9 @@ export const buildBulkBags = ({ G, M, stage }) => {
       );
     }
   };
-  bag(13.9, 0.6, 0.2);
-  bag(13.9, 2.4, -0.3);
-  bag(-13.9, -9.3, 0.5);
+  bag(HALF_W - 1.1, 0.9, 0.2);
+  bag(HALF_W - 1.1, -0.9, -0.3);
+  bag(-HALF_W + 1.1, NORTH_AISLE - 0.4, 0.5);
 };
 
 /** Stacks of drums, some upright and some on a pallet. */
@@ -177,9 +180,8 @@ export const buildDrums = ({ G, M, stage }) => {
    * visible; a solid block would just read as a yellow crate.
    */
   const bund = (x, z, w = 1.5, d = 1.5, kerb = 0.12, h = 0.16) => {
-    const inner = M.grate;
     // Grating floor, sunk slightly so the kerbs stand proud of it.
-    stage(G.box, inner, w - kerb, 0.03, d - kerb, x, 0.015, z);
+    stage(G.box, M.grate, w - kerb, 0.03, d - kerb, x, 0.015, z);
     // Four kerbs: two along X, two along Z.
     stage(G.box, M.bund, w, h, kerb, x, h / 2, z - (d - kerb) / 2);
     stage(G.box, M.bund, w, h, kerb, x, h / 2, z + (d - kerb) / 2);
@@ -187,35 +189,46 @@ export const buildDrums = ({ G, M, stage }) => {
     stage(G.box, M.bund, kerb, h, d - kerb * 2, x + (w - kerb) / 2, h / 2, z);
   };
 
-  // Row of bunded drums against the west wall.
-  const rowX = -13.8;
-  const rowZ0 = -7.7;
+  // Row of bunded drums along the back of the chemical store.
+  const rowX = (CHEMICAL_STORE.minX + CHEMICAL_STORE.maxX) / 2 - 0.2;
+  const rowZ0 = CHEMICAL_STORE.maxZ + 1.0;
   const rowCount = 5;
   const pitch = 0.7;
   bund(rowX, rowZ0 + ((rowCount - 1) * pitch) / 2, 1.35, rowCount * pitch + 0.24);
+  // Four real drum tones, cycled. Two was still a repeat - and the brief was
+  // explicit that the store should not be one colour repeated. Blue steel,
+  // graphite, galvanised and pale are what 205 L drums actually arrive in.
+  const DRUM_TONES = [M.drum, M.drumAlt, M.steelMid, M.bulkBag];
   for (let i = 0; i < rowCount; i += 1) {
-    drum(rowX, rowZ0 + i * pitch, i % 2 ? M.drum : M.drumAlt, { y: 0.16 + 0.44 });
+    drum(rowX, rowZ0 + i * pitch, DRUM_TONES[i % DRUM_TONES.length], { y: 0.6 });
   }
 
   // Two-high on a pallet, inside its own bund.
-  const stackZ = -2.7;
+  const stackZ = CHEMICAL_STORE.minZ + 1.9;
   bund(rowX, stackZ, 1.5, 1.7);
   [-0.7, 0, 0.7].forEach((dz, i) => {
-    stage(G.box, M.pallet, 1.1, 0.14, 0.5, rowX, 0.16 + 0.07, stackZ + dz);
-    drum(rowX, stackZ + dz, i % 2 ? M.drumAlt : M.drum, { y: 0.16 + 0.14 + 0.44 });
-    drum(rowX, stackZ + dz, i % 2 ? M.drum : M.drumAlt, { y: 0.16 + 0.14 + 0.88 + 0.44 });
+    stage(G.box, M.pallet, 1.1, 0.14, 0.5, rowX, 0.23, stackZ + dz);
+    drum(rowX, stackZ + dz, DRUM_TONES[(i + 1) % DRUM_TONES.length], { y: 0.74 });
+    drum(rowX, stackZ + dz, DRUM_TONES[(i + 3) % DRUM_TONES.length], { y: 1.62 });
   });
 
   // One on its side — an obvious trip hazard, staged as scenery. Deliberately
   // NOT bunded: that is the point of it being a hazard.
-  drum(7.8, -8.6, M.drumAlt, { tipped: true });
+  drum(-2.6, NORTH_AISLE - 0.4, M.drumAlt, { tipped: true });
 };
 
 // ── Equipment ─────────────────────────────────────────────────────────────────
 
 /** Tool station: workbench, tool board, PPE rack and a parts cabinet. */
 export const buildToolStation = ({ G, M, stage, absorb }) => {
-  const x = -HALF_W + 0.8;
+  // Standing in the west aisle beside the dispatch apron.
+  //
+  // Its own footprint is 3 m deep (bench 1.5 + PPE rack + parts cabinet at a
+  // local +2.9), so the anchor has to leave that much room: sitting at the
+  // dispatch apron put the cabinet 1.7 m outside the shell. z is therefore set
+  // so the deepest element lands inside the wall, and x keeps it clear of both
+  // rack run A and the welfare cabin.
+  const x = -8.0;
   const z = 5.6;
 
   // Bench top with legs and a lower shelf
@@ -275,48 +288,53 @@ export const buildPackingEquipment = ({ G, M, stage, absorb }) => {
   put(G.cyl, M.cable, 0.12, 0.14, 0.12, 0.1, 1.42, 0, Math.PI / 2);
   // Foot pedals and handle
   put(G.box, M.steelDark, 0.3, 0.04, 0.2, 0, 0.14, 0.3);
-  t.position.set(-6.6, 0, 9.3);
+  t.position.set(DISPATCH.minX + 2.4, 0, DISPATCH.maxZ - 0.8);
   t.rotation.y = 0.6;
   absorb(t);
 
   // Platform weighbridge flush with the floor
-  stage(G.box, M.steelMid, 2.4, 0.06, 2.4, 10.5, 0.03, 9.0);
-  stage(G.box, M.steelDark, 2.6, 0.05, 2.6, 10.5, 0.02, 9.0);
+  const weighX = DISPATCH.maxX - 2.4;
+  const weighZ = DISPATCH.maxZ - 1.2;
+  stage(G.box, M.steelMid, 2.4, 0.06, 2.4, weighX, 0.03, weighZ);
+  stage(G.box, M.steelDark, 2.6, 0.05, 2.6, weighX, 0.02, weighZ);
   // Readout column
-  stage(G.box, M.steelDark, 0.1, 1.2, 0.1, 12.5, 0.6, 9.9);
-  stage(G.box, M.panelBoard, 0.32, 0.26, 0.14, 12.5, 1.3, 9.9);
+  stage(G.box, M.steelDark, 0.1, 1.2, 0.1, weighX + 1.6, 0.6, weighZ + 0.9);
+  stage(G.box, M.panelBoard, 0.32, 0.26, 0.14, weighX + 1.6, 1.3, weighZ + 0.9);
 
   // Stretch-wrap dispenser with a roll
-  stage(G.box, M.steelDark, 0.6, 0.05, 0.6, -9.6, 0.06, 9.3);
-  stage(G.cyl, M.bulkBag, 0.22, 0.5, 0.22, -9.6, 0.35, 9.3, Math.PI / 2);
-  stage(G.box, M.steelDark, 0.08, 0.9, 0.08, -9.85, 0.5, 9.3);
+  const wrapX = DISPATCH.minX + 1.0;
+  const wrapZ = DISPATCH.maxZ - 0.7;
+  stage(G.box, M.steelDark, 0.6, 0.05, 0.6, wrapX, 0.06, wrapZ);
+  stage(G.cyl, M.bulkBag, 0.22, 0.5, 0.22, wrapX, 0.35, wrapZ, Math.PI / 2);
+  stage(G.box, M.steelDark, 0.08, 0.9, 0.08, wrapX - 0.25, 0.5, wrapZ);
 };
 
 /** Inspection aids: convex traffic mirrors, CCTV, clock and notice boards. */
 export const buildInspectionPoints = ({ G, M, stage }) => {
   // Convex intersection mirrors at the aisle junctions (reference control)
-  [[-8.0, 0.4, -9.3], [8.0, -0.4, -9.3], [-8.0, 0.4, 9.3], [8.0, -0.4, 9.3]].forEach(([x, ry, z]) => {
+  [[-7.7, 0.4, NORTH_AISLE], [7.7, -0.4, NORTH_AISLE], [-7.7, 0.4, SOUTH_AISLE], [7.7, -0.4, SOUTH_AISLE]].forEach(([x, ry, z]) => {
     stage(G.cyl, M.steelDark, 0.04, 3.2, 0.04, x, 1.6, z);
     stage(G.box, M.fixtureBody, 0.1, 0.34, 0.1, x + 0.08, 3.1, z);
     stage(G.cyl, M.glassPanel, 0.3, 0.06, 0.3, x + 0.18, 3.1, z, Math.PI / 2, ry);
   });
 
   // CCTV cameras on the walls
-  [[-HALF_W + 0.4, -6], [HALF_W - 0.4, 3], [0, -HALF_D + 0.4], [11, HALF_D - 0.4]].forEach(([x, z]) => {
+  [[-HALF_W + 0.4, -4], [HALF_W - 0.4, 0], [0, -HALF_D + 0.4], [8, HALF_D - 0.4]].forEach(([x, z]) => {
     stage(G.box, M.fixtureBody, 0.3, 0.14, 0.16, x, 6.2, z);
     stage(G.box, M.glassPanel, 0.06, 0.1, 0.1, x + (x < 0 ? 0.16 : -0.16), 6.2, z);
     stage(G.box, M.steelDark, 0.06, 0.4, 0.06, x + (x < 0 ? 0.1 : -0.1), 6.45, z);
   });
 
   // Notice boards by the welfare cabin and the dock
-  [[-13.5, 0, HALF_D - 0.5], [5, 0, -HALF_D + 0.5]].forEach(([x, ry, z]) => {
+  [[-11, 0, HALF_D - 0.5], [4, 0, -HALF_D + 0.5]].forEach(([x, ry, z]) => {
     stage(G.box, M.noticeBoard, 2.0, 1.2, 0.08, x, 1.7, z, 0, ry);
     stage(G.box, M.steelDark, 2.1, 0.06, 0.1, x, 2.32, z, 0, ry);
   });
 
   // Wall clock beside the office doorway
-  stage(G.cyl, M.fixtureBody, 0.26, 0.06, 0.26, OFFICE.minX + 0.06, 3.0, 7.0, Math.PI / 2);
-  stage(G.cyl, M.signBoard, 0.22, 0.02, 0.22, OFFICE.minX + 0.13, 3.0, 7.0, Math.PI / 2);
+  const clockZ = (OFFICE.minZ + OFFICE.maxZ) / 2;
+  stage(G.cyl, M.fixtureBody, 0.26, 0.06, 0.26, OFFICE.minX + 0.06, 3.0, clockZ, Math.PI / 2);
+  stage(G.cyl, M.signBoard, 0.22, 0.02, 0.22, OFFICE.minX + 0.13, 3.0, clockZ, Math.PI / 2);
 };
 
 // ── Amenities ─────────────────────────────────────────────────────────────────
@@ -516,12 +534,14 @@ export const buildLadderAccess = ({ G, M, absorb }) => {
     put(G.cyl, M.steelDark, 0.08, 0.06, 0.08, lx, 0.07, 0.24, Math.PI / 2);
   });
 
-  g.position.set(8.4, 0, -9.3);
+  g.position.set(6.6, 0, NORTH_AISLE - 0.4);
   g.rotation.y = 0.3;
   absorb(g);
 
   // Worker standing on the platform, reaching for the top beam
-  const w = buildWorker(G, M, { x: 8.4, z: -9.1, ry: 0.3, pose: 'reach' });
+  // The reach pose lifts an arm to about 3.3 m. At z = -9.1 the figure stood
+  // outside the north wall entirely; it now works a pallet on the goods-in apron.
+  const w = buildWorker(G, M, { x: 6.0, z: NORTH_AISLE - 0.4, ry: 0.3, pose: 'reach' });
   w.position.y = 2.35;
   w.scale.setScalar(0.94);
   absorb(w);
@@ -529,17 +549,20 @@ export const buildLadderAccess = ({ G, M, absorb }) => {
 
 /** Populates the depot with a crew in varied poses. */
 export const buildCrew = ({ G, M, absorb }) => {
-  // Placed on real aisle floor: never inside a rack run, never on the route.
+  // One figure per zone, on real aisle floor: never inside a rack run, never
+  // on the painted route, never inside the store's drum footprint.
+  const storeX = (CHEMICAL_STORE.minX + CHEMICAL_STORE.maxX) / 2;
+  const elecX = (ELECTRICAL_ZONE.minX + ELECTRICAL_ZONE.maxX) / 2;
   const crew = [
-    { x: -8.0, z: -6.5, ry: 1.5, pose: 'point' },
-    { x: 8.0, z: 4.0, ry: -1.1, pose: 'stand' },
-    { x: 7.5, z: -8.0, ry: 0.4, pose: 'crouch' },
-    { x: -5.5, z: -9.3, ry: 2.6, pose: 'stand' },
-    { x: 11.2, z: -9.3, ry: -2.2, pose: 'point' },
-    { x: 7.4, z: 9.3, ry: 2.9, pose: 'stand' },
-    { x: -13.9, z: 7.0, ry: 0.9, pose: 'stand' },
-    { x: -13.9, z: 2.2, ry: 1.6, pose: 'stand' },
-    { x: 13.9, z: 3.4, ry: -1.5, pose: 'stand' },
+    { x: storeX + 1.4, z: -3.0, ry: 1.5, pose: 'point' },
+    { x: elecX - 1.3, z: -6.6, ry: -0.9, pose: 'crouch' },
+    { x: 7.7, z: 4.5, ry: -1.1, pose: 'stand' },
+    { x: -7.7, z: 4.5, ry: 2.9, pose: 'stand' },
+    { x: -4.0, z: NORTH_AISLE + 0.5, ry: 2.6, pose: 'stand' },
+    { x: 4.0, z: NORTH_AISLE + 0.5, ry: -2.2, pose: 'point' },
+    { x: -5.0, z: DISPATCH.maxZ - 0.9, ry: 0.6, pose: 'stand' },
+    { x: -HALF_W + 1.2, z: 0.0, ry: 0.9, pose: 'stand' },
+    { x: HALF_W - 1.2, z: 0.0, ry: -1.5, pose: 'stand' },
   ];
   crew.forEach((cfg) => absorb(buildWorker(G, M, cfg)));
 };

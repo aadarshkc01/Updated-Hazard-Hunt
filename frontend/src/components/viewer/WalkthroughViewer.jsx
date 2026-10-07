@@ -476,7 +476,16 @@ export const WalkthroughViewer = ({
   };
 
   const totalHazards = (scenario?.hotspots || []).filter((h) => h.isHazard).length;
-  const errors = foundHotspots.length;
+  /**
+   * How many hazards the trainee has spotted.
+   *
+   * This was called `errors` and the in-world readout was labelled "Errors",
+   * which is the source of the "error text showing instead of hazard" report:
+   * the counter was counting hazards found but presenting itself as a fault
+   * tally, so a trainee who had found nothing was told they had made five
+   * errors. It is a progress figure and it now says so.
+   */
+  const hazardsFound = foundHotspots.length;
   const urgent = typeof timeLeft === 'number' && timeLeft <= 15;
   const timePct =
     typeof timeLeft === 'number' && totalTime ? Math.max(0, (timeLeft / totalTime) * 100) : 100;
@@ -513,10 +522,10 @@ export const WalkthroughViewer = ({
         <div className="flex items-stretch overflow-hidden rounded-control border border-pass-600/60 bg-dark-card/95 font-mono shadow-pop backdrop-blur-sm">
           <div className="px-2.5 py-1.5 sm:px-3.5">
             <p className="text-[8px] font-bold uppercase leading-none tracking-[0.15em] text-pass-200/70 sm:text-[9px]">
-              Errors
+              Hazard
             </p>
             <p className="text-sm font-bold leading-tight text-pass-200 sm:text-lg">
-              {errors}
+              {hazardsFound}
               <span className="text-pass-200/60">/{totalHazards}</span>
             </p>
           </div>

@@ -67,8 +67,7 @@ for (let s = 0; s < 600; s += 1) {
 
   // "Random hazards of all types": every run must contain all five families, so
   // a trainee is always assessed across the whole syllabus rather than drawing a
-  // run that happens to omit, say, fire. Counts come from the hotspot set, so
-  // this asserts the generator never drops or duplicates one.
+  // run that happens to omit, say, fire.
   const familiesInRun = new Set(items.map((i) => i.family));
   if (FAMILIES.some((f) => !familiesInRun.has(f))) runsMissingAFamily += 1;
 
@@ -129,7 +128,7 @@ console.log(
     `${RESERVED_ANCHORS.size} reserved, free anchors ${((rarest / totalRuns) * 100).toFixed(0)}-${((busiest / totalRuns) * 100).toFixed(0)}% of runs)`
 );
 
-// 6. Variant pools vary, and both variants of every family appear
+// 6. Variant pools vary
 const variants = new Set();
 const familyVariants = new Map();
 for (let s = 0; s < 200; s += 1) {

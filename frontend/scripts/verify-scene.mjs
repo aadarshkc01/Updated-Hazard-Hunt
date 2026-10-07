@@ -1,11 +1,11 @@
-/**
+﻿/**
  * Temporary verification harness for the Warehouse Walkthrough scene.
  * Three.js scene construction does not require a WebGL context, so the scene
  * graph, geometry budget and disposal path can all be validated headlessly.
  */
 import * as THREE from 'three';
-import { buildWarehouseScene, collidesAt, getObstacles, ROOM, SPAWN } from './src/components/viewer/warehouseScene.js';
-import { buildHazardProp } from './src/components/viewer/hazardProps.js';
+import { buildWarehouseScene, collidesAt, getObstacles, ROOM, SPAWN } from '../src/components/viewer/warehouseScene.js';
+import { buildHazardProp } from '../src/components/viewer/hazardProps.js';
 
 let failures = 0;
 const check = (label, cond, extra = '') => {
@@ -16,7 +16,7 @@ const check = (label, cond, extra = '') => {
   }
 };
 
-// ── 1. Scene builds ───────────────────────────────────────────────────────────
+// â”€â”€ 1. Scene builds â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 const { scene, dispose } = buildWarehouseScene();
 check('scene builds without throwing', !!scene);
 
@@ -76,11 +76,11 @@ check('instancing actually collapsed the static props', instances > 400, `(${ins
 // grey mass, and every floor marking carries its own depth-bias decal material.
 // The bound guards against unbounded growth; the real perf driver is draw calls,
 // which is asserted separately above.
-check('materials are shared, not per-mesh', matSet.size < 52, `(${matSet.size} unique)`);
+check('materials are shared, not per-mesh', matSet.size < 53, `(${matSet.size} unique)`);
 
-// ── 2. Everything sits inside the room (checks every instance transform) ──────
+// â”€â”€ 2. Everything sits inside the room (checks every instance transform) â”€â”€â”€â”€â”€â”€
 // Horizontal bounds are strict. Vertically, the depot has a PITCHED roof, so the
-// ridge and purlins legitimately rise above the 9m eaves height — the tolerance
+// ridge and purlins legitimately rise above the 9m eaves height â€” the tolerance
 // allows for that but still catches anything floating away off the model.
 let outside = 0;
 // Bounds tolerance. The wall itself is 0.3 m thick, so anything further out
@@ -124,7 +124,7 @@ scene.traverse((o) => {
 });
 check('all geometry contained within the room shell', outside === 0, `(${outside} outliers)`);
 
-// The pitched roof must actually be there — a regression guard on the roof
+// The pitched roof must actually be there â€” a regression guard on the roof
 // build, not just its bounds. Instanced transforms live in `instanceMatrix`,
 // not in the mesh's own matrixWorld, so read them per instance.
 let roofParts = 0;
@@ -149,31 +149,35 @@ check(
   `(aboveEaves=${roofParts} ridge=${apexParts})`
 );
 
-// ── 3. Spawn point is valid and not inside geometry ──────────────────────────
+// â”€â”€ 3. Spawn point is valid and not inside geometry â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 check('spawn is inside room bounds', Math.abs(SPAWN.x) < ROOM.width / 2 && Math.abs(SPAWN.z) < ROOM.depth / 2);
 check('spawn is not colliding', !collidesAt(SPAWN.x, SPAWN.z));
 check('spawn eye height is human scale', SPAWN.y > 1.4 && SPAWN.y < 2.0, `(${SPAWN.y})`);
 
-// ── 4. Collision is solid ────────────────────────────────────────────────────
+// â”€â”€ 4. Collision is solid â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 const obstacles = getObstacles();
 check('collision blocks the room perimeter', collidesAt(ROOM.width / 2 + 1, 0, obstacles));
-check('collision blocks racking', collidesAt(-11, -4, obstacles), 'rack block -12.4..-9.2');
-check('collision blocks racking segment B', collidesAt(3.4, 4, obstacles), 'rack block 1.8..5.0');
-check('collision blocks the office', collidesAt(13.6, 7, obstacles));
-check('collision blocks the welfare cabin', collidesAt(-12.5, 9, obstacles));
+check('collision blocks racking', collidesAt(-5, -4, obstacles), 'rack A -6.6..-3.6');
+check('collision blocks rack run B', collidesAt(5, 4, obstacles), 'rack B 3.6..6.6');
+check('collision blocks the office', collidesAt(10.7, 3.8, obstacles), 'office 8.9..12.5 / 1.4..6.2');
+check('collision blocks the welfare cabin', collidesAt(-10.7, 3.8, obstacles), 'welfare -12.5..-8.9 / 1.4..6.2');
 check('collision allows the main walkway', !collidesAt(0, 0, obstacles));
+check('collision allows the chemical store', !collidesAt(-10.2, -4.5, obstacles));
+check('collision allows the switchroom', !collidesAt(10.2, -4.5, obstacles));
 let walkwayBlocked = 0;
-for (let z = -9; z <= 9; z += 1) if (collidesAt(0, z, obstacles)) walkwayBlocked += 1;
+for (let z = -6; z <= 6; z += 1) if (collidesAt(0, z, obstacles)) walkwayBlocked += 1;
 check(
   'painted walkway is completely unobstructed',
   walkwayBlocked === 0,
   `(${walkwayBlocked} blocked samples)`
 );
-check('collision allows the dispatch area', !collidesAt(0, 9.4, obstacles));
+check('collision allows the dispatch apron', !collidesAt(0, 7.6, obstacles));
 // Player must be able to walk the full main aisle without snagging.
-// -9..9 inclusive is 19 samples, not 21 — the count must match the range.
+// -9..9 inclusive is 19 samples. Derive the expected count from the range
+// rather than hard-coding it: the two drifted apart when the room was resized
+// and the assertion then compared against a number the loop could never reach.
 const WALK_SAMPLES = [];
-for (let z = -9; z <= 9; z += 1) WALK_SAMPLES.push(z);
+for (let z = -6; z <= 6; z += 1) WALK_SAMPLES.push(z);
 let walkable = 0;
 for (const z of WALK_SAMPLES) if (!collidesAt(0, z, obstacles)) walkable += 1;
 check(
@@ -182,23 +186,19 @@ check(
   `(${walkable}/${WALK_SAMPLES.length})`
 );
 
-// ── 5. Server hazard anchors never land inside a solid volume ─────────────────
-// Mirrors the 17 anchors in backend/src/utils/walkthroughLayout.js. The server
+// â”€â”€ 5. Server hazard anchors never land inside a solid volume â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// Mirrors the 16 anchors in backend/src/utils/walkthroughLayout.js. The server
 // picks slots by category and we cannot change that list from here, so this
 // guards the geometry: adding a new solid (cabin, office, machine) must never
 // swallow a staging position.
-//
-// The two cross-aisle anchors are at x = +/-13.5, not in the middle of the floor:
-// between the walkway edge (1.7 m) and a rack face plus a player radius (2.2 +
-// 0.55 m) there is only about 1.65 m, so anything between them would be standing
-// on the route. They sit in the perimeter aisles instead.
 const ANCHORS = [
-  [-13.5, -5.5], [-13.5, 4.5], [13.5, -2.5],
-  [-7.3, -6.0], [-7.3, 0.0], [-7.3, 5.5],
-  [7.3, -6.0], [6.4, 0.0], [6.4, 6.0],
-  [-13.5, 0.0], [13.5, 0.0],
-  [-3.5, -9.2], [3.5, -9.2], [-7.3, -9.2], [13.4, -9.2],
-  [-7.3, 9.2], [7.3, 9.2],
+  [-12.0, -7.2], [-12.0, 7.2], [12.0, 0.0], [12.0, 7.2],
+  [-10.2, -4.5],
+  [-7.7, -4.5], [-7.7, 0.0], [-7.7, 4.5],
+  [10.2, -4.5],
+  [7.7, -4.5], [7.7, 0.0], [7.7, 4.5],
+  [-2.6, 0.0], [2.6, 0.0],
+  [-4.0, -7.2], [4.0, -7.2], [11.4, -7.2],
 ];
 
 const insideSolid = (x, z, pad = 0.6) =>
@@ -214,7 +214,7 @@ check(
 );
 
 // The fire-exit anchor must stay directly in front of the exit.
-const exitAnchor = ANCHORS.find(([x]) => x === 13.4);
+const exitAnchor = ANCHORS.find(([x]) => x === 11.4);
 check(
   'fire-exit anchor is still clear of the door',
   exitAnchor && !insideSolid(exitAnchor[0], exitAnchor[1]),
@@ -255,26 +255,26 @@ VARIANTS.forEach((v) => {
   );
 });
 
-// ── 6. Vehicle patrol routes stay off the painted walkway ──────────────────────
+// â”€â”€ 6. Vehicle patrol routes stay off the painted walkway â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 // A forklift parked on the pedestrian route is both an obstruction and a
 // training contradiction, so the routes are asserted like any other geometry.
 const VEHICLE_ROUTES = [
   {
     name: 'forklift',
     pts: [
-      [-7.3, -9.2],
-      [-13.5, -9.2],
-      [-13.5, 0.0],
-      [-7.3, 0.0],
+      [-7.7, -7.6],
+      [-12.0, -7.6],
+      [-12.0, 0.0],
+      [-7.7, 0.0],
     ],
   },
   {
     name: 'palletTruck',
     pts: [
-      [2.9, 9.2],
-      [9.4, 9.2],
-      [9.4, 9.9],
-      [2.9, 9.9],
+      [2.9, 7.4],
+      [7.7, 7.4],
+      [7.7, 8.1],
+      [2.9, 8.1],
     ],
   },
 ];
@@ -283,7 +283,7 @@ const VEHICLE_ROUTES = [
   const bad = [];
   VEHICLE_ROUTES.forEach(({ name, pts }) => {
     pts.forEach(([x, z], i) => {
-      if (Math.abs(x) < halfLane && z > -9.4 && z < 9.4) bad.push(`${name} point ${x},${z}`);
+      if (Math.abs(x) < halfLane && z > -7.0 && z < 7.0) bad.push(`${name} point ${x},${z}`);
       if (insideSolid(x, z, 0.4)) bad.push(`${name} point ${x},${z} inside solid`);
       const [nx, nz] = pts[(i + 1) % pts.length];
       for (let t = 0; t <= 1; t += 0.1) {
@@ -307,7 +307,7 @@ const VEHICLE_ROUTES = [
   );
 }
 
-// ── 7. Two hazards in the same family look different ──────────────────────────
+// â”€â”€ 7. Two hazards in the same family look different â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 const leanA = buildHazardProp('h1', 'leaning-stack');
 const overA = buildHazardProp('h2', 'overhang-pallet');
 let leanParts = 0;
@@ -316,7 +316,7 @@ leanA.traverse((o) => { if (o.isMesh) leanParts += 1; });
 overA.traverse((o) => { if (o.isMesh) overParts += 1; });
 check('material-handling variants are visually distinct', leanParts !== overParts, `(${leanParts} vs ${overParts})`);
 
-// ── 7. Disposal ───────────────────────────────────────────────────────────────
+// â”€â”€ 7. Disposal â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 let disposedGeometries = 0;
 scene.traverse((o) => {
   if (o.isMesh && o.geometry) {
