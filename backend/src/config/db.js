@@ -1,5 +1,4 @@
 import mongoose from 'mongoose';
-import { MongoMemoryServer } from 'mongodb-memory-server';
 
 let mongod = null;
 
@@ -69,6 +68,23 @@ export const connectDB = async () => {
   }
 
   // Development-only path.
+  //
+  // mongodb-memory-server is a devDependency, so it is absent on Render, where
+  // the install runs `npm install --omit=dev`. It must therefore be imported
+  // dynamically here rather than statically at the top of the file: ESM
+  // resolves every static import in the module graph before a single line of
+  // this function runs, so a top-level `import` of an absent package crashes
+  // the process with ERR_MODULE_NOT_FOUND even when the code would never have
+  // used it. A dynamic import defers resolution to the one branch that needs it.
+  let MongoMemoryServer;
+  try {
+    ({ MongoMemoryServer } = await import('mongodb-memory-server'));
+  } catch (err) {
+    console.error('FATAL: no MONGODB_URI, and mongodb-memory-server is not installed.');
+    console.error('       Set MONGODB_URI in Render or install the dependency in backend/.');
+    process.exit(1);
+  }
+
   mongod = await MongoMemoryServer.create();
   const localUri = mongod.getUri();
   console.log(`In-memory MongoDB running at: ${localUri}`);
