@@ -252,15 +252,17 @@ export const SupervisorDashboard = () => {
         }
       />
 
-      <div className="mb-5">
-        <div className="app-seg self-start">
-          {tabs.map(({ id, label }) => (
-            <button key={id} onClick={() => setActiveTab(id)}
-              className={`app-seg-item whitespace-nowrap ${activeTab === id ? 'app-seg-item-active' : ''}`}>
-              {label}
-            </button>
-          ))}
-        </div>
+      {/* app-seg-scroll: three columns on phones so no label is clipped (Issue 3),
+          and sticky just under the navbar so the row stays reachable while the
+          dashboard scrolls (Issue 4). self-start is dropped so the grid can
+          size itself across the available width. */}
+      <div className="app-seg app-seg-scroll app-seg-scroll-3 mb-5">
+        {tabs.map(({ id, label }) => (
+          <button key={id} onClick={() => setActiveTab(id)}
+            className={`app-seg-item ${activeTab === id ? 'app-seg-item-active' : ''}`}>
+            {label}
+          </button>
+        ))}
       </div>
 
       {/* ── DASHBOARD TAB ────────────────────────────────────────────────── */}
@@ -683,18 +685,18 @@ export const SupervisorDashboard = () => {
                 <X className="h-4 w-4" />
               </button>
             </div>
-            <form onSubmit={handleCreateEmployee} className="app-stack gap-4 p-5">
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="app-label">Full Name *</label>
-                  <input type="text" required placeholder="e.g. James Walker" value={newName} onChange={e => setNewName(e.target.value)}
-                    className="app-input" />
-                </div>
-                <div>
-                  <label className="app-label">Username *</label>
-                  <input type="text" required placeholder="e.g. trainee5" value={newUsername} onChange={e => setNewUsername(e.target.value)}
-                    className="app-input" />
-                </div>
+            {/* app-form-stack: one field per full-width row on phones, label above its own
+              input (Issue 5); two columns again from 640px up. */}
+            <form onSubmit={handleCreateEmployee} className="app-form-stack p-5">
+              <div>
+                <label className="app-label">Full Name *</label>
+                <input type="text" required placeholder="e.g. James Walker" value={newName} onChange={e => setNewName(e.target.value)}
+                  className="app-input" />
+              </div>
+              <div>
+                <label className="app-label">Username *</label>
+                <input type="text" required placeholder="e.g. trainee5" value={newUsername} onChange={e => setNewUsername(e.target.value)}
+                  className="app-input" />
               </div>
               <div>
                 <label className="app-label">Password *</label>

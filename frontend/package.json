@@ -10,7 +10,11 @@
     "verify:scene": "node scripts/verify-scene.mjs",
     "verify:palette": "node scripts/verify-palette.mjs",
     "verify:report": "node scripts/verify-report.mjs",
-    "verify": "npm run verify:scene && npm run verify:palette && npm run verify:report"
+    "verify:hazards": "node scripts/verify-hazard-count.mjs",
+    "verify:responsive": "npm run build && node scripts/verify-responsive.mjs",
+    "verify:banner": "node scripts/verify-banner.mjs",
+    "verify:alerts": "node scripts/verify-alerts.mjs",
+    "verify": "npm run verify:scene && npm run verify:palette && npm run verify:report && npm run verify:hazards && npm run build && npm run verify:responsive && npm run verify:banner && npm run verify:alerts"
   },
   "dependencies": {
     "canvas-confetti": "^1.9.4",

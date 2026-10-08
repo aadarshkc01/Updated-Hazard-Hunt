@@ -38,7 +38,11 @@ jobs:
       # Scene, palette and score-report harnesses. These are the regression
       # guards described in the README: a procedural 3D scene, the no-green /
       # no-red palette rule, and the single-page A4 score report.
-      - name: Verify scene, palette and score report (frontend)
+      # Seven harnesses: procedural 3D scene, the no-green/no-red palette rule,
+      # the single-page A4 score report, hazard counting, the responsive layout,
+      # the dashboard band and the alert boxes (the last three assert against the
+      # compiled CSS, so the build runs first).
+      - name: Verify scene, palette, report, hazards, layout, banner and alerts (frontend)
         run: npm run verify --prefix frontend
 
       - name: Build frontend

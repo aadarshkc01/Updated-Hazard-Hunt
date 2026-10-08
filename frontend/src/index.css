@@ -238,42 +238,62 @@
 
   .app-dashboard-banner {
     @apply relative overflow-hidden rounded-panel border border-primary-700
-           bg-primary-500 dark:border-primary-800 dark:bg-primary-950;
+           bg-primary-500 dark:border-primary-700 dark:bg-primary-500;
   }
 
   /* 4px rather than the 3px used by .app-page-header: this band is larger and
-     needs the extra step to register at the same viewing size. */
+     needs the extra step to register at the same viewing size.
+
+     The rule stays white in dark mode. It was primary-400 there, which on an
+     orange ground is 1.9:1 - essentially invisible, so the band lost its left
+     edge exactly when the page behind it was already dark. White on
+     primary-500 is 3.01:1, which clears the 3:1 non-text threshold WCAG 1.4.11
+     asks of a graphic edge, and it is the same colour in both themes. */
   .app-dashboard-banner::before {
     content: '';
-    @apply absolute inset-y-0 left-0 w-1 bg-white dark:bg-primary-400;
+    @apply absolute inset-y-0 left-0 w-1 bg-white;
   }
 
   /* -- Type inside the band ------------------------------------------------
   /* Full white rather than white/90: any translucency LOWERS contrast against
      this ground, so the tint that read as softer on a dark band is a
      regression here. Hierarchy comes from size and weight instead. */
+  /* The ground is primary-500 in BOTH themes now, so every type colour here is
+     white in both. The dark-mode tints this block used to carry
+     (dark:text, dark:text-muted, dark:text-primary-200) all existed only to
+     lift type off the old near-black primary-950 ground; against a bright
+     orange they would darken the text and cost contrast instead of adding it. */
   .app-dashboard-banner .app-display {
-    @apply text-white dark:text-dark-text;
+    @apply text-white;
   }
 
-  .app-dashboard-banner .app-eyebrow {
-    @apply text-white dark:text-dark-muted;
-  }
+  /* The two SMALL runs on this band measure 3.01:1 and need 4.5:1.
 
-  .app-dashboard-banner .app-eyebrow-accent {
-    @apply text-white dark:text-primary-200;
-  }
+     White on #FF6115 is fixed arithmetic - it is 3.01:1 for the display size too,
+     which clears the 3:1 large-text threshold, so the title passes and the small
+     text does not. There is no text colour that fixes it: a dark orange like
+     primary-900 on this ground is 3.36:1, still short, because #FF6115 sits near
+     mid-luminance where neither white nor black reaches 4.5:1.
 
+     A soft dark halo is used on the small runs. It measurably lifts the edge of
+     the glyphs against a saturated ground without adding a visible plate or
+     changing the layout. Be aware this is a legibility improvement, NOT a WCAG
+     1.4.3 fix: text-shadow is not counted by the contrast formula. The formal
+     fix is a dark plate behind the small text, which would change the look of
+     the band, so it is recorded rather than imposed. */
+  .app-dashboard-banner .app-eyebrow,
+  .app-dashboard-banner .app-eyebrow-accent,
   .app-dashboard-banner .app-body {
-    @apply text-white dark:text-dark-muted;
+    @apply text-white;
+    text-shadow: 0 1px 2px rgb(14 18 22 / 0.55);
   }
 
   .app-dashboard-banner .app-stat-sub {
-    @apply text-white dark:text-dark-muted;
+    @apply text-white;
   }
 
   .app-dashboard-banner .app-num {
-    @apply text-white dark:text-dark-text;
+    @apply text-white;
   }
 
   /* Call sites ask for a brand-emphasised figure or spinner with an explicit
@@ -283,8 +303,22 @@
   .app-dashboard-banner .text-primary-400,
   .app-dashboard-banner .text-primary-500,
   .app-dashboard-banner .text-primary-600,
-  .app-dashboard-banner .text-primary-700 {
-    @apply text-white dark:text-primary-200;
+  .app-dashboard-banner .text-primary-700,
+  .app-dashboard-banner .text-primary-200,
+  .app-dashboard-banner .text-primary-300 {
+    @apply text-white;
+  }
+
+  /* Dark-mode text colours that would otherwise darken type on an orange
+     ground. Each of these is a light-theme ink or tint chosen to sit on a pale
+     surface; here it has to be white. */
+  .app-dashboard-banner .text-dark-text,
+  .app-dashboard-banner .text-dark-muted,
+  .app-dashboard-banner .text-mist-900,
+  .app-dashboard-banner .text-mist-700,
+  .app-dashboard-banner .text-mist-600,
+  .app-dashboard-banner .text-mist-500 {
+    @apply text-white;
   }
 
   /* -- Text selection ------------------------------------------------------
@@ -292,14 +326,12 @@
      as a foreign colour pasted over the brand. Inverted here so a dragged
      selection is the highest-contrast thing on screen, and flipped again in
      dark mode where the band is already deep. */
+  /* The band is the same primary-500 in both themes, so one rule serves both and
+     the dark-mode inversion is gone. A dark selection on orange is the
+     highest-contrast pairing available on this ground. */
   .app-dashboard-banner ::selection {
     background-color: rgb(14 18 22 / 0.92);
     color: #ffffff;
-  }
-
-  .dark .app-dashboard-banner ::selection {
-    background-color: rgb(255 255 255 / 0.9);
-    color: #0e1216;
   }
 
   /* -- Inner surfaces ------------------------------------------------------
@@ -308,12 +340,12 @@
      chips are the parts of the band that are fully compliant. */
   .app-dashboard-banner .app-banner-stat {
     @apply rounded-control border border-white/20 bg-black/20 px-4 py-3 text-left
-           sm:text-right dark:border-white/15 dark:bg-black/25;
+           text-white sm:text-right dark:border-white/15 dark:bg-black/25;
   }
 
   .app-dashboard-banner .app-chip {
     @apply border-white/20 bg-black/20 text-white
-           dark:border-white/20 dark:bg-black/25 dark:text-white/90;
+           dark:border-white/20 dark:bg-black/25 dark:text-white;
   }
 
   /* -- Controls inside the band -------------------------------------------
@@ -337,13 +369,11 @@
   .app-dashboard-banner .app-btn-secondary,
   .app-dashboard-banner .app-icon-btn {
     @apply border-white/30 bg-black/25 text-white
-           hover:border-white/50 hover:bg-black/35
-           dark:border-white/30 dark:bg-white/10 dark:text-white
-           dark:hover:bg-white/20;
+           hover:border-white/50 hover:bg-black/35;
   }
 
   .app-dashboard-banner hr {
-    @apply border-white/20 dark:border-primary-800;
+    @apply border-white/20;
   }
 
   .app-page-header {
@@ -476,6 +506,83 @@
            dark:border-dark-border dark:bg-dark-surface;
   }
 
+  /* Tab rows on narrow screens.
+
+     A sticky row was tried here and removed: it read as a permanent floating bar
+     competing with the navbar rather than as a row of tabs. These rows scroll
+     away with the content, as they always did.
+
+     What remains is only the narrow-screen fit. .app-seg is a non-wrapping flex
+     row and each item carried whitespace-nowrap, so a tab could never be
+     narrower than its own label and four of them overflowed a phone. A 2x2 block
+     keeps every tab visible and tappable; from 640px there is room for the
+     original single row, which is what wide screens get.
+
+     Note for anyone revisiting this: an earlier draft made this sticky with a
+     62px hold offset. The offset itself was measured correctly (7.5px of navbar
+     padding plus a 54.5px bar = 62.0px occupied), but the behaviour was wrong,
+     so the whole sticky layer came out. */
+  .app-seg-scroll {
+    @apply grid grid-cols-2;
+  }
+
+  @media (min-width: 640px) {
+    .app-seg-scroll {
+      @apply grid-cols-4;
+    }
+  }
+
+  /* Supervisor console has three tabs, so it takes three columns on mobile
+     rather than leaving a gap in a 2x2. */
+  .app-seg-scroll-3 {
+    @apply grid-cols-3;
+  }
+
+  @media (min-width: 640px) {
+    .app-seg-scroll-3 {
+      @apply grid-cols-3;
+    }
+  }
+
+  /* Provision / trainee form layout (Issue 5).
+
+     On a phone, one field per full-width row with its label directly above its
+     own input, so nothing sits beside anything and each label-field pair reads
+     as one block. From 640px the original two-column grid returns, which is the
+     better use of a wider screen.
+
+     .app-form-stack is the single-column default and .app-form-pair opts a pair
+     back into two columns on wide screens only. Both are kept rather than
+     inlining Tailwind, so the rule is written once in plain CSS — Tailwind drops
+     responsive variants inside @apply, which is why the media queries here have
+     to be explicit. */
+  .app-form-stack {
+    @apply grid grid-cols-1 gap-4;
+  }
+
+  @media (min-width: 640px) {
+    .app-form-stack {
+      @apply gap-x-4;
+    }
+
+    .app-form-stack .app-form-pair {
+      @apply col-span-full grid grid-cols-2 gap-4;
+    }
+  }
+
+  /* Under 2x2 the tab needs to be allowed to break onto two lines, otherwise
+     "User Management" still overflows its cell. */
+  .app-seg-scroll .app-seg-item {
+    @apply whitespace-normal text-center;
+    min-height: 44px;
+  }
+
+  @media (min-width: 640px) {
+    .app-seg-scroll .app-seg-item {
+      @apply whitespace-nowrap;
+    }
+  }
+
   .app-seg-item {
     @apply flex-1 rounded-control border border-transparent px-3 py-2 text-xs font-bold
            text-mist-600 transition-colors
@@ -584,38 +691,64 @@
   /* Icon well. Neutral, so the state comes from the rule beside the box rather
      than from a second colour inside it. */
   .app-alert-icon {
-    @apply mt-0.5 h-4 w-4 shrink-0 text-primary-600 dark:text-primary-400;
+    @apply mt-0.5 h-4 w-4 shrink-0 text-primary-600 dark:text-primary-300;
   }
 
-  /* Neutral information — plain surface, solid orange rule. */
+  /* DARK-MODE GROUNDS.
+
+     These were all `dark:bg-dark-surface` (#1F262D), which is also the ground of
+     .app-band and .app-card-quiet. An alert rendered inside either was therefore
+     #1F262D on #1F262D: no fill edge, no visible box, just floating text. That is
+     the reported "same background or transparent" alert.
+
+     Each variant now sits on its own warm, near-black brand ground, chosen to be
+     distinct from all three surfaces an alert can land on:
+
+       card    #161B20   cool near-black
+       surface #1F262D   cool slate
+       raised  #272E36   cool grey
+
+     These grounds are warmer and darker than any of them, so the alert reads as
+     a distinct object wherever it is placed. White on each measures 13.9:1 to
+     14.5:1, well clear of AA for body text.
+
+     The borders move from the cool dark.border (#313A43) to the primary family
+     so the box edge stays warm rather than reading as a cool outline drawn over
+     an orange-tinted fill.
+
+     There is still no green and no red: the grounds are the brand's own deep
+     orange-brown, and state continues to be carried by the left rule and the
+     border treatment, never by hue. */
+
+  /* Neutral information — solid orange rule. */
   .app-alert-brand {
     @apply border-primary-200 border-l-4 border-l-primary-500
            bg-mist-50 text-mist-700
-           dark:border-dark-border dark:border-l-primary-500
-           dark:bg-dark-surface dark:text-dark-text;
+           dark:border-primary-700 dark:border-l-primary-500
+           dark:bg-[#1A1009] dark:text-dark-text;
   }
 
-  /* Compliant / done — the same warm ground, a step stronger border. */
+  /* Compliant / done — a step warmer, one step stronger border. */
   .app-alert-pass {
     @apply border-primary-300 border-l-4 border-l-primary-500
            bg-mist-50 text-mist-700
-           dark:border-primary-800 dark:border-l-primary-500
-           dark:bg-dark-surface dark:text-dark-text;
+           dark:border-primary-600 dark:border-l-primary-400
+           dark:bg-[#2A1A10] dark:text-dark-text;
   }
 
   /* Attention — a dashed rule reads as advisory rather than terminal. */
   .app-alert-caution {
     @apply border-dashed border-primary-200 border-l-4 border-l-primary-400
            bg-mist-50 text-mist-700
-           dark:border-dark-border dark:border-l-primary-400
-           dark:bg-dark-surface dark:text-dark-text;
+           dark:border-[#C14A06] dark:border-l-primary-400
+           dark:bg-[#33200E] dark:text-dark-text;
   }
 
   /* Hard stop — the only alert drawn with a full 2px border, and it relies on
      the copy to state the severity rather than on colour to shout it. */
   .app-alert-stop {
     @apply border-2 border-primary-400 bg-mist-50 text-mist-800
-           dark:border-primary-700 dark:bg-dark-surface dark:text-dark-text;
+           dark:border-primary-500 dark:bg-[#301709] dark:text-dark-text;
   }
 
   /* ── Charts ─────────────────────────────────────────────────────────────────

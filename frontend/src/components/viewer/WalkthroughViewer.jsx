@@ -442,10 +442,58 @@ export const WalkthroughViewer = ({
     return () => document.removeEventListener('fullscreenchange', onChange);
   }, []);
 
+  // Fullscreen, with an immersive fallback for mobile.
+  //
+  // iPhone Safari exposes no element fullscreen API, so the previous
+  // requestFullscreen?.() silently did nothing there and the button looked dead.
+  // Prefixed APIs are tried first; if the device cannot do fullscreen at all,
+  // the viewer is simply resized to the visible viewport instead. 100dvh rather
+  // than 100vh, because the latter measures the viewport with browser bars
+  // hidden and is wrong on a phone the moment they collapse.
+  const [immersive, setImmersive] = useState(false);
+
+  useEffect(() => {
+    if (!immersive) return undefined;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    const onKeyDown = (e) => {
+      // A phone has no Esc key, so the fallback needs its own way out.
+      if (e.key === 'Escape') setImmersive(false);
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => {
+      document.body.style.overflow = prev;
+      window.removeEventListener('keydown', onKeyDown);
+    };
+  }, [immersive]);
+
   const toggleFullscreen = () => {
-    if (!containerRef.current) return;
-    if (!document.fullscreenElement) containerRef.current.requestFullscreen?.().catch(() => {});
-    else document.exitFullscreen?.();
+    const el = containerRef.current;
+    if (!el) return;
+
+    if (document.fullscreenElement || document.webkitFullscreenElement) {
+      const exit = document.exitFullscreen || document.webkitExitFullscreen;
+      if (exit) exit.call(document).catch(() => {});
+      return;
+    }
+
+    if (immersive) {
+      setImmersive(false);
+      return;
+    }
+
+    const request = el.requestFullscreen || el.webkitRequestFullscreen || el.msRequestFullscreen;
+    if (!request) {
+      setImmersive(true);
+      return;
+    }
+
+    const result = request.call(el);
+    if (result && typeof result.catch === 'function') {
+      // Refused despite the API existing (iOS gesture rules): fall back rather
+      // than leave a button that does nothing.
+      result.catch(() => setImmersive(true));
+    }
   };
 
   const resetView = () => {
@@ -510,7 +558,7 @@ export const WalkthroughViewer = ({
     <div
       ref={containerRef}
       className={`relative w-full select-none bg-dark-bg ${
-        isFullscreen
+        isFullscreen || immersive
           ? 'fixed inset-0 z-50 h-[100dvh] w-screen'
           : 'h-[74vh] min-h-[440px] max-h-[820px] overflow-hidden rounded-lg border border-mist-300 dark:border-dark-border'
       }`}
@@ -525,7 +573,7 @@ export const WalkthroughViewer = ({
               Hazard
             </p>
             <p className="text-sm font-bold leading-tight text-pass-200 sm:text-lg">
-              {hazardsFound}
+              <span data-testid="walkthrough-hazard-count">{hazardsFound}</span>
               <span className="text-pass-200/60">/{totalHazards}</span>
             </p>
           </div>
@@ -678,10 +726,10 @@ export const WalkthroughViewer = ({
           onPointerDown={(e) => e.stopPropagation()}
           onClick={toggleFullscreen}
           className="rounded-control border border-white/20 bg-black/80 p-2 text-white backdrop-blur-sm"
-          title={isFullscreen ? 'Exit fullscreen' : 'Fullscreen'}
-          aria-label={isFullscreen ? 'Exit fullscreen' : 'Enter fullscreen'}
+          title={immersive ? 'Exit full screen' : isFullscreen ? 'Exit fullscreen' : 'Fullscreen'}
+          aria-label={immersive ? 'Exit full screen' : isFullscreen ? 'Exit fullscreen' : 'Enter fullscreen'}
         >
-          {isFullscreen ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
+          {immersive || isFullscreen ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
         </button>
         <button
           type="button"

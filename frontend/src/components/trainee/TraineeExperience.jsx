@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, lazy, Suspense } from 'react';
+﻿import React, { useState, useEffect, useRef, lazy, Suspense } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../../context/ToastContext';
 import { api } from '../../services/api';
@@ -13,16 +13,16 @@ import { ConfirmModal } from '../common/ConfirmModal';
 import { OctagonX } from 'lucide-react';
 
 // The 3D walkthrough (Three.js scene + hazard props) is code-split so that
-// trainees who only ever use Standard 360° never download it.
+// trainees who only ever use Standard 360Â° never download it.
 const WalkthroughViewer = lazy(() =>
   import('../viewer/WalkthroughViewer').then((m) => ({ default: m.WalkthroughViewer }))
 );
 
 // Experience phases:
-//  'HOME'        → EmployeeHome dashboard (pre-session)
-//  'INSPECTION'  → Live 360° panorama viewer
-//  'QUIZ'        → Post-inspection safety quiz
-//  'DIAGNOSTIC'  → Results screen
+//  'HOME'        â†’ EmployeeHome dashboard (pre-session)
+//  'INSPECTION'  â†’ Live 360Â° panorama viewer
+//  'QUIZ'        â†’ Post-inspection safety quiz
+//  'DIAGNOSTIC'  â†’ Results screen
 
 export const TraineeExperience = () => {
   const { user, markOnboardingComplete } = useAuth();
@@ -102,7 +102,7 @@ export const TraineeExperience = () => {
     soundEngine.init();
     setIsPracticeMode(practiceMode);
     setTrainingMode(mode);
-    setFoundHotspots([]);
+    resetFoundHotspots();
     setFalseClicksCount(0);
     const limit = scenario?.timeLimitSeconds || 90;
     setTimeLeft(limit);
@@ -132,7 +132,7 @@ export const TraineeExperience = () => {
 
   const handleTimeExpire = () => {
     soundEngine.playWarning();
-    showToast('Time expired! Moving to safety quiz…', 'warning');
+    showToast('Time expired! Moving to safety quizâ€¦', 'warning');
     transitionToQuiz();
   };
 
@@ -146,16 +146,55 @@ export const TraineeExperience = () => {
     setPhase('QUIZ');
   };
 
+  // Mirror of foundHotspots that is always current.
+  //
+  // This exists because of a bug that affected BOTH environments, not just the
+  // 360 view. This handler is passed to PanoramaViewer and WalkthroughViewer as
+  // onHazardClick, and neither viewer can call a fresh version of it:
+  //
+  //   - PanoramaViewer.jsx builds its Pannellum hotspots inside a useEffect that
+  //     depends on [scenario?.id, isEnded, isCalibrationMode,
+  //     practiceTargetFound]. foundHotspots is not among them, so Pannellum keeps
+  //     the handler handed to it on the first render.
+  //   - WalkthroughViewer.jsx registers its canvas, pointer and key listeners in a
+  //     useEffect depending on [scenario?.id, layout?.seed] (and suppresses
+  //     exhaustive-deps on the preceding line), so those listeners close over
+  //     that same first-render handler too.
+  //
+  // So `foundHotspots` read directly inside this function was whatever the list
+  // held at that first render - an empty array. Every find therefore computed
+  // [...[], hotspot] and REPLACED the list instead of adding to it, leaving the
+  // counter frozen at 1/5 and submitting a single hazard id to the quiz.
+  //
+  // Reading and writing the ref instead makes the handler correct regardless of
+  // which render a caller happens to be holding. Fixing it here rather than in
+  // each viewer repairs both environments at once.
+  const foundHotspotsRef = useRef([]);
+  foundHotspotsRef.current = foundHotspots;
+
+  // Clears both the state and the mirror in one place. Every reset below must go
+  // through here: resetting only the state would leave the ref holding the
+  // previous session's hazards, so the first find of the next session would be
+  // rejected as a duplicate.
+  const resetFoundHotspots = () => {
+    foundHotspotsRef.current = [];
+    setFoundHotspots([]);
+  };
+
   const handleHazardFound = (hotspot) => {
-    const alreadyFound = foundHotspots.some((h) => h.id === hotspot.id);
-    if (alreadyFound) return;
-    soundEngine.playSuccess();
-    const updated = [...foundHotspots, hotspot];
+    const current = foundHotspotsRef.current;
+    if (current.some((h) => h.id === hotspot.id)) return;
+
+    const updated = [...current, hotspot];
+    foundHotspotsRef.current = updated;
     setFoundHotspots(updated);
+
+    soundEngine.playSuccess();
     showToast(`Hazard found: ${hotspot.title}`, 'success');
+
     const totalHazards = (scenario?.hotspots || []).filter((h) => h.isHazard).length;
     if (updated.length >= totalHazards) {
-      showToast('All hazards discovered! Preparing quiz…', 'success');
+      showToast('All hazards discovered! Preparing quizâ€¦', 'success');
       setTimeout(() => transitionToQuiz(), 1200);
     }
   };
@@ -208,7 +247,7 @@ export const TraineeExperience = () => {
   /**
    * Abort an in-progress hunt and go back to the dashboard.
    *
-   * The attempt is DISCARDED, not submitted — a trainee who realises they are in
+   * The attempt is DISCARDED, not submitted â€” a trainee who realises they are in
    * the wrong scenario, or who needs to stop, must never be silently graded on a
    * partial run. Everything the session accumulated is cleared, the timer is
    * stopped, and the trainee returns to a clean home screen.
@@ -218,7 +257,7 @@ export const TraineeExperience = () => {
     setShowAbortConfirm(false);
     soundEngine.playWarning();
     setPhase('HOME');
-    setFoundHotspots([]);
+    resetFoundHotspots();
     setFalseClicksCount(0);
     setIsPracticeMode(false);
     setDiagnosticData(null);
@@ -234,7 +273,7 @@ export const TraineeExperience = () => {
     soundEngine.playTick();
     if (timerIntervalRef.current) clearInterval(timerIntervalRef.current);
     setPhase('HOME');
-    setFoundHotspots([]);
+    resetFoundHotspots();
     setFalseClicksCount(0);
     setIsPracticeMode(false);
     setDiagnosticData(null);
@@ -252,12 +291,12 @@ export const TraineeExperience = () => {
     return () => document.removeEventListener('keydown', onKeyDown);
   }, [phase]);
 
-  // ── Loading state ──────────────────────────────────────────────────────────
+  // â”€â”€ Loading state â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   if (loading && phase === 'HOME') {
     return (
       <div className="flex min-h-[60vh] flex-col items-center justify-center gap-3 p-8 text-center">
         <span className="app-spinner h-8 w-8 text-primary-500" />
-        <p className="app-section-title">Loading warehouse scenario…</p>
+        <p className="app-section-title">Loading warehouse scenarioâ€¦</p>
         <p className="app-body">Calibrating the Bay 4 inspection</p>
       </div>
     );
@@ -290,7 +329,7 @@ export const TraineeExperience = () => {
 
   return (
     <>
-      {/* Onboarding modal — shown before first inspection */}
+      {/* Onboarding modal â€” shown before first inspection */}
       <OnboardingModal
         isOpen={showOnboarding}
         onClose={() => { setShowOnboarding(false); setPhase('HOME'); }}
@@ -313,7 +352,7 @@ export const TraineeExperience = () => {
         onCancel={() => setShowAbortConfirm(false)}
       />
 
-      {/* ── HOME phase: personal dashboard ── */}
+      {/* â”€â”€ HOME phase: personal dashboard â”€â”€ */}
       {phase === 'HOME' && (
         <EmployeeHome
           onLaunchSession={handleLaunchSession}
@@ -322,7 +361,7 @@ export const TraineeExperience = () => {
         />
       )}
 
-      {/* ── INSPECTION phase ── */}
+      {/* â”€â”€ INSPECTION phase â”€â”€ */}
       {phase === 'INSPECTION' && (
         <div className="app-page animate-fade-in py-4">
           <div className="app-card mb-4 flex flex-wrap items-start justify-between gap-3 p-4">
@@ -341,7 +380,7 @@ export const TraineeExperience = () => {
                     ? 'Walk the aisles and inspect every bay.'
                     : 'Rotate the panorama and inspect every corner.'}
                 </li>
-                <li>Report only genuine hazards — false reports cost 5%.</li>
+                <li>Report only genuine hazards â€” false reports cost 5%.</li>
                 <li>
                   {isPracticeMode
                     ? 'Rehearse freely; your standing is untouched.'
@@ -384,7 +423,7 @@ export const TraineeExperience = () => {
                 <div className="flex h-[74vh] min-h-[440px] items-center justify-center rounded-panel border border-dark-border bg-dark-bg">
                   <div className="text-center">
                     <span className="app-spinner mx-auto mb-3 h-8 w-8 text-primary-500" />
-                    <p className="text-xs font-bold text-white">Building the Bay 4 warehouse…</p>
+                    <p className="text-xs font-bold text-white">Building the Bay 4 warehouseâ€¦</p>
                   </div>
                 </div>
               }
@@ -411,7 +450,7 @@ export const TraineeExperience = () => {
         </div>
       )}
 
-      {/* ── QUIZ phase ── */}
+      {/* â”€â”€ QUIZ phase â”€â”€ */}
       {phase === 'QUIZ' && (
         <HazardQuiz
           questions={scenario?.quizQuestions || []}
@@ -421,7 +460,7 @@ export const TraineeExperience = () => {
         />
       )}
 
-      {/* ── DIAGNOSTIC phase ── */}
+      {/* â”€â”€ DIAGNOSTIC phase â”€â”€ */}
       {phase === 'DIAGNOSTIC' && (
         <DiagnosticSummary
           diagnostic={diagnosticData}

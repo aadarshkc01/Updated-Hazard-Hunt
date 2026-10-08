@@ -253,12 +253,13 @@ export const AdminDashboard = ({ onLaunchTrainer }) => {
         />
 
         {/* ── Tab navigation ───────────────────────────────────────────────── */}
-        <div className="app-seg mb-5">
+        {/* app-seg-scroll: 2x2 on phones so no label is clipped (Issue 3), and
+            sticky just under the navbar so it stays reachable while the
+            dashboard scrolls (Issue 4). */}
+          <div className="app-seg app-seg-scroll mb-5">
           {tabs.map(({ id, label }) => (
             <button key={id} type="button" onClick={() => setActiveTab(id)}
-              className={`app-seg-item whitespace-nowrap ${
-                activeTab === id ? 'app-seg-item-active' : ''
-              }`}>
+              className={`app-seg-item ${activeTab === id ? 'app-seg-item-active' : ''}`}>
               {label}
             </button>
           ))}
@@ -785,25 +786,26 @@ export const AdminDashboard = ({ onLaunchTrainer }) => {
                 <X className="h-4 w-4" />
               </button>
             </div>
-            <form onSubmit={handleCreateUser} className="space-y-4 p-5">
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="app-label">Full Name *</label>
-                  <input type="text" required placeholder="e.g. David Ross" value={newName} onChange={e => setNewName(e.target.value)}
-                    className="app-input" />
-                </div>
-                <div>
-                  <label className="app-label">Username *</label>
-                  <input type="text" required placeholder="e.g. supervisor2" value={newUsername} onChange={e => setNewUsername(e.target.value)}
-                    className="app-input" />
-                </div>
+            {/* app-form-stack: one field per full-width row on phones, each label above
+                its own input (Issue 5). From 640px up it returns to the
+                two-column layout, which suits a larger screen. */}
+            <form onSubmit={handleCreateUser} className="app-form-stack space-y-4 p-5">
+              <div>
+                <label className="app-label">Full Name *</label>
+                <input type="text" required placeholder="e.g. David Ross" value={newName} onChange={e => setNewName(e.target.value)}
+                  className="app-input" />
+              </div>
+              <div>
+                <label className="app-label">Username *</label>
+                <input type="text" required placeholder="e.g. supervisor2" value={newUsername} onChange={e => setNewUsername(e.target.value)}
+                  className="app-input" />
               </div>
               <div>
                 <label className="app-label">Password *</label>
                 <input type="password" required placeholder="Min. 6 characters" value={newPassword} onChange={e => setNewPassword(e.target.value)}
                   className="app-input" />
               </div>
-              <div className="grid grid-cols-2 gap-3">
+              <div className="app-form-pair">
                 <div>
                   <label className="app-label">Role</label>
                   <select value={newRole} onChange={e => setNewRole(e.target.value)} className="app-input">

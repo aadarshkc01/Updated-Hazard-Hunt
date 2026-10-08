@@ -4,9 +4,58 @@ import {
   randomSeed,
 } from '../utils/walkthroughLayout.js';
 
+/**
+ * The scenario this project ships with.
+ *
+ * The lookup used to be `findOne({ isActive: true })`, which returns whichever
+ * active scenario the database happens to yield first. The shared Atlas cluster
+ * used during development also held two earlier scenarios, both flagged active,
+ * so trainees were served "Legacy Plant Walkthrough" - a 5-hazard, 7-question
+ * scenario containing hazards that do not exist in Bay 4 - instead of Bay 4.
+ *
+ * That is worse than a wrong question count: the whole scenario was wrong, and
+ * the 4-question quiz required by FR-07 was never reached. Asking for a named
+ * scenario makes the response deterministic, and keeps the right content on
+ * screen even if the database holds anything else.
+ */
+const SCENARIO_CODE = process.env.SCENARIO_CODE || 'WH-BAY-04';
+
+/**
+ * Strips the answer key from a scenario before it leaves the server.
+ *
+ * This lives in one place on purpose. The sanitisation used to exist only
+ * inside the active-scenario handler, so the list endpoint - which serialised
+ * raw documents - shipped every `correctIndex` to any signed-in user. Two
+ * copies of the same rule is how they drift apart, so both paths now go through
+ * this single function.
+ */
+const sanitizeScenario = (scenario) => ({
+  id: scenario._id,
+  title: scenario.title,
+  code: scenario.code,
+  description: scenario.description,
+  facility: scenario.facility,
+  panoramaUrl: scenario.panoramaUrl,
+  timeLimitSeconds: scenario.timeLimitSeconds,
+  passingScorePercentage: scenario.passingScorePercentage,
+  hotspots: scenario.hotspots,
+  // Deliberately omits `correctIndex` and `explanation`: the answer key is
+  // never sent to the browser, and grading happens strictly server-side.
+  quizQuestions: (scenario.quizQuestions || []).map((q) => ({
+    id: q.id,
+    question: q.question,
+    options: q.options,
+    category: q.category,
+  })),
+});
+
 export const getActiveScenario = async (req, res) => {
   try {
-    const scenario = await Scenario.findOne({ isActive: true });
+    // Prefer the named scenario, and only fall back to an active one if the
+    // named scenario is genuinely absent.
+    const scenario =
+      (await Scenario.findOne({ code: SCENARIO_CODE })) ||
+      (await Scenario.findOne({ isActive: true }));
 
     if (!scenario) {
       return res.status(404).json({
@@ -14,15 +63,6 @@ export const getActiveScenario = async (req, res) => {
         message: 'No active hazard scenario currently configured',
       });
     }
-
-    // Tamper resistance: Strip out correct answer indices from the quiz payload
-    // Explanations and correct indices are verified strictly server-side
-    const sanitizedQuiz = scenario.quizQuestions.map((q) => ({
-      id: q.id,
-      question: q.question,
-      options: q.options,
-      category: q.category,
-    }));
 
     // Randomized staging plan for the 3D walkthrough. Re-rolled on every load so
     // hazard positions cannot be memorised between attempts. The seed is echoed
@@ -32,19 +72,8 @@ export const getActiveScenario = async (req, res) => {
 
     return res.status(200).json({
       success: true,
-      scenario: {
-        id: scenario._id,
-        title: scenario.title,
-        code: scenario.code,
-        description: scenario.description,
-        facility: scenario.facility,
-        panoramaUrl: scenario.panoramaUrl,
-        timeLimitSeconds: scenario.timeLimitSeconds,
-        passingScorePercentage: scenario.passingScorePercentage,
-        hotspots: scenario.hotspots,
-        quizQuestions: sanitizedQuiz,
-        walkthroughLayout,
-      },
+      // Sanitised centrally, so this endpoint cannot drift from the list one.
+      scenario: { ...sanitizeScenario(scenario), walkthroughLayout },
     });
   } catch (error) {
     console.error('getActiveScenario error:', error);
@@ -58,7 +87,9 @@ export const getAllScenarios = async (req, res) => {
     return res.status(200).json({
       success: true,
       count: scenarios.length,
-      scenarios,
+      // Same sanitiser as the active endpoint. This one previously returned raw
+      // documents, which handed every quiz answer to any signed-in user.
+      scenarios: scenarios.map(sanitizeScenario),
     });
   } catch (error) {
     console.error('getAllScenarios error:', error);

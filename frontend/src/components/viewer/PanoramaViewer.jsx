@@ -41,16 +41,60 @@ export const PanoramaViewer = ({
   const cameraPositionRef = useRef({ yaw: 0, pitch: 0 });
 
   // Fullscreen toggle
-  const toggleFullscreen = () => {
-    if (!outerContainerRef.current) return;
+  //
+  // Support varies sharply across mobile browsers. iPhone Safari has no element
+  // fullscreen API at all, and on iOS it would not hide the browser chrome even
+  // where it exists. The previous `requestFullscreen?.()` therefore did nothing
+  // on those devices - no error, no feedback - so the button just looked broken.
+  //
+  // Handled here instead of one blind call:
+  //   1. vendor-prefixed APIs are tried, covering older Safari and Android WebView;
+  //   2. where no fullscreen exists at all, an immersive fallback resizes the
+  //      viewer to the visible viewport rather than silently ignoring the tap;
+  //   3. a request refused despite the API existing (iOS gesture rules) also
+  //      falls back instead of leaving a dead button.
+  const [immersive, setImmersive] = useState(false);
 
-    if (!document.fullscreenElement) {
-      outerContainerRef.current.requestFullscreen?.().catch((err) => {
+  useEffect(() => {
+    if (!immersive) return undefined;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    const onKeyDown = (e) => {
+      // A phone has no Esc key, so the fallback needs its own way out.
+      if (e.key === 'Escape') setImmersive(false);
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => {
+      document.body.style.overflow = prev;
+      window.removeEventListener('keydown', onKeyDown);
+    };
+  }, [immersive]);
+
+  const supportsFullscreen = () => {
+    const el = outerContainerRef.current;
+    return Boolean(el && (el.requestFullscreen || el.webkitRequestFullscreen || el.msRequestFullscreen));
+  };
+
+  const toggleFullscreen = () => {
+    const el = outerContainerRef.current;
+    if (!el) return;
+
+    if (document.fullscreenElement || document.webkitFullscreenElement) {
+      const exit = document.exitFullscreen || document.webkitExitFullscreen;
+      if (exit) exit.call(document).catch((err) => console.warn('Exit fullscreen failed:', err));
+      return;
+    }
+
+    if (!supportsFullscreen()) {
+      setImmersive(true);
+      return;
+    }
+
+    const request = (el.requestFullscreen || el.webkitRequestFullscreen || el.msRequestFullscreen).call(el);
+    if (request && typeof request.catch === 'function') {
+      request.catch((err) => {
         console.warn('Fullscreen request failed:', err);
-      });
-    } else {
-      document.exitFullscreen?.().catch((err) => {
-        console.warn('Exit fullscreen failed:', err);
+        setImmersive(true);
       });
     }
   };
@@ -408,7 +452,7 @@ export const PanoramaViewer = ({
     <div
       ref={outerContainerRef}
       className={`relative w-full select-none bg-dark-bg ${
-        isFullscreen
+        isFullscreen || immersive
           ? 'fixed inset-0 z-50 h-[100dvh] w-screen'
           : 'h-[74vh] min-h-[440px] max-h-[820px] overflow-hidden rounded-panel border border-mist-200 shadow-card dark:border-dark-border'
         } cursor-grab active:cursor-grabbing`}
@@ -462,12 +506,12 @@ export const PanoramaViewer = ({
           onPointerUp={(e) => e.stopPropagation()}
           onMouseDown={(e) => e.stopPropagation()}
           onMouseUp={(e) => e.stopPropagation()}
-          title={isFullscreen ? 'Exit fullscreen' : 'Fullscreen'}
-          aria-label={isFullscreen ? 'Exit fullscreen' : 'Enter fullscreen'}
+          title={immersive ? 'Exit full screen' : isFullscreen ? 'Exit fullscreen' : 'Fullscreen'}
+          aria-label={immersive ? 'Exit full screen' : isFullscreen ? 'Exit fullscreen' : 'Enter fullscreen'}
           className="inline-flex h-9 items-center gap-1.5 rounded-control border border-white/20 bg-dark-card/90 px-2.5 text-xs font-bold text-white backdrop-blur-md hover:bg-primary-600"
         >
-          {isFullscreen ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
-          <span className="hidden sm:inline">{isFullscreen ? 'Exit' : 'Full screen'}</span>
+          {immersive || isFullscreen ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
+          <span className="hidden sm:inline">{immersive || isFullscreen ? 'Exit' : 'Full screen'}</span>
         </button>
       </div>
 
