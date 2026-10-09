@@ -1,8 +1,13 @@
+import mongoose from 'mongoose';
 import { Scenario } from '../models/Scenario.js';
 import { ComplianceRecord } from '../models/ComplianceRecord.js';
 import { User } from '../models/User.js';
 import { calculateComplianceScore } from '../utils/scoring.js';
 import { generateComplianceCSV } from '../utils/csvExport.js';
+
+/** Guards against a malformed id reaching the database as a cast error. */
+const isValidObjectId = (id) =>
+  typeof id === 'string' && /^[a-f\d]{24}$/i.test(id);
 
 export const submitAttempt = async (req, res) => {
   try {
@@ -39,6 +44,7 @@ export const submitAttempt = async (req, res) => {
       falseClicksCount,
       timeTakenSeconds,
       quizAnswers,
+      trainingMode,
     });
 
     const record = await ComplianceRecord.create({
@@ -511,6 +517,87 @@ export const createAccount = async (req, res) => {
   } catch (error) {
     console.error('createAccount error:', error);
     return res.status(500).json({ success: false, message: 'Failed to create user account' });
+  }
+};
+
+/**
+ * Admin User Management: Delete an account.
+ *
+ * The admin panel has shipped a Delete button since the beginning, calling
+ * `DELETE /api/compliance/users/:id`. That route was never implemented, so the
+ * button returned "Route not found" every time. The client was written before
+ * the endpoint existed and nothing caught the gap, because nothing exercised
+ * the failure path in CI.
+ *
+ * Guards, in order, because each one prevents a different unrecoverable state:
+ *   - unknown id      -> 404, nothing to delete
+ *   - own account     -> 400, an admin deleting themselves locks everyone out
+ *   - last remaining admin -> 400, same lockout via a second account
+ *
+ * Compliance records are deliberately NOT cascaded. In an audit system the
+ * record is the evidence, and the record already stores `userName` denormalised,
+ * so exports and analytics keep working. The response reports how many records
+ * now belong to a deleted account so the caller can surface it rather than it
+ * being a silent orphan.
+ */
+export const deleteUser = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    if (!id || !isValidObjectId(id)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid user id',
+      });
+    }
+
+    const target = await User.findById(id).select('username name role');
+    if (!target) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found. They may already have been deleted.',
+      });
+    }
+
+    if (String(target._id) === String(req.user._id)) {
+      return res.status(400).json({
+        success: false,
+        message: 'You cannot delete the account you are signed in with',
+      });
+    }
+
+    // Deleting the final admin would leave the portal with no way back in.
+    if (target.role === 'admin') {
+      const admins = await User.countDocuments({ role: 'admin' });
+      if (admins <= 1) {
+        return res.status(400).json({
+          success: false,
+          message: 'This is the last System Administrator account and cannot be deleted',
+        });
+      }
+    }
+
+    const retainedRecords = await ComplianceRecord.countDocuments({ userId: target._id });
+
+    await User.findByIdAndDelete(target._id);
+
+    return res.status(200).json({
+      success: true,
+      message: `Account for ${target.name} was deleted`,
+      deleted: {
+        id: target._id,
+        username: target.username,
+        name: target.name,
+        role: target.role,
+      },
+      retainedComplianceRecords: retainedRecords,
+    });
+  } catch (error) {
+    console.error('deleteUser error:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Failed to delete user account',
+    });
   }
 };
 

@@ -10,7 +10,8 @@ import { PanoramaViewer } from '../viewer/PanoramaViewer';
 import { HazardQuiz } from './HazardQuiz';
 import { DiagnosticSummary } from './DiagnosticSummary';
 import { ConfirmModal } from '../common/ConfirmModal';
-import { OctagonX } from 'lucide-react';
+import { OctagonX, MousePointer2, ArrowLeftRight, ArrowUpDown, Move, Keyboard, Play } from 'lucide-react';
+import { SESSION_FLAG } from '../common/Navbar';
 
 // The 3D walkthrough (Three.js scene + hazard props) is code-split so that
 // trainees who only ever use Standard 360Â° never download it.
@@ -39,6 +40,10 @@ export const TraineeExperience = () => {
   // Session state
   const [isPracticeMode, setIsPracticeMode] = useState(false);
   const [trainingMode, setTrainingMode] = useState('panorama360'); // 'panorama360' | 'walkthrough'
+  // True once the trainee has committed to a run but not yet pressed Start. The
+  // environment is mounted behind the ready panel, so pressing Start begins the
+  // hunt immediately with nothing left to load.
+  const [awaitingStart, setAwaitingStart] = useState(false);
   const [foundHotspots, setFoundHotspots] = useState([]);
   const [falseClicksCount, setFalseClicksCount] = useState(0);
   const [timeLeft, setTimeLeft] = useState(90);
@@ -52,6 +57,15 @@ export const TraineeExperience = () => {
   const [showAbortConfirm, setShowAbortConfirm] = useState(false);
 
   const timerIntervalRef = useRef(null);
+
+  /* Marks <html> while a timed session is actually running, so the navbar
+     wordmark refuses to navigate away and silently discard an in-progress hunt.
+     The ready panel is deliberately NOT counted: nothing is lost by leaving then. */
+  useEffect(() => {
+    const running = phase === 'INSPECTION' && !awaitingStart;
+    document.documentElement.setAttribute(SESSION_FLAG, running ? 'true' : 'false');
+    return () => document.documentElement.removeAttribute(SESSION_FLAG);
+  }, [phase, awaitingStart]);
 
   // Load scenario on mount
   useEffect(() => {
@@ -112,22 +126,30 @@ export const TraineeExperience = () => {
     if (user && !user.hasCompletedOnboarding) {
       setShowOnboarding(true);
     } else {
+      // Stage the environment but hold the clock until the trainee presses Start.
       setPhase('INSPECTION');
-      startTimer();
-      if (practiceMode) {
-        showToast('Practice Mode: results will not be officially recorded', 'info');
-      } else {
-        showToast('Official session started. Spot all 5 hazards!', 'info');
-      }
+      setAwaitingStart(true);
+    }
+  };
+
+  /* Start pressed on the ready panel. This is the only place the official clock
+     is allowed to begin. */
+  const handleReadyStart = () => {
+    setAwaitingStart(false);
+    startTimer();
+    if (isPracticeMode) {
+      showToast('Practice Mode: results will not be officially recorded', 'info');
+    } else {
+      showToast('Official session started. Spot all 5 hazards!', 'info');
     }
   };
 
   const handleCompleteOnboarding = () => {
     setShowOnboarding(false);
     markOnboardingComplete();
-    showToast('Bay 4 Inspection timer started. Spot 5 hazards!', 'info');
+    showToast('Briefing complete. Press Start when you are ready.', 'info');
     setPhase('INSPECTION');
-    startTimer();
+    setAwaitingStart(true);
   };
 
   const handleTimeExpire = () => {
@@ -257,6 +279,7 @@ export const TraineeExperience = () => {
     setShowAbortConfirm(false);
     soundEngine.playWarning();
     setPhase('HOME');
+    setAwaitingStart(false);
     resetFoundHotspots();
     setFalseClicksCount(0);
     setIsPracticeMode(false);
@@ -406,17 +429,21 @@ export const TraineeExperience = () => {
             </div>
           </div>
 
-          <TraineeSessionHUD
-            timeLeft={timeLeft}
-            totalTime={totalTime}
-            foundCount={foundHotspots.length}
-            totalHazards={totalHazards}
-            falseClicks={falseClicksCount}
-            onFinishEarly={transitionToQuiz}
-            onCancel={() => setShowAbortConfirm(true)}
-            isPracticeMode={isPracticeMode}
-            trainingMode={trainingMode}
-          />
+          {/* Hidden until Start: a countdown the trainee has not agreed to yet
+              would only add pressure before they have read the controls. */}
+          {!awaitingStart && (
+            <TraineeSessionHUD
+              timeLeft={timeLeft}
+              totalTime={totalTime}
+              foundCount={foundHotspots.length}
+              totalHazards={totalHazards}
+              falseClicks={falseClicksCount}
+              onFinishEarly={transitionToQuiz}
+              onCancel={() => setShowAbortConfirm(true)}
+              isPracticeMode={isPracticeMode}
+              trainingMode={trainingMode}
+            />
+          )}
           {trainingMode === 'walkthrough' ? (
             <Suspense
               fallback={
@@ -446,6 +473,75 @@ export const TraineeExperience = () => {
               onFalseClick={handleFalseClick}
               isEnded={false}
             />
+          )}
+
+          {/* Ready panel. The environment above is already mounted, so
+              pressing Start begins the hunt with no load time left. */}
+          {awaitingStart && (
+            <div
+              className="fixed inset-0 z-40 flex items-center justify-center bg-mist-950/70 p-4 backdrop-blur-sm animate-fade-in"
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="ready-title"
+            >
+              <div className="app-card w-full max-w-lg p-6 shadow-pop">
+                <p className="app-eyebrow-accent">
+                  {isPracticeMode ? 'Practice session' : 'Official compliance audit'}
+                </p>
+                <h2 id="ready-title" className="app-title mt-1 text-lg">
+                  {trainingMode === 'walkthrough'
+                    ? 'Ready to walk the warehouse?'
+                    : 'Ready to begin the inspection?'}
+                </h2>
+                <p className="app-body mt-2">
+                  The {totalTime}-second clock starts when you press Start, not
+                  before. Read the controls, then begin when you are ready.
+                </p>
+
+                <ul className="app-card-quiet mt-4 grid gap-2 p-4">
+                  {(
+                    trainingMode === 'walkthrough'
+                      ? [
+                          { icon: MousePointer2, k: 'Click', v: 'Look around' },
+                          { icon: Keyboard, k: 'W A S D', v: 'Walk the aisles' },
+                          { icon: ArrowUpDown, k: 'Ctrl', v: 'Release the mouse' },
+                          { icon: Move, k: 'Drag', v: 'Move on a touch screen' },
+                        ]
+                      : [
+                          { icon: Move, k: 'Drag', v: 'Pan around the bay' },
+                          { icon: ArrowLeftRight, k: 'Arrows', v: 'Look left / right' },
+                          { icon: ArrowUpDown, k: 'Up / Down', v: 'Look up and down' },
+                          { icon: MousePointer2, k: 'Click', v: 'Report a hazard' },
+                        ]
+                  ).map(({ icon: Icon, k, v }) => (
+                    <li key={k} className="flex items-center gap-3">
+                      <Icon className="h-4 w-4 shrink-0 text-primary-600 dark:text-primary-400" aria-hidden="true" />
+                      <span className="app-kbd shrink-0">{k}</span>
+                      <span className="app-body">{v}</span>
+                    </li>
+                  ))}
+                </ul>
+
+                <div className="mt-5 flex flex-wrap items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={handleReadyStart}
+                    className="app-btn app-btn-primary"
+                  >
+                    <Play className="h-4 w-4" aria-hidden="true" />
+                    Start {totalTime}-second session
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setShowAbortConfirm(true)}
+                    className="app-btn app-btn-secondary"
+                  >
+                    <OctagonX className="h-4 w-4" aria-hidden="true" />
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            </div>
           )}
         </div>
       )}

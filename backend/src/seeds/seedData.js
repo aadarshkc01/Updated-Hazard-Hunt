@@ -27,7 +27,7 @@ const ensureScenario = async () => {
     description:
       'High-density automotive component depot receiving palletized battery packs and stamped panels. Identify acute slip risks, racking instability, electrical violations, blocked fire exits, and blind vehicle corners.',
     facility: 'Sunderland Logistics Hub',
-    panoramaUrl: '/panoramas/warehouse_bay4.webp',
+    panoramaUrl: '/panoramas/workshop_foundry.jpg',
     timeLimitSeconds: 90,
     passingScorePercentage: 75,
     hotspots: [
@@ -162,6 +162,82 @@ const ensureScenario = async () => {
         explanation:
           'HSE guidance mandates maintaining a minimum 2-3m safety bubble and establishing clear visual confirmation with the operator before crossing.',
         category: 'Traffic Separation',
+      },
+    ],
+    // Panorama-only hazards for the standard 360 view. Coordinates were measured
+    // off the 8192x4096 equirectangular capture with a yaw/pitch grid overlay;
+    // each point sits on the visual centre of the object it describes.
+    // Ids deliberately mirror `hotspots` so scoring matches either way.
+    panoramaSpots: [
+      {
+        id: 'hazard-spill',
+        title: 'Loose Pipe Stack Blocking the Marked Walkway',
+        category: 'Trip Hazard / Obstruction',
+        pitch: -18,
+        yaw: -25,
+        radius: 9,
+        isHazard: true,
+        severity: 'High',
+        explanation:
+          'A bundle of loose steel pipe has been left lying across the green-painted pedestrian route. Cylinders roll when brushed, so the stack is unstable as well as being a direct obstruction and trip hazard on the designated walkway.',
+        correctAction:
+          'Roll the pipe back onto its rack, chock it, and re-mark the walkway edge before the area is used again.',
+      },
+      {
+        id: 'hazard-pallet',
+        title: 'Steel Offcuts Stacked Over the Painted Route',
+        category: 'Material Handling',
+        pitch: -27,
+        yaw: -106,
+        radius: 9,
+        isHazard: true,
+        severity: 'Critical',
+        explanation:
+          'Cut steel sections are stacked flat on pallets with sharp sheared edges projecting over the yellow walkway line, and offcuts are scattered on the floor beside them. Both the overhang and the loose cut edges are serious laceration and trip risks.',
+        correctAction:
+          'Clear the walkway completely, deburr and band the cut sections, and restack them on rated racking rather than on the floor.',
+      },
+      {
+        id: 'hazard-exit',
+        title: 'Welding Screen Obstructing Sightline and Escape Route',
+        category: 'Fire Safety',
+        pitch: 3,
+        yaw: 170,
+        radius: 9,
+        isHazard: true,
+        severity: 'High',
+        explanation:
+          'A full-height welding curtain stands across the working area. Flexible screens are combustible, and parked across a route they hide anyone behind them and slow evacuation in a fire.',
+        correctAction:
+          'Park screens parallel to the walkway outside the escape route, keep them clear of hot work, and confirm the egress path stays visible.',
+      },
+      {
+        id: 'hazard-cable',
+        title: 'Welding Plant with Leads Trailing Across the Floor',
+        category: 'Electrical & Trip Hazard',
+        pitch: -17,
+        yaw: 80,
+        radius: 9,
+        isHazard: true,
+        severity: 'High',
+        explanation:
+          'A petrol-driven welding set is parked beside the walkway with its earth and supply leads trailing loose across the walking surface. Leads across a route are a trip hazard, and a generator sited indoors also introduces carbon monoxide and ignition risk.',
+        correctAction:
+          'Route the leads overhead or through cable covers, move the set to a ventilated position well clear of the walkway, and keep combustibles away from the exhaust.',
+      },
+      {
+        id: 'hazard-forklift',
+        title: 'Crane Hook Suspended Over the Working Aisle',
+        category: 'Falling Objects',
+        pitch: 39,
+        yaw: 61,
+        radius: 9,
+        isHazard: true,
+        severity: 'Critical',
+        explanation:
+          'A lifting hook and block hang parked over an aisle that people walk and work beneath. A hook left lowered, or a chain that fails without a safety latch, drops its load directly onto anyone underneath.',
+        correctAction:
+          'Raise the hook fully and secure the crane before releasing it, fit a hook safety catch, and bar anyone from standing under a suspended load.',
       },
     ],
     isActive: true,

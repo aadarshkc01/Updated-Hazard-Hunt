@@ -8,6 +8,7 @@ import {
   exportComplianceCSV,
   createAccount,
   getAllUsers,
+  deleteUser,
 } from '../controllers/complianceController.js';
 import { protect } from '../middleware/authMiddleware.js';
 import { requireRole } from '../middleware/roleMiddleware.js';
@@ -27,5 +28,8 @@ router.post('/users', protect, requireRole('supervisor', 'admin'), createAccount
 
 // Admin-only user management
 router.get('/users/all', protect, requireRole('admin'), getAllUsers);
+// Declared AFTER '/users/all' deliberately. Express matches in order, so the
+// literal path must be registered first or it would be captured as an :id.
+router.delete('/users/:id', protect, requireRole('admin'), deleteUser);
 
 export default router;

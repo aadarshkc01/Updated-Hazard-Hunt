@@ -66,6 +66,16 @@ const scenarioSchema = new mongoose.Schema(
       default: 75,
     },
     hotspots: [hotspotSchema],
+    // Panorama-only view of the same five hazards.
+    //
+    // The 360 panorama and the walkthrough are two different depictions of one
+    // scenario, so they cannot share coordinates: `pitch`/`yaw` are only ever
+    // read by the panorama, and the walkthrough stages props from a separately
+    // generated 3D layout. `panoramaSpots` therefore carries its own coordinates
+    // and its own hazard wording, while every entry keeps an `id` drawn from
+    // `hotspots` so scoring still matches found ids against the canonical set.
+    // The walkthrough never reads this field, so panorama work cannot disturb it.
+    panoramaSpots: [hotspotSchema],
     quizQuestions: [quizQuestionSchema],
     isActive: {
       type: Boolean,

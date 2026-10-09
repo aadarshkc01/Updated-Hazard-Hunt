@@ -173,11 +173,30 @@ In development the fallback still works, so the project runs with no database se
 
 ### 6.1 360° environment
 
-An equirectangular warehouse panorama. The trainee clicks each hazard to identify it. Correct finds
-are confirmed with sound, an in-world flash, a toast and a permanent chip; a click on safe space
-registers a false activation.
+An equirectangular workshop panorama, served from `frontend/public/panoramas/`. The trainee clicks
+each hazard to identify it. Correct finds are confirmed with sound, an in-world flash, a toast and a
+permanent chip; a click on safe space registers a false activation. A marker is only drawn once a
+hazard has actually been found, so an unfound hazard gives away no position on screen.
 
-### 6.2 3D warehouse walkthrough
+The panorama carries its own set of five hazards in `Scenario.panoramaSpots`, separate from the
+`hotspots` array the walkthrough uses. Both sets share the same five IDs, so grading resolves
+identically whichever environment produced the attempt, while each depiction keeps the coordinates
+and wording that match its own scene. Pannellum clamps every hit to a 5° radius, and the five
+panorama spots are at least 59° apart, so no hazard can be shadowed by another.
+
+The asset is CC0 from [Poly Haven](https://polyhaven.com) and is optimised to 4096 × 2048.
+
+### 6.2 Starting a session
+
+A session begins in three steps rather than one. Choosing a mode loads the environment and shows a
+ready panel with the controls for that specific mode; the countdown only begins when the trainee
+presses **Start**, so reading the controls does not consume their time. The ready panel can be
+dismissed without penalty, and the instructions overlay closes the same way.
+
+The environment is already mounted behind the ready panel, so pressing Start begins the hunt with no
+loading time left.
+
+### 6.3 3D warehouse walkthrough
 
 A first-person walk around a 26 × 18 m bay built procedurally in Three.js. Controls are mouse,
 keyboard and touch. If WebGL is unavailable the trainee is redirected to the 360° mode rather than
@@ -186,13 +205,13 @@ failing the session.
 The bay is divided into five named zones rather than four identical rack runs: a chemical store, two
 racking runs, an electrical switchroom, and a dispatch and packing apron.
 
-### 6.3 Randomized hazard staging
+### 6.4 Randomized hazard staging
 
 Hazards are **re-staged server-side for every attempt**. The same five hazard families appear, but
 placement, rotation and prop variant are drawn from a server-held seed. Trainees cannot memorise
 answers, and a supervisor can regenerate the exact staging a trainee saw and audit it.
 
-### 6.4 Feedback and penalties
+### 6.5 Feedback and penalties
 
 | Event | Response |
 | :--- | :--- |
@@ -203,7 +222,7 @@ answers, and a supervisor can regenerate the exact staging a trainee saw and aud
 All tones are synthesised with the Web Audio API, so the app ships no audio files. The whole engine
 can be muted from the navbar.
 
-### 6.5 Scoring
+### 6.6 Scoring
 
 | Component | Weight | Basis |
 | :--- | :--- | :--- |
@@ -213,7 +232,7 @@ can be muted from the navbar.
 
 Scoring is computed server-side from the stored attempt, so the client cannot influence the result.
 
-### 6.6 Quiz
+### 6.7 Quiz
 
 Four multiple-choice questions with four options each, covering COSHH spill response, damaged
 pallets, fire exit obstruction, and forklift exclusion distance. Each carries an explanation shown
@@ -223,7 +242,7 @@ The quiz is **mandatory**: the submit button stays disabled until every question
 enabling condition is that the answered count equals the question count, so a trainee cannot scroll
 past a question and still submit.
 
-### 6.7 Results
+### 6.8 Results
 
 A diagnostic summary shows the pass or fail verdict, hazards found and missed, false-click
 penalties, time taken, and the required corrective action for every missed hazard.
@@ -231,13 +250,13 @@ penalties, time taken, and the required corrective action for every missed hazar
 A one-page A4 **score report PDF** can also be generated, with a reference number and the layout seed
 recorded so a supervisor can reproduce the exact staging.
 
-### 6.8 Roles
+### 6.9 Roles
 
 | Role | Can do |
 | :--- | :--- |
 | Trainee | Complete training, view own history, retry in practice mode |
-| HSE Supervisor | Issue trainee credentials, view team compliance, export CSV audit |
-| System Admin | Full oversight, provision supervisors and employees, inspect analytics |
+| HSE Supervisor | Issue trainee credentials, view team compliance, export CSV audit, inspect a trainee's full history |
+| System Admin | Everything a supervisor can, plus provisioning supervisors, deleting accounts, and the full analytics view |
 
 Practice mode is explicitly isolated from the official compliance history. There is no public
 self-registration; every account is issued by a supervisor or an administrator.
@@ -246,7 +265,10 @@ self-registration; every account is issued by a supervisor or an administrator.
 
 ## 7. Interface Design
 
-The dashboards share one system across all three roles, so nothing looks different by permission.
+The dashboards share one system across all three roles, so nothing looks different by permission. The
+**HAZARDHUNT** wordmark in the navbar is a link to the dashboard: it scrolls the page back to the top
+when already there, and refuses to navigate away while a timed session is running, so an in-progress
+attempt is never discarded silently.
 
 - **Three surfaces only** — page, card, nested surface. Every other surface is a border or a tint.
 - **One banner** across all dashboards: hazard orange `#FF6115` with white type in both light and
@@ -321,6 +343,18 @@ The briefing requires all three; a project missing any one is not finished.
 - Production hardening: HttpOnly cookie tokens, rate limiting on submission, and a client
   heartbeat.
 
+### Known data issues
+
+Not code defects, but they affect any analysis of the exported compliance data:
+
+- Most historical records were filed against the retired *Legacy Plant Walkthrough* scenario. Filter
+  on the scenario before comparing scores across attempts, since the two scenarios are not
+  equivalent.
+- A handful of legacy accounts predate the current `department` field and have no value for it.
+  The dashboard search guards against this rather than assuming the field is present.
+- An attempt with a `1`-second duration was abandoned, not completed in one second: the scoring
+  engine floors the value at 1. Treat those rows as non-attempts rather than fast completions.
+
 ---
 
 ## 10. Security & Tamper Resistance
@@ -334,25 +368,35 @@ The briefing requires all three; a project missing any one is not finished.
    the client cannot predict hazard positions.
 5. **CORS allowlist** from `CLIENT_ORIGIN` rather than reflecting any origin.
 6. **Practice mode isolation**, so retries cannot inflate official compliance records.
+7. **Credentials are excluded at the schema.** Both `password` and the retired `passwordHash` field
+   are declared `select: false`, so no query can return a hash — including `.lean()` reads, which
+   bypass Mongoose casting. Login opts back in explicitly with `.select('+password')`, and a harness
+   asserts that opt-in still exists, because removing it would silently break every sign-in.
+8. **Account deletion is guarded.** An administrator cannot delete their own account or the last
+   remaining administrator, either of which would lock everyone out of the portal permanently.
+   Compliance records are deliberately not cascaded: in an audit system the record is the evidence,
+   and it stores `userName` denormalised so exports keep working after the account is gone.
 
 ---
 
 ## 11. Verification
 
-Eight harnesses guard the claims above. They need no test runner.
+Ten harnesses guard the claims above. They need no test runner.
 
 ```bash
-npm run check                 # backend: layout randomisation and anchor integrity
+npm run check --prefix backend   # walkthrough layout randomisation and anchor integrity
 
 cd frontend
-npm run verify:scene          # 3D scene, collision, draw calls, disposal
-npm run verify:palette        # no green or red in the 3D scene
-npm run verify:report         # score report geometry, type scale, one page
-npm run verify:hazards        # hazard counting in both environments
-npm run verify:responsive     # mobile layout, against the compiled CSS
-npm run verify:banner         # dashboard banner colour and contrast contract
-npm run verify:alerts         # alert boxes against the surfaces behind them
-npm run verify                # all seven frontend harnesses, plus the build
+npm run verify:scene             # 3D scene, collision, draw calls, disposal
+npm run verify:palette           # no green or red in the 3D scene
+npm run verify:report            # score report geometry, type scale, one page
+npm run verify:hazards           # hazard counting in both environments
+npm run verify:panorama          # panorama hotspots stay isolated from the walkthrough
+npm run verify:contract          # every client API call has a server route
+npm run verify:responsive        # mobile layout, against the compiled CSS
+npm run verify:banner            # dashboard banner colour and contrast contract
+npm run verify:alerts            # alert boxes against the surfaces behind them
+npm run verify                   # all of the above, plus the build
 ```
 
 `npm run verify` also runs in continuous integration on every push and pull request, so a
@@ -361,6 +405,26 @@ regression fails the pipeline rather than being noticed later. The harnesses liv
 
 The responsive, banner and alert harnesses assert against the **compiled** stylesheet, because
 Tailwind drops responsive variants inside `@apply` without warning.
+
+Two of these guard whole classes of bug rather than one instance:
+
+- **`verify:contract`** parses `frontend/src/services/api.js` and the backend route files and fails
+  if any call the client makes has no matching server route, or any server route has no caller. The
+  admin Delete button shipped calling an endpoint that was never implemented, and nothing compared
+  the two sides; this harness is what stops that recurring.
+- **`verify:panorama`** asserts the walkthrough never reads `panoramaSpots`, that the two hazard sets
+  still share IDs so grading is unchanged, and that no two panorama hotspots sit close enough to
+  shadow each other at the effective 5° hit radius.
+
+A database-backed harness for account deletion is included but is not part of CI, because it needs a
+reachable cluster:
+
+```bash
+npm run verify:users --prefix backend
+```
+
+It runs against a scratch database on the same cluster rather than the live one, so the
+lockout guards can be exercised for real without touching production data.
 
 ---
 
@@ -373,10 +437,12 @@ hazard-hunt/
 ├─ README.md
 ├─ backend/
 │  ├─ .env.example
+│  ├─ verify-user-management.mjs  account deletion guards, against a scratch database
 │  └─ src/                      config, controllers, middleware, models, routes, seeds, utils
 └─ frontend/
    ├─ .env.example
    ├─ vercel.json
+   ├─ public/panoramas/         360 environment imagery
    ├─ scripts/                  verification harnesses
    └─ src/                      components, context, services, utils
 ```

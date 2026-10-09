@@ -16,6 +16,9 @@ const ROLE_META = {
 /** Scroll distance, in px, before the bar detaches from the top of the page. */
 const FLOAT_AFTER = 12;
 
+/** Attribute on <html> set by TraineeExperience while a timed session runs. */
+export const SESSION_FLAG = 'data-session-active';
+
 export const Navbar = ({ isPracticeMode = false, children }) => {
   const { user, logout } = useAuth();
   const { isDark, toggleTheme } = useTheme();
@@ -47,6 +50,31 @@ export const Navbar = ({ isPracticeMode = false, children }) => {
 
   const role = ROLE_META[user?.role] || ROLE_META.employee;
 
+  /* The app mounts one screen per role and never unmounts it, so there is no
+     router to navigate. "Go to the dashboard" therefore means two things at
+     once: leave a live inspection, and reset the scroll position. Both are
+     handled here.
+
+     A real inspection is never discarded silently. TraineeExperience marks the
+     document while a timed session is running (see SESSION_FLAG below), and a
+     click during one is refused rather than thrown away. */
+  const handleBrandClick = (e) => {
+    // Let the browser handle new-tab / new-window clicks normally.
+    if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0) return;
+
+    if (document.documentElement.getAttribute(SESSION_FLAG) === 'true') {
+      e.preventDefault();
+      showToast('End or abort the current session before leaving', 'info');
+      return;
+    }
+
+    // Already on this role's dashboard, so suppress the reload and go to the
+    // top instead of bouncing the user back to the same screen.
+    e.preventDefault();
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+    soundEngine.playTick();
+  };
+
   const handleAudio = () => {
     const muted = soundEngine.toggleMute();
     showToast(muted ? 'Sound effects muted' : 'Sound effects enabled', 'info');
@@ -72,7 +100,16 @@ export const Navbar = ({ isPracticeMode = false, children }) => {
         <div className="app-navbar-pill">
           <div className="app-page flex h-12 items-center justify-between gap-4 sm:h-[3.25rem]">
           {/* Brand */}
-          <div className="flex min-w-0 items-center gap-2.5">
+          {/* A real link to the app root, so the address bar shows the
+              dashboard URL and middle-click opens it in a new tab. The click
+              handler suppresses the reload and scrolls to the top instead. */}
+          <a
+            href="/"
+            onClick={handleBrandClick}
+            title="Go to dashboard"
+            aria-label="Hazard Hunt - go to dashboard"
+            className="flex min-w-0 items-center gap-2.5 rounded-control text-left outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 focus-visible:ring-offset-transparent"
+          >
             <div className="app-icon-well h-8 w-8 rounded-control">
               <ShieldAlert className="h-4 w-4" aria-hidden="true" />
             </div>
@@ -84,7 +121,7 @@ export const Navbar = ({ isPracticeMode = false, children }) => {
                 Warehouse Safety Perception Trainer
               </p>
             </div>
-          </div>
+          </a>
 
           {/* Optional role-specific nav slot */}
           {children && (

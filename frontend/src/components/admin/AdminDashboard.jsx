@@ -94,8 +94,19 @@ export const AdminDashboard = ({ onLaunchTrainer }) => {
   const confirmDeleteUser = async () => {
     if (!userPendingDelete) return;
     try {
-      await api.deleteUser(userPendingDelete.id);
-      showToast(`User ${userPendingDelete.name} deleted successfully`, 'success');
+      const res = await api.deleteUser(userPendingDelete.id);
+      // The account is gone, but its compliance records are deliberately kept as
+      // audit evidence, so the count is surfaced rather than left as a silent
+      // orphan an auditor would have to discover.
+      const kept = res?.retainedComplianceRecords;
+      showToast(
+        kept
+          ? `${userPendingDelete.name} deleted. ${kept} compliance record${
+              kept === 1 ? '' : 's'
+            } retained for audit.`
+          : `User ${userPendingDelete.name} deleted successfully`,
+        'success'
+      );
       fetchAllData();
     } catch (err) {
       showToast(err.message || 'Failed to delete user', 'error');
@@ -139,9 +150,14 @@ export const AdminDashboard = ({ onLaunchTrainer }) => {
   };
 
   const filteredUsers = users.filter(u => {
+    // `department` carries a model default but is not `required`, and the five
+    // oldest accounts predate it, so it arrives undefined. Calling
+    // `.toLowerCase()` on it threw and unmounted the whole dashboard the moment
+    // the first two operands stopped matching a search term - which is exactly
+    // why an empty box looked fine and only a hard refresh restored the page.
     const matchSearch = u.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       u.username.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      u.department.toLowerCase().includes(searchTerm.toLowerCase());
+      (u.department || '').toLowerCase().includes(searchTerm.toLowerCase());
     const matchRole = roleFilter === 'ALL' || u.role === roleFilter;
     return matchSearch && matchRole;
   });
@@ -841,7 +857,7 @@ export const AdminDashboard = ({ onLaunchTrainer }) => {
       <ConfirmModal
         isOpen={Boolean(userPendingDelete)}
         title="Delete User Account"
-        message={`Are you sure you want to delete ${userPendingDelete?.name || 'this user'}? This action cannot be undone.`}
+        message={`Are you sure you want to delete ${userPendingDelete?.name || 'this user'}? The login is removed permanently. Any compliance records already filed are kept as audit evidence, so they still appear in exports after the account is gone.`}
         confirmText="Delete User"
         cancelText="Keep User"
         isDestructive

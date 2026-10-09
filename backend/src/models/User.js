@@ -14,6 +14,19 @@ const userSchema = new mongoose.Schema(
       type: String,
       required: [true, 'Password is required'],
       minlength: 6,
+      // Credentials must never leave the server. `select: false` makes this the
+      // schema's default for EVERY query, including `.lean()` reads, so a new
+      // endpoint cannot leak a hash by forgetting a projection.
+      select: false,
+    },
+    // Retired field. An earlier schema stored the bcrypt hash here; five legacy
+    // documents still carry it. Nothing reads or writes it any more, but because
+    // `.lean()` returns raw BSON, those hashes were being served to admin and
+    // supervisor clients. Declaring it here with `select: false` closes that at
+    // the schema, so it is excluded by default just like `password`.
+    passwordHash: {
+      type: String,
+      select: false,
     },
     name: {
       type: String,

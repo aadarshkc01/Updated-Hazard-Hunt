@@ -57,7 +57,7 @@ export const UserAuditModal = ({ user, audit, loading, onClose, onDownload }) =>
               </div>
               <div className="flex items-center justify-between gap-3">
                 <h3 className="text-sm font-bold text-mist-900 dark:text-white">Score history</h3>
-                <button onClick={onDownload} disabled={!officialRecords.length} className="app-action gap-1.5 bg-primary-500 hover:bg-primary-600 text-white disabled:opacity-40 disabled:cursor-not-allowed">
+                <button onClick={onDownload} disabled={!officialRecords.length} className="app-btn app-btn-primary gap-1.5 disabled:opacity-40 disabled:cursor-not-allowed">
                   <Download className="w-3.5 h-3.5" /> Download PDF
                 </button>
               </div>

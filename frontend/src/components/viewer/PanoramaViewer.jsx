@@ -171,6 +171,12 @@ export const PanoramaViewer = ({
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [onUserRotated]);
 
+  // The panorama's own hazards when the scenario supplies them, falling back
+  // to `hotspots`. They are two depictions of the same five hazards: these carry
+  // the coordinates and wording for this photograph, and share ids with
+  // `hotspots` so a find still grades the same. See Scenario.panoramaSpots.
+  const spots = scenario?.panoramaSpots?.length ? scenario.panoramaSpots : scenario?.hotspots;
+
   // Check if click coordinates hit any hazard
   const testHazardHit = (clickPitch, clickYaw) => {
     // Calibration practice target
@@ -192,9 +198,9 @@ export const PanoramaViewer = ({
       return null;
     }
 
-    if (!scenario?.hotspots) return null;
+    if (!spots) return null;
 
-    for (const spot of scenario.hotspots) {
+    for (const spot of spots) {
       if (!spot.isHazard) continue;
 
       let deltaYaw = Math.abs(spot.yaw - clickYaw);
@@ -261,7 +267,7 @@ export const PanoramaViewer = ({
               },
             ];
           } else {
-            hotspotsConfig = (scenario.hotspots || []).map((spot) => ({
+            hotspotsConfig = (spots || []).map((spot) => ({
               pitch: spot.pitch,
               yaw: spot.yaw,
               type: 'custom',
@@ -295,7 +301,7 @@ export const PanoramaViewer = ({
 
           const viewer = window.pannellum.viewer(pannellumDivRef.current, {
             type: 'equirectangular',
-            panorama: scenario.panoramaUrl || '/panoramas/warehouse_bay4.jpg',
+            panorama: scenario.panoramaUrl || '/panoramas/workshop_foundry.jpg',
             autoLoad: true,
             showControls: false,
             mouseZoom: false,
@@ -471,7 +477,7 @@ export const PanoramaViewer = ({
           <div
             className="w-full h-full bg-cover bg-center transition-all"
             style={{
-              backgroundImage: `url(${scenario.panoramaUrl || '/panoramas/warehouse_bay4.jpg'})`,
+              backgroundImage: `url(${scenario.panoramaUrl || '/panoramas/workshop_foundry.jpg'})`,
               backgroundPosition: `${50 - (yaw / 360) * 100}% ${50 - (pitch / 180) * 100}%`,
             }}
           />

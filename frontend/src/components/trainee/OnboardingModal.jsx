@@ -106,10 +106,14 @@ const Icon = currentSlide.icon;
           </div>
           <button
             type="button"
-            onClick={handleSkip}
+            // Dismisses the briefing only. This used to call handleSkip, which
+            // routes through onComplete and therefore started the 90-second
+            // clock - so a trainee who simply closed the briefing was entered
+            // into the environment with time already running.
+            onClick={onClose}
             className="app-icon-btn"
-            title="Skip briefing"
-            aria-label="Skip briefing"
+            title="Close briefing"
+            aria-label="Close briefing"
           >
             <X className="h-4 w-4" />
           </button>

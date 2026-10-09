@@ -39,6 +39,10 @@ const sanitizeScenario = (scenario) => ({
   timeLimitSeconds: scenario.timeLimitSeconds,
   passingScorePercentage: scenario.passingScorePercentage,
   hotspots: scenario.hotspots,
+  // Panorama-only coordinates and wording. Carries no answer key, so it passes
+  // through as-is. Ids are shared with `hotspots`, so nothing here can change
+  // how many hazards a session contains or how it is graded.
+  panoramaSpots: scenario.panoramaSpots,
   // Deliberately omits `correctIndex` and `explanation`: the answer key is
   // never sent to the browser, and grading happens strictly server-side.
   quizQuestions: (scenario.quizQuestions || []).map((q) => ({

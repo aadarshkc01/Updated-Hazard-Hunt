@@ -20,7 +20,11 @@ export const login = async (req, res) => {
       });
     }
 
-    const user = await User.findOne({ username: username.toLowerCase().trim() });
+    // `+password` is required because the schema marks credentials `select: false`.
+// Without it the hash would be absent and every login would be rejected.
+const user = await User.findOne({ username: username.toLowerCase().trim() }).select(
+      '+password'
+    );
 
     if (!user || !(await user.matchPassword(password))) {
       return res.status(401).json({

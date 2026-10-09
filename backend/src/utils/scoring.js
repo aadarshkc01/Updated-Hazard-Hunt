@@ -8,9 +8,21 @@ export const calculateComplianceScore = ({
   falseClicksCount = 0,
   timeTakenSeconds = 0,
   quizAnswers = [],
+  trainingMode = 'walkthrough',
 }) => {
   const allHotspots = scenario.hotspots || [];
   const totalHazards = allHotspots.filter((h) => h.isHazard).length;
+
+  // The panorama describes the same five hazards in different words, against a
+  // different photograph. The report has to describe what the trainee actually
+  // saw, so the display text is sourced per mode. Grading itself is unaffected:
+  // it still runs over `allHotspots` keyed by id, because the two sets share ids.
+  const isPanorama = /panorama/i.test(String(trainingMode));
+  const panoramaById = new Map(
+    (scenario.panoramaSpots || []).map((s) => [s.id, s])
+  );
+  const describe = (h) =>
+    isPanorama && panoramaById.has(h.id) ? panoramaById.get(h.id) : h;
 
   // Filter valid found hazards against scenario
   const foundMap = new Set(foundHotspotIds);
@@ -19,24 +31,19 @@ export const calculateComplianceScore = ({
 
   allHotspots.forEach((h) => {
     if (h.isHazard) {
+      const d = describe(h);
+      const entry = {
+        id: h.id,
+        title: d.title,
+        category: d.category,
+        severity: d.severity ?? h.severity,
+        explanation: d.explanation,
+        correctAction: d.correctAction,
+      };
       if (foundMap.has(h.id)) {
-        hazardsFound.push({
-          id: h.id,
-          title: h.title,
-          category: h.category,
-          severity: h.severity,
-          explanation: h.explanation,
-          correctAction: h.correctAction,
-        });
+        hazardsFound.push(entry);
       } else {
-        hazardsMissed.push({
-          id: h.id,
-          title: h.title,
-          category: h.category,
-          severity: h.severity,
-          explanation: h.explanation,
-          correctAction: h.correctAction,
-        });
+        hazardsMissed.push(entry);
       }
     }
   });
